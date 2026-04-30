@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.0
+// @version      1.1.1
 // @description  Clasifica y resalta drops/campañas en Twitch según keywords persistentes y editables. Interfaz multiidioma.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.1.0";
+    const SCRIPT_VERSION = "1.1.1";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -149,6 +149,11 @@
                 removedCampaign: "Campaña eliminada",
                 notifTitle: "Twitch Drops - Cambios",
                 readingApiDrops: "Leyendo cambios en drops desde GQL/API...",
+                timeRemaining: "Tiempo restante",
+                progress: "Progreso",
+                rewards: "Recompensas",
+                minutesShort: "min",
+                dropDetails: "Detalle del drop",
             },
             en: {
                 collapse: "Collapse",
@@ -202,6 +207,11 @@
                 removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
+                timeRemaining: "Time remaining",
+                progress: "Progress",
+                rewards: "Rewards",
+                minutesShort: "min",
+                dropDetails: "Drop details",
             },
             de: {
                 collapse: "Einklappen", expand: "Ausklappen", addKeyword: "Keyword hinzufügen",
@@ -235,6 +245,11 @@
                 newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
+                timeRemaining: "Time remaining",
+                progress: "Progress",
+                rewards: "Rewards",
+                minutesShort: "min",
+                dropDetails: "Drop details",
             },
             fr: {
                 collapse: "Réduire", expand: "Développer", addKeyword: "Ajouter un mot-clé",
@@ -268,6 +283,11 @@
                 newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
+                timeRemaining: "Time remaining",
+                progress: "Progress",
+                rewards: "Rewards",
+                minutesShort: "min",
+                dropDetails: "Drop details",
             },
             pt: {
                 collapse: "Recolher", expand: "Expandir", addKeyword: "Adicionar Keyword",
@@ -301,6 +321,11 @@
                 newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
+                timeRemaining: "Time remaining",
+                progress: "Progress",
+                rewards: "Rewards",
+                minutesShort: "min",
+                dropDetails: "Drop details",
             },
             ru: {
                 collapse: "Свернуть", expand: "Развернуть", addKeyword: "Добавить ключевое слово",
@@ -334,6 +359,11 @@
                 newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
+                timeRemaining: "Time remaining",
+                progress: "Progress",
+                rewards: "Rewards",
+                minutesShort: "min",
+                dropDetails: "Drop details",
             },
             tr: {
                 collapse: "Daralt", expand: "Genişlet", addKeyword: "Anahtar Kelime Ekle",
@@ -367,6 +397,11 @@
                 newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
+                timeRemaining: "Time remaining",
+                progress: "Progress",
+                rewards: "Rewards",
+                minutesShort: "min",
+                dropDetails: "Drop details",
             },
             ja: {
                 collapse: "折りたたむ", expand: "展開", addKeyword: "キーワード追加",
@@ -400,6 +435,11 @@
                 newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
+                timeRemaining: "Time remaining",
+                progress: "Progress",
+                rewards: "Rewards",
+                minutesShort: "min",
+                dropDetails: "Drop details",
             },
             ko: {
                 collapse: "접기", expand: "펼치기", addKeyword: "키워드 추가",
@@ -433,6 +473,11 @@
                 newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
+                timeRemaining: "Time remaining",
+                progress: "Progress",
+                rewards: "Rewards",
+                minutesShort: "min",
+                dropDetails: "Drop details",
             },
             pl: {
                 collapse: "Zwiń", expand: "Rozwiń", addKeyword: "Dodaj słowo kluczowe",
@@ -466,6 +511,11 @@
                 newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
+                timeRemaining: "Time remaining",
+                progress: "Progress",
+                rewards: "Rewards",
+                minutesShort: "min",
+                dropDetails: "Drop details",
             },
             fi: {
                 collapse: "Pienennä", expand: "Laajenna", addKeyword: "Lisää avainsana",
@@ -499,6 +549,11 @@
                 newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
+                timeRemaining: "Time remaining",
+                progress: "Progress",
+                rewards: "Rewards",
+                minutesShort: "min",
+                dropDetails: "Drop details",
             },
             vi: {
                 collapse: "Thu gọn", expand: "Mở rộng", addKeyword: "Thêm từ khóa",
@@ -532,6 +587,11 @@
                 newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
+                timeRemaining: "Time remaining",
+                progress: "Progress",
+                rewards: "Rewards",
+                minutesShort: "min",
+                dropDetails: "Drop details",
             },
             zh: {
                 collapse: "折叠", expand: "展开", addKeyword: "添加关键词",
@@ -565,6 +625,11 @@
                 newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
+                timeRemaining: "Time remaining",
+                progress: "Progress",
+                rewards: "Rewards",
+                minutesShort: "min",
+                dropDetails: "Drop details",
             },
             ar: {
                 collapse: "طي", expand: "توسيع", addKeyword: "إضافة كلمة مفتاحية",
@@ -598,6 +663,11 @@
                 newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
+                timeRemaining: "Time remaining",
+                progress: "Progress",
+                rewards: "Rewards",
+                minutesShort: "min",
+                dropDetails: "Drop details",
             },
             hi: {
                 collapse: "संक्षिप्त करें", expand: "विस्तार करें", addKeyword: "कीवर्ड जोड़ें",
@@ -631,6 +701,11 @@
                 newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
+                timeRemaining: "Time remaining",
+                progress: "Progress",
+                rewards: "Rewards",
+                minutesShort: "min",
+                dropDetails: "Drop details",
             },
             id: {
                 collapse: "Ciutkan", expand: "Perluas", addKeyword: "Tambah Kata Kunci",
@@ -664,6 +739,11 @@
                 newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
+                timeRemaining: "Time remaining",
+                progress: "Progress",
+                rewards: "Rewards",
+                minutesShort: "min",
+                dropDetails: "Drop details",
             },
         };
         const t = i18n[lang] || i18n["en"];
@@ -936,6 +1016,312 @@
             }];
             const res = await _gqlRequest(body);
             return res?.[0]?.data ?? null;
+        }
+
+        // Get user inventory (drops in progress with currentMinutesWatched)
+        async function _gqlGetInventory() {
+            const body = [{
+                operationName: "Inventory",
+                variables: { fetchRewardCampaigns: true },
+                extensions: { persistedQuery: { version: 1, sha256Hash: "d86775d0ef16a63a33ad52e80eaff963b2d5b72fada7c991504a57496e1d8e4b" } },
+            }];
+            const res = await _gqlRequest(body);
+            return res?.[0]?.data?.currentUser?.inventory ?? null;
+        }
+
+        // dropID -> { current, required, dropName, rewards: [], imageUrl }
+        const _inventoryProgress = {};
+        let _inventoryProgressReady = false;
+
+        async function fetchInventoryProgress() {
+            try {
+                const inv = await _gqlGetInventory();
+                const campaigns = inv?.dropCampaignsInProgress || [];
+                for (const c of campaigns) {
+                    for (const drop of (c.timeBasedDrops || [])) {
+                        if (!drop?.id) continue;
+                        const rewardEdges = drop.benefitEdges || [];
+                        _inventoryProgress[drop.id] = {
+                            current: drop.self?.currentMinutesWatched || 0,
+                            required: drop.requiredMinutesWatched || 0,
+                            dropName: drop.name || '',
+                            rewards: rewardEdges.map(b => b.benefit?.name).filter(Boolean),
+                            imageUrl: rewardEdges[0]?.benefit?.imageAssetURL || '',
+                        };
+                    }
+                }
+                _inventoryProgressReady = true;
+            } catch (e) {
+                console.warn('[Inventory] fetch failed:', e);
+            }
+        }
+
+        // =============================================
+        // TOOLTIP + MODAL: TIEMPO RESTANTE EN DROPS EN PROGRESO
+        // =============================================
+
+        function formatHoursMinutes(totalMinutes) {
+            const m = Math.max(0, Math.round(totalMinutes));
+            const h = Math.floor(m / 60);
+            const mm = m % 60;
+            if (h <= 0) return `${mm}m`;
+            if (mm <= 0) return `${h}h`;
+            return `${h}h ${mm}m`;
+        }
+
+        // Parse "45% de 1 hora 30 minutos" / "45% of 1 hour 30 minutes" / "45% / 5 h" from
+        // a per-tier card. Combines hours+minutes when both appear (the previous version
+        // broke after the first match and read "1 hora 30 minutos" as 60 instead of 90).
+        function _parseProgressFromCard(card) {
+            const bar = card.querySelector('[role="progressbar"]');
+            const pct = bar ? parseInt(bar.getAttribute('aria-valuenow') || '', 10) : NaN;
+            if (!Number.isFinite(pct)) return null;
+            const pNodes = card.querySelectorAll('p');
+            let totalMinutes = 0;
+            for (const p of pNodes) {
+                const txt = (p.textContent || '').toLowerCase();
+                let h = 0, m = 0;
+                const mHours = txt.match(/(\d+(?:[.,]\d+)?)\s*(?:hours?|horas?|stunden?|heures?|ore|godzin|h\b)/);
+                if (mHours) h = parseFloat(mHours[1].replace(',', '.'));
+                const mMin = txt.match(/(\d+)\s*(?:minutes?|minutos?|min\b)/);
+                if (mMin) m = parseInt(mMin[1], 10);
+                if (h > 0 || m > 0) {
+                    totalMinutes = Math.round(h * 60) + m;
+                    break;
+                }
+            }
+            if (!totalMinutes) return null;
+            const current = Math.round(totalMinutes * (pct / 100));
+            return { current, required: totalMinutes };
+        }
+
+        let _dropTooltipEl = null;
+        function _ensureDropTooltip() {
+            if (_dropTooltipEl && document.body.contains(_dropTooltipEl)) return _dropTooltipEl;
+            const el = document.createElement('div');
+            el.id = 'twitch-drop-tooltip';
+            Object.assign(el.style, {
+                position: 'fixed', top: '0', left: '0', zIndex: '999999',
+                background: colors.surface, color: colors.text,
+                border: `1px solid ${colors.purple}`, borderRadius: '8px',
+                padding: '6px 10px', fontSize: '12px', fontWeight: '600',
+                fontFamily: 'Inter, system-ui, sans-serif',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
+                pointerEvents: 'none', opacity: '0',
+                transition: 'opacity 120ms ease', whiteSpace: 'nowrap',
+            });
+            document.body.appendChild(el);
+            _dropTooltipEl = el;
+            return el;
+        }
+
+        function _showDropTooltip(text) {
+            const el = _ensureDropTooltip();
+            el.textContent = text;
+            el.style.opacity = '1';
+        }
+
+        function _moveDropTooltip(e) {
+            const el = _ensureDropTooltip();
+            const pad = 12;
+            const w = el.offsetWidth;
+            const h = el.offsetHeight;
+            let x = e.clientX + pad;
+            let y = e.clientY + pad;
+            if (x + w + 4 > window.innerWidth) x = e.clientX - w - pad;
+            if (y + h + 4 > window.innerHeight) y = e.clientY - h - pad;
+            el.style.left = `${Math.max(0, x)}px`;
+            el.style.top = `${Math.max(0, y)}px`;
+        }
+
+        function _hideDropTooltip() {
+            if (_dropTooltipEl) _dropTooltipEl.style.opacity = '0';
+        }
+
+        function _resolveDropProgress(dropID, card) {
+            // The DOM is authoritative for current/required: aria-valuenow and the
+            // "X% de N horas" text are always for THIS card and stay accurate while
+            // the user watches. The API is a secondary source (used only for
+            // metadata like reward names + image and as a fallback if the DOM can't
+            // be parsed). Preferring API was buggy because:
+            //   - the per-card dropID lookup can resolve to the wrong tier, and
+            //   - the API snapshot is taken once at init and grows stale.
+            const fromDom = _parseProgressFromCard(card);
+            const fromApi = dropID ? _inventoryProgress[dropID] : null;
+            if (fromDom) {
+                return {
+                    current: fromDom.current,
+                    required: fromDom.required,
+                    dropName: (fromApi && fromApi.dropName) || '',
+                    rewards: (fromApi && fromApi.rewards) || [],
+                    imageUrl: (fromApi && fromApi.imageUrl) || '',
+                };
+            }
+            if (fromApi && fromApi.required > 0) return fromApi;
+            return null;
+        }
+
+        function _openDropModal(dropID, card) {
+            const progress = _resolveDropProgress(dropID, card);
+            if (!progress) return;
+            const remaining = Math.max(0, progress.required - progress.current);
+            const pct = progress.required > 0
+                ? Math.round((progress.current / progress.required) * 100)
+                : 0;
+
+            const { overlay, box } = createModalContainer();
+            box.style.minWidth = '320px';
+            box.style.padding = '24px 28px';
+
+            // Header con imagen + nombre
+            const header = document.createElement('div');
+            Object.assign(header.style, { display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' });
+            const cardImg = card.querySelector('img.inventory-drop-image, img.inventory-opacity-2');
+            const imgSrc = progress.imageUrl || (cardImg ? cardImg.src : '');
+            if (imgSrc) {
+                const img = document.createElement('img');
+                img.src = imgSrc;
+                Object.assign(img.style, {
+                    width: '56px', height: '56px', borderRadius: '8px', objectFit: 'cover',
+                    border: `1px solid ${colors.border}`,
+                });
+                header.appendChild(img);
+            }
+            const titleWrap = document.createElement('div');
+            const title = document.createElement('div');
+            title.textContent = progress.dropName || t.dropDetails;
+            Object.assign(title.style, { fontSize: '16px', fontWeight: '700', color: colors.text });
+            titleWrap.appendChild(title);
+            const subtitle = document.createElement('div');
+            subtitle.textContent = t.dropDetails;
+            Object.assign(subtitle.style, { fontSize: '11px', color: colors.gray, marginTop: '2px' });
+            titleWrap.appendChild(subtitle);
+            header.appendChild(titleWrap);
+            box.appendChild(header);
+
+            const lineProgress = document.createElement('div');
+            lineProgress.style.marginBottom = '6px';
+            lineProgress.innerHTML = `<span style="color:${colors.gray}">${t.progress}:</span> <span style="font-weight:600">${progress.current} / ${progress.required} ${t.minutesShort} · ${pct}%</span>`;
+            box.appendChild(lineProgress);
+
+            const lineRemaining = document.createElement('div');
+            lineRemaining.style.marginBottom = '12px';
+            lineRemaining.innerHTML = `<span style="color:${colors.gray}">${t.timeRemaining}:</span> <span style="font-weight:700;color:${colors.purple}">${formatHoursMinutes(remaining)}</span>`;
+            box.appendChild(lineRemaining);
+
+            if (progress.rewards && progress.rewards.length > 0) {
+                const rewardsTitle = document.createElement('div');
+                rewardsTitle.textContent = `${t.rewards}:`;
+                Object.assign(rewardsTitle.style, { color: colors.gray, fontSize: '12px', marginBottom: '4px' });
+                box.appendChild(rewardsTitle);
+                const ul = document.createElement('ul');
+                Object.assign(ul.style, { margin: '0 0 12px 0', paddingLeft: '18px' });
+                for (const r of progress.rewards) {
+                    const li = document.createElement('li');
+                    li.textContent = r;
+                    li.style.fontSize = '13px';
+                    ul.appendChild(li);
+                }
+                box.appendChild(ul);
+            }
+
+            const actions = document.createElement('div');
+            Object.assign(actions.style, { display: 'flex', justifyContent: 'flex-end', gap: '8px' });
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = t.accept || 'OK';
+            Object.assign(closeBtn.style, {
+                padding: '6px 12px', backgroundColor: colors.surface,
+                color: colors.purple, border: `1px solid ${colors.purple}`,
+                borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
+            });
+            closeBtn.onclick = () => closeOverlayAnimated(overlay);
+            actions.appendChild(closeBtn);
+            box.appendChild(actions);
+
+            overlay.addEventListener('click', (ev) => {
+                if (ev.target === overlay) closeOverlayAnimated(overlay);
+            });
+            const onKey = (ev) => {
+                if (ev.key === 'Escape') {
+                    closeOverlayAnimated(overlay);
+                    document.removeEventListener('keydown', onKey);
+                }
+            };
+            document.addEventListener('keydown', onKey);
+
+            document.body.appendChild(overlay);
+            try { setInertOnBodyChildrenExcept(overlay, true); } catch (e) { /* noop */ }
+            requestAnimationFrame(() => {
+                overlay.style.opacity = '1';
+                box.style.transform = 'translateY(0) scale(1)';
+                box.style.opacity = '1';
+            });
+            setTimeout(() => { closeBtn.focus(); }, 100);
+        }
+
+        // Walks up from a per-tier image (img.inventory-opacity-2) and returns the
+        // smallest ancestor that contains exactly ONE [role="progressbar"]. That
+        // ancestor is the per-tier card wrapper.
+        //
+        // We use progressbar count (not dropID links) because Twitch's inventory
+        // does NOT expose per-tier dropID links — only one campaign-level link
+        // exists per campaign. Each tier does have its own progressbar though,
+        // so that's what gives us per-tier isolation.
+        //
+        // Returns the FIRST (smallest) ancestor with exactly 1 progressbar so the
+        // tooltip/click area stays tight on the actual card and not the full row
+        // or campaign block.
+        function _findPerCardWrapper(img) {
+            let el = img.parentElement;
+            while (el && el !== document.body) {
+                const bars = el.querySelectorAll('[role="progressbar"]');
+                if (bars.length >= 2) return null;
+                if (bars.length === 1) return el;
+                el = el.parentElement;
+            }
+            return null;
+        }
+
+        // Best-effort: match a per-tier card to its API entry by tier name. The
+        // DOM shows e.g. "Love, Reddysh" while the API exposes "Love, Reddysh
+        // Spray", so we match with a substring check in either direction. Returns
+        // the dropID (tier ID from the GQL Inventory) or null if no match. Only
+        // used for metadata (reward names + image); progress is read from the DOM.
+        function _findDropIDByCardName(cardWrapper) {
+            const nameEl = cardWrapper.querySelector('p');
+            const name = nameEl ? nameEl.textContent.trim() : '';
+            if (!name) return null;
+            for (const [id, info] of Object.entries(_inventoryProgress)) {
+                const apiName = (info && info.dropName) || '';
+                if (!apiName) continue;
+                if (apiName === name || apiName.includes(name) || name.includes(apiName)) {
+                    return id;
+                }
+            }
+            return null;
+        }
+
+        function attachDropTooltipAndModal(card, dropID) {
+            if (!card || card.dataset.dropTooltipAttached === 'true') return;
+            card.dataset.dropTooltipAttached = 'true';
+            card.style.cursor = 'pointer';
+
+            card.addEventListener('mouseenter', (e) => {
+                const progress = _resolveDropProgress(dropID, card);
+                if (!progress) return;
+                const remaining = Math.max(0, progress.required - progress.current);
+                _showDropTooltip(`${t.timeRemaining}: ${formatHoursMinutes(remaining)}`);
+                _moveDropTooltip(e);
+            });
+            card.addEventListener('mousemove', _moveDropTooltip);
+            card.addEventListener('mouseleave', _hideDropTooltip);
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('a, button, input')) return;
+                e.preventDefault();
+                e.stopPropagation();
+                _hideDropTooltip();
+                _openDropModal(dropID, card);
+            });
         }
 
         // Main: fetch drops via GQL, fallback to public API
@@ -1244,6 +1630,8 @@
 
         // Fetch drops from public API on load
         fetchDropsFromAPI();
+        // Fetch inventory progress (currentMinutesWatched / requiredMinutesWatched) for tooltips
+        fetchInventoryProgress();
 
         // =============================================
         // FUNCIONES DE AUDIO / NOTIFICACION SONORA
@@ -2888,6 +3276,18 @@
                                                 }
                                             }
                                         }
+                                    }
+                                }
+                                // Per-tier tooltip + click-to-modal. Attached on the per-card
+                                // wrapper (not the campaign block) so each tier shows its own
+                                // remaining time. The wrapper is found via the per-tier
+                                // progressbar; the tier's API dropID is matched by name as a
+                                // best-effort for showing reward metadata in the modal.
+                                if (!hasP) {
+                                    const cardWrapper = _findPerCardWrapper(img);
+                                    if (cardWrapper && document.body.contains(cardWrapper)) {
+                                        const cardDropID = _findDropIDByCardName(cardWrapper);
+                                        attachDropTooltipAndModal(cardWrapper, cardDropID);
                                     }
                                 }
                                 const images = container.querySelectorAll("img.inventory-drop-image");
