@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.1
+// @version      1.1.2
 // @description  Clasifica y resalta drops/campañas en Twitch según keywords persistentes y editables. Interfaz multiidioma.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.1.1";
+    const SCRIPT_VERSION = "1.1.2";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -3170,46 +3170,76 @@
             const interval = 500;
             const aToRemoveAdded = [];
 
+            // El icono X de "Cerrar" del popover de notificaciones usa EXACTAMENTE el mismo
+            // path SVG que el boton "eliminar" de cada notificacion individual
+            // (persistent-notification__delete). Por eso no basta con querySelector del path:
+            // hay que (1) excluir los botones de borrado, (2) acotar la busqueda al popover y
+            // (3) re-consultar el boton en el momento del click (no cachear un nodo que el
+            // re-render de Twitch deja huerfano tras borrar las notificaciones).
+            const CLOSE_X_PATH = "M6.414 5 5 6.414l5.588 5.588L5 17.59l1.414 1.414 5.588-5.588 5.588 5.588 1.414-1.414-5.588-5.588 5.588-5.588L17.59 5l-5.588 5.588L6.414 5Z";
+
             const checkNotifications = function (dropTextArrayVar) {
-                if (dropTextArrayVar.length > 0) {
-                    const path_noti = document.querySelector(`path[d="${NOTIFICATION_SVG_PATH}"]`);
-                    const openNotifBtn = path_noti?.closest('button');
-                    if (openNotifBtn) {
-                        openNotifBtn.click();
-                        let path_close = null;
-                        setTimeout(() => {
-                            if (!path_close) {
-                                path_close = document.querySelector('path[d="M6.414 5 5 6.414l5.588 5.588L5 17.59l1.414 1.414 5.588-5.588 5.588 5.588 1.414-1.414-5.588-5.588 5.588-5.588L17.59 5l-5.588 5.588L6.414 5Z"]');
-                            }
-                            const divs = document.querySelectorAll('.persistent-notification');
-                            divs.forEach((notification, i) => {
-                                const body = notification.querySelector('.persistent-notification__body');
-                                if (!body) return;
-                                const notifText = body.innerText.toLowerCase();
-                                if (notifText && dropTextArrayVar.some(dropText => notifText.includes(dropText))) {
-                                    const deleteBtn = notification.querySelector('button[data-test-selector="persistent-notification__delete"]');
-                                    if (deleteBtn) {
-                                        setTimeout(() => {
-                                            deleteBtn.click();
-                                            if (i === divs.length - 1) {
-                                                setTimeout(() => {
-                                                    const closeNotifBtn = path_close?.closest('button');
-                                                    closeNotifBtn?.click();
-                                                }, 1000);
-                                            }
-                                        }, 500);
-                                    }
-                                }
-                            });
-                            if (divs.length === 0) {
-                                setTimeout(() => {
-                                    const closeNotifBtn = path_close?.closest('button');
-                                    closeNotifBtn?.click();
-                                }, 1000);
-                            }
-                        }, 1000);
+                if (dropTextArrayVar.length === 0) return;
+                const path_noti = document.querySelector(`path[d="${NOTIFICATION_SVG_PATH}"]`);
+                const openNotifBtn = path_noti?.closest('button');
+                if (!openNotifBtn) return;
+                openNotifBtn.click();
+
+                setTimeout(() => {
+                    // El popover de notificaciones es [data-test-selector="center-window__balloon"]
+                    // (ancla estable e independiente del idioma). Su boton "Cerrar" vive en
+                    // .tw-popover-header, ANTES de la lista en el DOM y junto a un boton de
+                    // engranaje (Configuracion, otro path); acotar al header garantiza que nunca
+                    // tomemos por error el X de borrado de una .persistent-notification.
+                    const findCloseBtn = () => {
+                        const balloon = document.querySelector('[data-test-selector="center-window__balloon"]');
+                        if (!balloon || !document.body.contains(balloon)) return null;
+                        const header = balloon.querySelector('.tw-popover-header') || balloon;
+                        for (const p of header.querySelectorAll(`path[d="${CLOSE_X_PATH}"]`)) {
+                            const btn = p.closest('button');
+                            if (btn && !btn.closest('.persistent-notification')) return btn;
+                        }
+                        return header.querySelector('button[aria-label="Cerrar"], button[aria-label="Close"]');
+                    };
+
+                    const closePanel = () => {
+                        let tries = 0;
+                        const tryClose = () => {
+                            const btn = findCloseBtn();
+                            if (btn) { btn.click(); return; }
+                            if (++tries < 5) { setTimeout(tryClose, 300); return; }
+                            // Fallback: si el popover sigue abierto pero no hallamos su X,
+                            // re-clic en la campana para alternar el cierre.
+                            if (document.querySelector('[data-test-selector="center-window__balloon"]')) openNotifBtn.click();
+                        };
+                        tryClose();
+                    };
+
+                    // Filtramos primero las que realmente vamos a borrar, asi el cierre se agenda
+                    // tras la ultima borrada de verdad (no condicionado a que la ultima del DOM
+                    // coincida con la keyword ni tenga boton de borrado).
+                    const toDelete = Array.from(document.querySelectorAll('.persistent-notification')).filter((n) => {
+                        const body = n.querySelector('.persistent-notification__body');
+                        if (!body) return false;
+                        const notifText = body.innerText.toLowerCase();
+                        return notifText
+                            && dropTextArrayVar.some(d => notifText.includes(d))
+                            && n.querySelector('button[data-test-selector="persistent-notification__delete"]');
+                    });
+
+                    if (toDelete.length === 0) {
+                        setTimeout(closePanel, 1000);
+                        return;
                     }
-                }
+
+                    toDelete.forEach((n, i) => {
+                        const deleteBtn = n.querySelector('button[data-test-selector="persistent-notification__delete"]');
+                        setTimeout(() => {
+                            deleteBtn.click();
+                            if (i === toDelete.length - 1) setTimeout(closePanel, 1000);
+                        }, 500 + i * 150);
+                    });
+                }, 1000);
             };
 
             if (type === "expired") {
