@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.2
+// @version      1.1.3
 // @description  Clasifica y resalta drops/campañas en Twitch según keywords persistentes y editables. Interfaz multiidioma.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.1.2";
+    const SCRIPT_VERSION = "1.1.3";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -1092,7 +1092,8 @@
             }
             if (!totalMinutes) return null;
             const current = Math.round(totalMinutes * (pct / 100));
-            return { current, required: totalMinutes };
+            const name = card.querySelectorAll('p')?.[0]?.textContent?.trim() || '';
+            return { current, required: totalMinutes, dropName: name || '' };
         }
 
         let _dropTooltipEl = null;
@@ -1148,11 +1149,12 @@
             //   - the API snapshot is taken once at init and grows stale.
             const fromDom = _parseProgressFromCard(card);
             const fromApi = dropID ? _inventoryProgress[dropID] : null;
+            console.debug(`[Progress] dropID=${dropID} fromDom=`, fromDom, 'fromApi=', fromApi);
             if (fromDom) {
                 return {
                     current: fromDom.current,
                     required: fromDom.required,
-                    dropName: (fromApi && fromApi.dropName) || '',
+                    dropName: fromDom.dropName || (fromApi && fromApi.dropName) || '',
                     rewards: (fromApi && fromApi.rewards) || [],
                     imageUrl: (fromApi && fromApi.imageUrl) || '',
                 };
