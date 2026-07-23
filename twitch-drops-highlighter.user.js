@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.1.3
+// @version      1.2.0
 // @description  Clasifica y resalta drops/campañas en Twitch según keywords persistentes y editables. Interfaz multiidioma.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.1.3";
+    const SCRIPT_VERSION = "1.2.0";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -3244,8 +3244,31 @@
                 }, 1000);
             };
 
+            // Al auto-reclamar drops, Twitch muestra un banner "Drop reclamado" con un
+            // boton de cerrar (aria-label "Descartar mensaje", localizado) que usa el mismo
+            // icono X que el resto (CLOSE_X_PATH). Lo cerramos junto con la limpieza de
+            // notificaciones de drops. Anclamos al banner por su texto ("Drop" es marca y se
+            // conserva en casi todos los idiomas) y excluimos el popover de notificaciones y
+            // el borrado de cada notificacion individual, que comparten ese mismo icono X.
+            const dismissClaimedBanners = function () {
+                document.querySelectorAll(`path[d="${CLOSE_X_PATH}"]`).forEach((p) => {
+                    const btn = p.closest('button[aria-label]');
+                    if (!btn) return;
+                    if (btn.closest('.persistent-notification')) return;
+                    if (btn.closest('[data-test-selector="center-window__balloon"]')) return;
+                    let el = btn.parentElement, hops = 0, isBanner = false;
+                    while (el && hops < 5) {
+                        if ((el.innerText || '').toLowerCase().includes('drop')) { isBanner = true; break; }
+                        el = el.parentElement; hops++;
+                    }
+                    if (isBanner) btn.click();
+                });
+            };
+
             if (type === "expired") {
                 setTimeout(() => { checkNotifications(['drop']); }, 2000);
+                // El banner aparece de forma asincrona tras reclamar; reintentar unas veces.
+                [3000, 6000, 9000].forEach((ms) => setTimeout(dismissClaimedBanners, ms));
             }
 
             const checker = setInterval(() => {
