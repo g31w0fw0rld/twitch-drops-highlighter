@@ -12,7 +12,7 @@ Userscript de Tampermonkey que clasifica y resalta drops/campañas en Twitch seg
 
 **Instalación:**
 1. Instala [Tampermonkey](https://www.tampermonkey.net/).
-2. Abre el instalador: [twitch-drops-highlighter.user.js](https://github.com/g31w0fw0rld/twitch-drops-highlighter/raw/main/twitch-drops-highlighter.user.js) (también en GreasyFork y OpenUserJS).
+2. Abre el instalador: [twitch-drops-highlighter.user.js](https://github.com/g31w0fw0rld/twitch-drops-highlighter/raw/main/twitch-drops-highlighter.user.js) (también en [GreasyFork](https://greasyfork.org/es-419/users/1590477-g31w) y [OpenUserJS](https://openuserjs.org/users/g31w0fw0rldgmail.com/scripts)).
 
 **Sitio:** `twitch.tv/drops/*`
 
@@ -26,7 +26,7 @@ Userscript de Tampermonkey que clasifica y resalta drops/campañas en Twitch seg
 
 **Install:**
 1. Install [Tampermonkey](https://www.tampermonkey.net/).
-2. Open the installer: [twitch-drops-highlighter.user.js](https://github.com/g31w0fw0rld/twitch-drops-highlighter/raw/main/twitch-drops-highlighter.user.js) (also on GreasyFork and OpenUserJS).
+2. Open the installer: [twitch-drops-highlighter.user.js](https://github.com/g31w0fw0rld/twitch-drops-highlighter/raw/main/twitch-drops-highlighter.user.js) (also on [GreasyFork](https://greasyfork.org/es-419/users/1590477-g31w) and [OpenUserJS](https://openuserjs.org/users/g31w0fw0rldgmail.com/scripts)).
 
 **Site:** `twitch.tv/drops/*`
 
