@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.1
+// @version      1.2.2
 // @description  Clasifica y resalta drops/campañas en Twitch según keywords persistentes y editables. Interfaz multiidioma.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
@@ -18,13 +18,19 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.2.1";
+    const SCRIPT_VERSION = "1.2.2";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
     // GQL STATE CAPTURE (runs before page loads)
     // =============================================
-    const GQL_STORAGE_KEY = '__twitch_gql_state__';
+    // El token OAuth y el client-integrity viven SOLO en memoria: persistirlos en
+    // localStorage los dejaba legibles de forma durable por cualquier otro script,
+    // extension o XSS que corriera en twitch.tv, y sobrevivian al cierre del
+    // navegador. El interceptor de fetch los recaptura en cada carga de pagina,
+    // asi que no hay nada que guardar.
+    const LEGACY_GQL_STORAGE_KEY = '__twitch_gql_state__';
+    try { localStorage.removeItem(LEGACY_GQL_STORAGE_KEY); } catch (e) {}
 
     const _gqlState = {
         integrity: null,
@@ -53,33 +59,38 @@
 
     function _captureGqlHeaders(headers) {
         if (!headers) return;
-        let updated = false;
-        if (headers['client-integrity'] && _gqlState.integrity !== headers['client-integrity']) {
-            _gqlState.integrity = headers['client-integrity']; updated = true;
-        }
-        if (headers['authorization']) {
-            const token = headers['authorization'].replace('OAuth ', '');
-            if (_gqlState.token !== token) { _gqlState.token = token; updated = true; }
-        }
-        if (headers['x-device-id'] && _gqlState.deviceId !== headers['x-device-id']) {
-            _gqlState.deviceId = headers['x-device-id']; updated = true;
-        }
-        if (headers['client-session-id'] && _gqlState.sessionId !== headers['client-session-id']) {
-            _gqlState.sessionId = headers['client-session-id']; updated = true;
-        }
-        if (headers['client-version'] && _gqlState.clientVersion !== headers['client-version']) {
-            _gqlState.clientVersion = headers['client-version']; updated = true;
-        }
-        if (updated) {
-            try { localStorage.setItem(GQL_STORAGE_KEY, JSON.stringify(_gqlState)); } catch (e) {}
-        }
+        if (headers['client-integrity']) _gqlState.integrity = headers['client-integrity'];
+        if (headers['authorization']) _gqlState.token = headers['authorization'].replace('OAuth ', '');
+        if (headers['x-device-id']) _gqlState.deviceId = headers['x-device-id'];
+        if (headers['client-session-id']) _gqlState.sessionId = headers['client-session-id'];
+        if (headers['client-version']) _gqlState.clientVersion = headers['client-version'];
+    }
+
+    // fetch acepta string, URL o Request. Con un URL, .url es undefined, asi que
+    // hay que caer a String(input) para no perder el href.
+    function _urlOf(input) {
+        if (typeof input === 'string') return input;
+        if (input == null) return '';
+        return input.url || String(input);
+    }
+
+    // Comparamos host y path, no substring: con includes('gql.twitch.tv/gql')
+    // cualquier URL ajena que llevara esa cadena (p. ej. en el query string)
+    // pasaba el filtro, y le habriamos robado el Authorization a un tercero para
+    // despues mandarlo a Twitch.
+    function _isTwitchGqlUrl(url) {
+        if (!url) return false;
+        try {
+            const u = new URL(url, location.href);
+            return u.hostname === 'gql.twitch.tv' && u.pathname === '/gql';
+        } catch (e) { return false; }
     }
 
     // Non-async fetch interceptor — MUST NOT wrap in new Promise (breaks React)
     const _realFetch = unsafeWindow.fetch;
     unsafeWindow.fetch = function(...args) {
         const [url, options] = args;
-        if (typeof url === 'string' && url.includes('gql.twitch.tv/gql')) {
+        if (_isTwitchGqlUrl(_urlOf(url))) {
             _captureGqlHeaders(_normalizeHeaders(options?.headers));
         }
         return _realFetch.apply(this, args);
@@ -143,6 +154,8 @@
                 scriptInfoDescriptionText: "Resalta automaticamente drops activos y expirados segun keywords personalizables. Notificaciones en tiempo real de cambios, gestion de inventario avanzada y soporte multiidioma.",
                 scriptInfoAuthor: "Autor:",
                 scriptInfoGitHub: "GitHub:",
+                scriptInfoPrivacy: "Privacidad:",
+                scriptInfoPrivacyText: "Tus keywords y ajustes se guardan solo en tu navegador. Las consultas de drops van a gql.twitch.tv con tu propia sesion (el token nunca se guarda en disco); si eso falla, se usa la API publica twitch-drops-api.sunkwi.com, que solo recibe una peticion sin datos tuyos. No se envia nada al autor del script.",
                 loadingDropsFromInventory: "Leyendo drops desde campañas, por favor espere...",
                 loadingDrops: "Buscando drops...",
                 newCampaign: "Nueva campaña",
@@ -201,6 +214,8 @@
                 scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
                 scriptInfoAuthor: "Author:",
                 scriptInfoGitHub: "GitHub:",
+                scriptInfoPrivacy: "Privacy:",
+                scriptInfoPrivacyText: "Your keywords and settings stay in your browser only. Drop queries go to gql.twitch.tv using your own session (the token is never written to disk); if that fails, the public API twitch-drops-api.sunkwi.com is used, which only receives a request with none of your data. Nothing is sent to the script author.",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
                 newCampaign: "New campaign",
@@ -953,16 +968,15 @@
         const _apiDropNames = {};
         let _apiDataReady = false;
 
-        // Wait for GQL state (captured by fetch interceptor)
+        // Wait for GQL state (captured in memory by the fetch interceptor)
         function _waitForGqlState(timeout = 20000) {
             const start = Date.now();
             return new Promise((resolve, reject) => {
                 const interval = setInterval(() => {
-                    const raw = localStorage.getItem(GQL_STORAGE_KEY);
-                    const data = raw ? JSON.parse(raw) : null;
-                    if (data?.token && data?.integrity) {
+                    if (_gqlState.token && _gqlState.integrity) {
                         clearInterval(interval);
-                        resolve(data);
+                        resolve({ ..._gqlState });
+                        return;
                     }
                     if (Date.now() - start > timeout) {
                         clearInterval(interval);
@@ -2019,11 +2033,14 @@
             });
         }
 
-        function showAlertModal(message, html = false) {
+        // Siempre textContent: el flag html que tenia esta funcion no lo usaba
+        // nadie y solo dejaba un sink de inyeccion esperando al primer llamador
+        // que le pasara texto venido de la pagina.
+        function showAlertModal(message) {
             return new Promise((resolve) => {
                 const { overlay, box } = createModalContainer();
                 const msg = document.createElement('div');
-                if (html) { msg.innerHTML = message; } else { msg.textContent = message; }
+                msg.textContent = message;
                 msg.style.marginBottom = '12px';
                 box.appendChild(msg);
 
@@ -2198,6 +2215,11 @@
                 { label: t.scriptInfoDescription, value: t.scriptInfoDescriptionText },
                 { label: t.scriptInfoAuthor, value: "g31w0fw0rld" },
                 { label: t.scriptInfoGitHub, value: "github.com/g31w0fw0rld/twitch-drops-highlighter", isLink: true },
+                // Solo es/en tienen texto propio de privacidad; el resto cae al ingles.
+                {
+                    label: t.scriptInfoPrivacy || i18n.en.scriptInfoPrivacy,
+                    value: t.scriptInfoPrivacyText || i18n.en.scriptInfoPrivacyText,
+                },
                 { label: "☕ Ko-fi:", value: "ko-fi.com/g31w0fw0rld", isLink: true },
             ];
             const titleEl = document.createElement('div');
@@ -2220,6 +2242,7 @@
                     a.href = "https://" + l.value;
                     a.textContent = l.value;
                     a.target = "_blank";
+                    a.rel = "noopener noreferrer";
                     a.style.color = colors.purpleLight;
                     a.style.textDecoration = "underline";
                     row.appendChild(a);
