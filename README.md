@@ -30,6 +30,12 @@ Userscript de Tampermonkey que clasifica y resalta drops/campañas en Twitch seg
 
 **Site:** `twitch.tv/drops/*`
 
+## Privacidad / Privacy
+
+**ES:** tus keywords y ajustes se guardan solo en tu navegador, en el almacenamiento del gestor de userscripts (keywords, drops descartados del inventario, notificaciones ya mostradas y preferencias del panel). Las consultas de drops van a `gql.twitch.tv` reusando **tu propia sesión**: el script toma el token OAuth y las cabeceras de integridad de las peticiones que la propia página hace a Twitch, las mantiene **solo en memoria** —nunca las escribe en disco, y además borra la clave `__twitch_gql_state__` que versiones antiguas dejaban en `localStorage`— y solo las captura cuando la URL es exactamente `gql.twitch.tv/gql`, nunca de peticiones a terceros. Si esa consulta falla, cae a la API pública `twitch-drops-api.sunkwi.com`, que recibe una petición **sin ningún dato tuyo**. Los avisos son notificaciones locales del navegador. No se envía nada al autor del script.
+
+**EN:** your keywords and settings stay in your browser only, in the userscript manager's storage (keywords, drops dismissed from the inventory, notifications already shown and panel preferences). Drop queries go to `gql.twitch.tv` reusing **your own session**: the script takes the OAuth token and integrity headers from the requests the page itself makes to Twitch, keeps them **in memory only** —never written to disk, and it also deletes the `__twitch_gql_state__` key that older versions left in `localStorage`— and only captures them when the URL is exactly `gql.twitch.tv/gql`, never from third-party requests. If that query fails, it falls back to the public `twitch-drops-api.sunkwi.com` API, which receives a request with **none of your data**. Alerts are local browser notifications. Nothing is sent to the script author.
+
 ## Apoyar / Support
 
 Esto es parte de algo que estoy construyendo para crecer. Si te sirve y quieres apoyar, puedes invitarme un café en **[Ko-fi](https://ko-fi.com/g31w0fw0rld)** —solo si quieres—; y si hay una causa que lo necesite más que yo, ayúdala a ella.
