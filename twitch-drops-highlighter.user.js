@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.3
+// @version      1.2.4
 // @description  Clasifica y resalta drops/campañas en Twitch según keywords persistentes y editables. Interfaz multiidioma.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.2.3";
+    const SCRIPT_VERSION = "1.2.4";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -2570,19 +2570,24 @@
 
             body.appendChild(tabContent);
 
-            // Tab helper: activate one tab, deactivate others
-            function activateTab(activeBtn) {
+            // Tab helper: activate one tab, deactivate others.
+            // El acento del tab activo es parametrizable para que "Drops Cerrados" se
+            // active en rojo (igual que en el script de Kick) en vez del morado de
+            // Twitch: el color refuerza que ese tab lista campanas ya cerradas, y
+            // coincide con el borde rojo de sus cards (renderCampaignCard con
+            // isActive=false). Los demas tabs siguen con el morado por default.
+            function activateTab(activeBtn, accentBorder, accentText) {
                 [tabActive, tabExpired, tabNotifs].forEach(btn => {
                     btn.style.borderBottom = `2px solid transparent`;
                     btn.style.color = colors.gray;
                 });
-                activeBtn.style.borderBottom = `2px solid ${colors.purple}`;
-                activeBtn.style.color = colors.purpleLight;
+                activeBtn.style.borderBottom = `2px solid ${accentBorder || colors.purple}`;
+                activeBtn.style.color = accentText || colors.purpleLight;
                 [activePane, expiredPane, notifsPane].forEach(p => p.style.display = "none");
             }
 
             tabActive.onclick = () => { activateTab(tabActive); activePane.style.display = "block"; };
-            tabExpired.onclick = () => { activateTab(tabExpired); expiredPane.style.display = "block"; };
+            tabExpired.onclick = () => { activateTab(tabExpired, colors.red, colors.red); expiredPane.style.display = "block"; };
             tabNotifs.onclick = () => { activateTab(tabNotifs); notifsPane.style.display = "block"; };
 
             // Check if there are pending notifications to show that tab by default
