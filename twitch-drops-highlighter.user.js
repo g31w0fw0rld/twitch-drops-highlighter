@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.4
-// @description  Clasifica y resalta drops/campañas en Twitch según keywords persistentes y editables. Interfaz multiidioma.
+// @version      1.2.5
+// @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired, each reward with the hours it needs. Hovering a drop in progress shows the exact watch time left; clicking it opens the full detail. It flags campaigns that changed with a bell in the panel and on the card, and can optionally auto-claim your finished drops. Editable keywords, 16 languages, read-only GraphQL queries.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
 // @license      MIT
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.2.4";
+    const SCRIPT_VERSION = "1.2.5";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -37,7 +37,7 @@
         token: null,
         deviceId: null,
         sessionId: null,
-        clientVersion: null,
+        clientVersion: null
     };
 
     function _normalizeHeaders(headers) {
@@ -109,8 +109,7 @@
         const lang = userLang.split("-")[0];
         const i18n = {
             es: {
-                collapse: "Colapsar",
-                expand: "Expandir",
+
                 addKeyword: "Añadir Keyword",
                 deleteKeywordTooltip: "Haga click para eliminar keyword",
                 deleteKeywordQuestion: "¿Eliminar la keyword ",
@@ -118,17 +117,14 @@
                 resetKeywords: "Restaurar Predeterminadas",
                 confirmReset: "¿Restaurar las keywords por defecto?",
                 keywordsRestored: "Keywords restauradas. Recargando...",
-                keywordsUpdated: "Keywords actualizadas. Recargando...",
                 keywordsModified: "Las keywords han sido modificadas, estas son las actuales: ",
                 reloading: "Recargando...",
                 currentKeywords: "Keywords actuales (haga clic en una para eliminar):",
                 noResults: "No se encontraron campanas relacionadas con tus keywords.",
                 dropsActive: "Drops Abiertos",
                 dropsExpired: "Drops Cerrados",
-                dropsNone: "0 Drops encontrados",
                 editPrompt: "Palabras clave separadas por coma:",
                 waitMessage: "Si no ves resultados, edita las keywords o espera a que cargue Twitch Drops. Si estas en el inventario, dirigete a campañas.",
-                changeMessage: "Cambia a campañas para ver los drops abiertos.",
                 searching: "Buscando",
                 reload: "Recargar drops",
                 hideExpired: "Ocultar cerrados/completados del inventario, reclamacion de drops automatica",
@@ -145,32 +141,29 @@
                 viewIcon: "👁️",
                 changedIcon: "🔔",
                 removeIcon: "❌",
-                iconLink: "🔗",
-                iconCross: "❌",
+
                 scriptInfoTitle: "Informacion del script",
                 scriptInfoName: "Nombre:",
                 scriptInfoVersion: "Version:",
                 scriptInfoDescription: "Descripcion:",
-                scriptInfoDescriptionText: "Resalta automaticamente drops activos y expirados segun keywords personalizables. Notificaciones en tiempo real de cambios, gestion de inventario avanzada y soporte multiidioma.",
+                scriptInfoDescriptionText: "Resalta en la propia página las campañas de drops que coinciden con tus keywords: morado las abiertas, rojo las cerradas. El panel las lista separadas en abiertos y cerrados, con la ventana de fechas, la keyword que la encontró y cada recompensa con las horas que pide. Keywords editables: clic en una para borrarla, + para añadir, editarlas en bloque o restaurar las predeterminadas. En el inventario puedes ver el detalle de un drop (progreso y tiempo restante), descartar entradas con la ✕ —«Recargar drops» las devuelve— y marcar una casilla que oculta lo cerrado/completado y activa la reclamación automática. Marca con 🔔 —en el panel y en la propia tarjeta— las campañas que cambiaron desde la última vez, con una cuenta de pendientes, notificación de escritorio y un botón 👁️ que además te lleva hasta la campaña. 16 idiomas.",
                 scriptInfoAuthor: "Autor:",
                 scriptInfoGitHub: "GitHub:",
                 scriptInfoPrivacy: "Privacidad:",
                 scriptInfoPrivacyText: "Tus keywords y ajustes se guardan solo en tu navegador. Las consultas de drops van a gql.twitch.tv con tu propia sesion (el token nunca se guarda en disco); si eso falla, se usa la API publica twitch-drops-api.sunkwi.com, que solo recibe una peticion sin datos tuyos. No se envia nada al autor del script.",
                 loadingDropsFromInventory: "Leyendo drops desde campañas, por favor espere...",
                 loadingDrops: "Buscando drops...",
-                newCampaign: "Nueva campaña",
-                removedCampaign: "Campaña eliminada",
+
                 notifTitle: "Twitch Drops - Cambios",
                 readingApiDrops: "Leyendo cambios en drops desde GQL/API...",
                 timeRemaining: "Tiempo restante",
                 progress: "Progreso",
                 rewards: "Recompensas",
                 minutesShort: "min",
-                dropDetails: "Detalle del drop",
+                dropDetails: "Detalle del drop"
             },
             en: {
-                collapse: "Collapse",
-                expand: "Expand",
+
                 addKeyword: "Add Keyword",
                 deleteKeywordTooltip: "Click to delete keyword",
                 deleteKeywordQuestion: "Delete keyword ",
@@ -178,17 +171,14 @@
                 resetKeywords: "Reset to Default",
                 confirmReset: "Reset keywords to default?",
                 keywordsRestored: "Keywords restored. Reloading...",
-                keywordsUpdated: "Keywords updated. Reloading...",
                 keywordsModified: "Keywords modified. These are the current keywords: ",
                 reloading: "Reloading...",
                 currentKeywords: "Current keywords (click on one to delete):",
                 noResults: "No drops matched your keywords.",
                 dropsActive: "Active Drops",
                 dropsExpired: "Expired Drops",
-                dropsNone: "0 Drops found",
                 editPrompt: "Comma-separated keywords:",
                 waitMessage: "If no results show up, edit the keywords or wait for Twitch Drops to load. If you are in the inventory, go to campaigns.",
-                changeMessage: "Switch to campaigns to see active drops.",
                 searching: "Searching",
                 reload: "Reload drops",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
@@ -205,43 +195,39 @@
                 viewIcon: "👁️",
                 changedIcon: "🔔",
                 removeIcon: "❌",
-                iconLink: "🔗",
-                iconCross: "❌",
+
                 scriptInfoTitle: "Script Information",
                 scriptInfoName: "Name:",
                 scriptInfoVersion: "Version:",
                 scriptInfoDescription: "Description:",
-                scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Author:",
                 scriptInfoGitHub: "GitHub:",
                 scriptInfoPrivacy: "Privacy:",
                 scriptInfoPrivacyText: "Your keywords and settings stay in your browser only. Drop queries go to gql.twitch.tv using your own session (the token is never written to disk); if that fails, the public API twitch-drops-api.sunkwi.com is used, which only receives a request with none of your data. Nothing is sent to the script author.",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
-                newCampaign: "New campaign",
-                removedCampaign: "Removed campaign",
+
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Drop details"
             },
             de: {
-                collapse: "Einklappen", expand: "Ausklappen", addKeyword: "Keyword hinzufügen",
+addKeyword: "Keyword hinzufügen",
                 deleteKeywordTooltip: "Klicken um Keyword zu löschen", deleteKeywordQuestion: "Keyword löschen ",
                 editKeywords: "Keywords bearbeiten", resetKeywords: "Standard wiederherstellen",
                 confirmReset: "Keywords auf Standard zurücksetzen?",
                 keywordsRestored: "Keywords wiederhergestellt. Neu laden...",
-                keywordsUpdated: "Keywords aktualisiert. Neu laden...",
                 keywordsModified: "Keywords modified. These are the current keywords: ",
                 reloading: "Neu laden...", currentKeywords: "Aktuelle Keywords (klicken zum Löschen):",
                 noResults: "Keine Drops gefunden.", dropsActive: "Offene Drops",
-                dropsExpired: "Geschlossene Drops", dropsNone: "0 Drops gefunden",
+                dropsExpired: "Geschlossene Drops",
                 editPrompt: "Kommagetrennte Keywords:",
                 waitMessage: "Wenn keine Ergebnisse angezeigt werden, bearbeite die Keywords oder warte auf das Laden der Seite.",
-                changeMessage: "Wechsle zu Kampagnen, um aktive Drops zu sehen.",
                 searching: "Suche", reload: "Drops neu laden",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -250,36 +236,32 @@
                 markAllAsViewed: "Mark all as viewed",
                 accept: "Akzeptieren", cancel: "Abbrechen", yes: "Ja", no: "Nein",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
-                iconLink: "🔗", iconCross: "❌",
                 scriptInfoTitle: "Skript-Informationen", scriptInfoName: "Name:",
                 scriptInfoVersion: "Version:", scriptInfoDescription: "Beschreibung:",
-                scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Autor:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
-                newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Drop details"
             },
             fr: {
-                collapse: "Réduire", expand: "Développer", addKeyword: "Ajouter un mot-clé",
+addKeyword: "Ajouter un mot-clé",
                 deleteKeywordTooltip: "Cliquez pour supprimer le mot-clé", deleteKeywordQuestion: "Supprimer le mot-clé ",
                 editKeywords: "Modifier les mots-clés", resetKeywords: "Réinitialiser par défaut",
                 confirmReset: "Réinitialiser les mots-clés par défaut ?",
                 keywordsRestored: "Mots-clés restaurés. Rechargement...",
-                keywordsUpdated: "Mots-clés mis à jour. Rechargement...",
                 keywordsModified: "Keywords modified. These are the current keywords: ",
                 reloading: "Rechargement...", currentKeywords: "Mots-clés actuels (cliquez pour supprimer) :",
                 noResults: "Aucun drop ne correspond à vos mots-clés.",
                 dropsActive: "Drops ouverts", dropsExpired: "Drops fermés",
-                dropsNone: "0 drops trouvés", editPrompt: "Mots-clés séparés par des virgules :",
+editPrompt: "Mots-clés séparés par des virgules :",
                 waitMessage: "Si aucun résultat n'apparaît, modifiez les mots-clés ou attendez le chargement.",
-                changeMessage: "Passez aux campagnes pour voir les drops actifs.",
                 searching: "Recherche", reload: "Recharger les drops",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -288,36 +270,32 @@
                 markAllAsViewed: "Mark all as viewed",
                 accept: "Accepter", cancel: "Annuler", yes: "Oui", no: "Non",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
-                iconLink: "🔗", iconCross: "❌",
                 scriptInfoTitle: "Informations du script", scriptInfoName: "Nom :",
                 scriptInfoVersion: "Version :", scriptInfoDescription: "Description :",
-                scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Auteur :", scriptInfoGitHub: "GitHub :",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
-                newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Drop details"
             },
             pt: {
-                collapse: "Recolher", expand: "Expandir", addKeyword: "Adicionar Keyword",
+addKeyword: "Adicionar Keyword",
                 deleteKeywordTooltip: "Clique para deletar keyword", deleteKeywordQuestion: "Deletar keyword ",
                 editKeywords: "Editar Keywords", resetKeywords: "Restaurar Padrão",
                 confirmReset: "Restaurar keywords padrão?",
                 keywordsRestored: "Keywords restauradas. Recarregando...",
-                keywordsUpdated: "Keywords atualizadas. Recarregando...",
                 keywordsModified: "Keywords modified. These are the current keywords: ",
                 reloading: "Recarregando...", currentKeywords: "Keywords atuais (clique para deletar):",
                 noResults: "Nenhum drop encontrado com suas keywords.",
                 dropsActive: "Drops Abertos", dropsExpired: "Drops Fechados",
-                dropsNone: "0 drops encontrados", editPrompt: "Keywords separadas por vírgula:",
+editPrompt: "Keywords separadas por vírgula:",
                 waitMessage: "Se não aparecerem resultados, edite as keywords ou aguarde o carregamento.",
-                changeMessage: "Mude para campanhas para ver drops ativos.",
                 searching: "Buscando", reload: "Recarregar drops",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -326,36 +304,32 @@
                 markAllAsViewed: "Mark all as viewed",
                 accept: "Aceitar", cancel: "Cancelar", yes: "Sim", no: "Não",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
-                iconLink: "🔗", iconCross: "❌",
                 scriptInfoTitle: "Informações do script", scriptInfoName: "Nome:",
                 scriptInfoVersion: "Versão:", scriptInfoDescription: "Descrição:",
-                scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Autor:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
-                newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Drop details"
             },
             ru: {
-                collapse: "Свернуть", expand: "Развернуть", addKeyword: "Добавить ключевое слово",
+addKeyword: "Добавить ключевое слово",
                 deleteKeywordTooltip: "Нажмите для удаления", deleteKeywordQuestion: "Удалить ключевое слово ",
                 editKeywords: "Редактировать ключевые слова", resetKeywords: "Сбросить по умолчанию",
                 confirmReset: "Сбросить ключевые слова по умолчанию?",
                 keywordsRestored: "Ключевые слова восстановлены. Перезагрузка...",
-                keywordsUpdated: "Ключевые слова обновлены. Перезагрузка...",
                 keywordsModified: "Keywords modified. These are the current keywords: ",
                 reloading: "Перезагрузка...", currentKeywords: "Текущие ключевые слова (нажмите для удаления):",
                 noResults: "Дропы не найдены.", dropsActive: "Открытые дропы",
-                dropsExpired: "Закрытые дропы", dropsNone: "0 дропов найдено",
+                dropsExpired: "Закрытые дропы",
                 editPrompt: "Ключевые слова через запятую:",
                 waitMessage: "Если результатов нет, измените ключевые слова или дождитесь загрузки.",
-                changeMessage: "Перейдите к кампаниям для просмотра активных дропов.",
                 searching: "Поиск", reload: "Перезагрузить дропы",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -364,36 +338,32 @@
                 markAllAsViewed: "Mark all as viewed",
                 accept: "Принять", cancel: "Отмена", yes: "Да", no: "Нет",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
-                iconLink: "🔗", iconCross: "❌",
                 scriptInfoTitle: "Информация о скрипте", scriptInfoName: "Имя:",
                 scriptInfoVersion: "Версия:", scriptInfoDescription: "Описание:",
-                scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Автор:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
-                newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Drop details"
             },
             tr: {
-                collapse: "Daralt", expand: "Genişlet", addKeyword: "Anahtar Kelime Ekle",
+addKeyword: "Anahtar Kelime Ekle",
                 deleteKeywordTooltip: "Silmek için tıklayın", deleteKeywordQuestion: "Anahtar kelimeyi sil ",
                 editKeywords: "Anahtar Kelimeleri Düzenle", resetKeywords: "Varsayılana Sıfırla",
                 confirmReset: "Anahtar kelimeleri varsayılana sıfırla?",
                 keywordsRestored: "Anahtar kelimeler geri yüklendi. Yeniden yükleniyor...",
-                keywordsUpdated: "Anahtar kelimeler güncellendi. Yeniden yükleniyor...",
                 keywordsModified: "Keywords modified. These are the current keywords: ",
                 reloading: "Yeniden yükleniyor...", currentKeywords: "Mevcut anahtar kelimeler (silmek için tıklayın):",
                 noResults: "Anahtar kelimelerinize uygun drop bulunamadı.",
                 dropsActive: "Açık Drops", dropsExpired: "Kapalı Drops",
-                dropsNone: "0 drop bulundu", editPrompt: "Virgülle ayrılmış anahtar kelimeler:",
+editPrompt: "Virgülle ayrılmış anahtar kelimeler:",
                 waitMessage: "Sonuç görünmüyorsa anahtar kelimeleri düzenleyin veya sayfanın yüklenmesini bekleyin.",
-                changeMessage: "Aktif dropları görmek için kampanyalara geçin.",
                 searching: "Aranıyor", reload: "Dropları yeniden yükle",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -402,36 +372,32 @@
                 markAllAsViewed: "Mark all as viewed",
                 accept: "Kabul et", cancel: "İptal", yes: "Evet", no: "Hayır",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
-                iconLink: "🔗", iconCross: "❌",
                 scriptInfoTitle: "Script Bilgisi", scriptInfoName: "Ad:",
                 scriptInfoVersion: "Sürüm:", scriptInfoDescription: "Açıklama:",
-                scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Yazar:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
-                newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Drop details"
             },
             ja: {
-                collapse: "折りたたむ", expand: "展開", addKeyword: "キーワード追加",
+addKeyword: "キーワード追加",
                 deleteKeywordTooltip: "クリックで削除", deleteKeywordQuestion: "キーワードを削除 ",
                 editKeywords: "キーワード編集", resetKeywords: "デフォルトに戻す",
                 confirmReset: "キーワードをデフォルトに戻しますか？",
                 keywordsRestored: "キーワード復元。再読み込み中...",
-                keywordsUpdated: "キーワード更新。再読み込み中...",
                 keywordsModified: "Keywords modified. These are the current keywords: ",
                 reloading: "再読み込み中...", currentKeywords: "現在のキーワード（クリックで削除）:",
                 noResults: "キーワードに一致するドロップはありません。",
                 dropsActive: "アクティブなドロップ", dropsExpired: "終了したドロップ",
-                dropsNone: "0ドロップ", editPrompt: "カンマ区切りのキーワード:",
+editPrompt: "カンマ区切りのキーワード:",
                 waitMessage: "結果が表示されない場合は、キーワードを編集するか、ページの読み込みを待ってください。",
-                changeMessage: "アクティブなドロップを見るにはキャンペーンに切り替えてください。",
                 searching: "検索中", reload: "ドロップを再読み込み",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -440,36 +406,32 @@
                 markAllAsViewed: "Mark all as viewed",
                 accept: "承認", cancel: "キャンセル", yes: "はい", no: "いいえ",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
-                iconLink: "🔗", iconCross: "❌",
                 scriptInfoTitle: "スクリプト情報", scriptInfoName: "名前:",
                 scriptInfoVersion: "バージョン:", scriptInfoDescription: "説明:",
-                scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "作者:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
-                newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Drop details"
             },
             ko: {
-                collapse: "접기", expand: "펼치기", addKeyword: "키워드 추가",
+addKeyword: "키워드 추가",
                 deleteKeywordTooltip: "클릭하여 삭제", deleteKeywordQuestion: "키워드 삭제 ",
                 editKeywords: "키워드 편집", resetKeywords: "기본값 복원",
                 confirmReset: "키워드를 기본값으로 복원하시겠습니까?",
                 keywordsRestored: "키워드 복원됨. 새로고침 중...",
-                keywordsUpdated: "키워드 업데이트됨. 새로고침 중...",
                 keywordsModified: "Keywords modified. These are the current keywords: ",
                 reloading: "새로고침 중...", currentKeywords: "현재 키워드 (클릭하여 삭제):",
                 noResults: "키워드와 일치하는 드롭이 없습니다.",
                 dropsActive: "활성 드롭", dropsExpired: "종료된 드롭",
-                dropsNone: "0개의 드롭", editPrompt: "쉼표로 구분된 키워드:",
+editPrompt: "쉼표로 구분된 키워드:",
                 waitMessage: "결과가 표시되지 않으면 키워드를 편집하거나 페이지 로딩을 기다려주세요.",
-                changeMessage: "활성 드롭을 보려면 캠페인으로 전환하세요.",
                 searching: "검색 중", reload: "드롭 새로고침",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -478,36 +440,32 @@
                 markAllAsViewed: "Mark all as viewed",
                 accept: "수락", cancel: "취소", yes: "예", no: "아니오",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
-                iconLink: "🔗", iconCross: "❌",
                 scriptInfoTitle: "스크립트 정보", scriptInfoName: "이름:",
                 scriptInfoVersion: "버전:", scriptInfoDescription: "설명:",
-                scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "작성자:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
-                newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Drop details"
             },
             pl: {
-                collapse: "Zwiń", expand: "Rozwiń", addKeyword: "Dodaj słowo kluczowe",
+addKeyword: "Dodaj słowo kluczowe",
                 deleteKeywordTooltip: "Kliknij aby usunąć", deleteKeywordQuestion: "Usunąć słowo kluczowe ",
                 editKeywords: "Edytuj słowa kluczowe", resetKeywords: "Przywróć domyślne",
                 confirmReset: "Przywrócić domyślne słowa kluczowe?",
                 keywordsRestored: "Słowa kluczowe przywrócone. Przeładowywanie...",
-                keywordsUpdated: "Słowa kluczowe zaktualizowane. Przeładowywanie...",
                 keywordsModified: "Keywords modified. These are the current keywords: ",
                 reloading: "Przeładowywanie...", currentKeywords: "Aktualne słowa kluczowe (kliknij aby usunąć):",
                 noResults: "Nie znaleziono dropów pasujących do słów kluczowych.",
                 dropsActive: "Otwarte dropy", dropsExpired: "Zamknięte dropy",
-                dropsNone: "0 dropów", editPrompt: "Słowa kluczowe oddzielone przecinkami:",
+editPrompt: "Słowa kluczowe oddzielone przecinkami:",
                 waitMessage: "Jeśli nie widzisz wyników, edytuj słowa kluczowe lub poczekaj na załadowanie strony.",
-                changeMessage: "Przejdź do kampanii, aby zobaczyć aktywne dropy.",
                 searching: "Szukanie", reload: "Przeładuj dropy",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -516,36 +474,32 @@
                 markAllAsViewed: "Mark all as viewed",
                 accept: "Akceptuj", cancel: "Anuluj", yes: "Tak", no: "Nie",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
-                iconLink: "🔗", iconCross: "❌",
                 scriptInfoTitle: "Informacje o skrypcie", scriptInfoName: "Nazwa:",
                 scriptInfoVersion: "Wersja:", scriptInfoDescription: "Opis:",
-                scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Autor:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
-                newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Drop details"
             },
             fi: {
-                collapse: "Pienennä", expand: "Laajenna", addKeyword: "Lisää avainsana",
+addKeyword: "Lisää avainsana",
                 deleteKeywordTooltip: "Klikkaa poistaaksesi", deleteKeywordQuestion: "Poista avainsana ",
                 editKeywords: "Muokkaa avainsanoja", resetKeywords: "Palauta oletukset",
                 confirmReset: "Palauta avainsanat oletuksiin?",
                 keywordsRestored: "Avainsanat palautettu. Ladataan uudelleen...",
-                keywordsUpdated: "Avainsanat päivitetty. Ladataan uudelleen...",
                 keywordsModified: "Keywords modified. These are the current keywords: ",
                 reloading: "Ladataan uudelleen...", currentKeywords: "Nykyiset avainsanat (klikkaa poistaaksesi):",
                 noResults: "Avainsanoihin sopivia droppeja ei löytynyt.",
                 dropsActive: "Avoimet dropit", dropsExpired: "Suljetut dropit",
-                dropsNone: "0 droppia", editPrompt: "Avainsanat pilkulla eroteltuina:",
+editPrompt: "Avainsanat pilkulla eroteltuina:",
                 waitMessage: "Jos tuloksia ei näy, muokkaa avainsanoja tai odota sivun latautumista.",
-                changeMessage: "Vaihda kampanjoihin nähdäksesi aktiiviset dropit.",
                 searching: "Etsitään", reload: "Lataa dropit uudelleen",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -554,36 +508,32 @@
                 markAllAsViewed: "Mark all as viewed",
                 accept: "Hyväksy", cancel: "Peruuta", yes: "Kyllä", no: "Ei",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
-                iconLink: "🔗", iconCross: "❌",
                 scriptInfoTitle: "Skriptin tiedot", scriptInfoName: "Nimi:",
                 scriptInfoVersion: "Versio:", scriptInfoDescription: "Kuvaus:",
-                scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Tekijä:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
-                newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Drop details"
             },
             vi: {
-                collapse: "Thu gọn", expand: "Mở rộng", addKeyword: "Thêm từ khóa",
+addKeyword: "Thêm từ khóa",
                 deleteKeywordTooltip: "Nhấp để xóa", deleteKeywordQuestion: "Xóa từ khóa ",
                 editKeywords: "Sửa từ khóa", resetKeywords: "Khôi phục mặc định",
                 confirmReset: "Khôi phục từ khóa mặc định?",
                 keywordsRestored: "Từ khóa đã khôi phục. Đang tải lại...",
-                keywordsUpdated: "Từ khóa đã cập nhật. Đang tải lại...",
                 keywordsModified: "Keywords modified. These are the current keywords: ",
                 reloading: "Đang tải lại...", currentKeywords: "Từ khóa hiện tại (nhấp để xóa):",
                 noResults: "Không tìm thấy drop nào khớp.",
                 dropsActive: "Drop đang mở", dropsExpired: "Drop đã đóng",
-                dropsNone: "0 drop", editPrompt: "Từ khóa phân cách bằng dấu phẩy:",
+editPrompt: "Từ khóa phân cách bằng dấu phẩy:",
                 waitMessage: "Nếu không có kết quả, hãy sửa từ khóa hoặc đợi trang tải xong.",
-                changeMessage: "Chuyển sang chiến dịch để xem drop đang hoạt động.",
                 searching: "Đang tìm", reload: "Tải lại drop",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -592,36 +542,32 @@
                 markAllAsViewed: "Mark all as viewed",
                 accept: "Chấp nhận", cancel: "Hủy", yes: "Có", no: "Không",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
-                iconLink: "🔗", iconCross: "❌",
                 scriptInfoTitle: "Thông tin script", scriptInfoName: "Tên:",
                 scriptInfoVersion: "Phiên bản:", scriptInfoDescription: "Mô tả:",
-                scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Tác giả:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
-                newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Drop details"
             },
             zh: {
-                collapse: "折叠", expand: "展开", addKeyword: "添加关键词",
+addKeyword: "添加关键词",
                 deleteKeywordTooltip: "点击删除", deleteKeywordQuestion: "删除关键词 ",
                 editKeywords: "编辑关键词", resetKeywords: "恢复默认",
                 confirmReset: "恢复默认关键词？",
                 keywordsRestored: "关键词已恢复。重新加载...",
-                keywordsUpdated: "关键词已更新。重新加载...",
                 keywordsModified: "Keywords modified. These are the current keywords: ",
                 reloading: "重新加载...", currentKeywords: "当前关键词（点击删除）：",
                 noResults: "没有找到匹配的掉宝。",
                 dropsActive: "活跃掉宝", dropsExpired: "已关闭掉宝",
-                dropsNone: "0个掉宝", editPrompt: "逗号分隔的关键词：",
+editPrompt: "逗号分隔的关键词：",
                 waitMessage: "如果没有结果，请编辑关键词或等待页面加载。",
-                changeMessage: "切换到活动查看活跃掉宝。",
                 searching: "搜索中", reload: "重新加载掉宝",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -630,36 +576,32 @@
                 markAllAsViewed: "Mark all as viewed",
                 accept: "接受", cancel: "取消", yes: "是", no: "否",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
-                iconLink: "🔗", iconCross: "❌",
                 scriptInfoTitle: "脚本信息", scriptInfoName: "名称：",
                 scriptInfoVersion: "版本：", scriptInfoDescription: "描述：",
-                scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "作者：", scriptInfoGitHub: "GitHub：",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
-                newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Drop details"
             },
             ar: {
-                collapse: "طي", expand: "توسيع", addKeyword: "إضافة كلمة مفتاحية",
+addKeyword: "إضافة كلمة مفتاحية",
                 deleteKeywordTooltip: "انقر للحذف", deleteKeywordQuestion: "حذف الكلمة المفتاحية ",
                 editKeywords: "تعديل الكلمات المفتاحية", resetKeywords: "استعادة الافتراضية",
                 confirmReset: "استعادة الكلمات المفتاحية الافتراضية؟",
                 keywordsRestored: "تم استعادة الكلمات المفتاحية. إعادة التحميل...",
-                keywordsUpdated: "تم تحديث الكلمات المفتاحية. إعادة التحميل...",
                 keywordsModified: "Keywords modified. These are the current keywords: ",
                 reloading: "إعادة التحميل...", currentKeywords: "الكلمات المفتاحية الحالية (انقر للحذف):",
                 noResults: "لم يتم العثور على نتائج.",
                 dropsActive: "دروبات نشطة", dropsExpired: "دروبات مغلقة",
-                dropsNone: "0 دروبات", editPrompt: "كلمات مفتاحية مفصولة بفواصل:",
+editPrompt: "كلمات مفتاحية مفصولة بفواصل:",
                 waitMessage: "إذا لم تظهر نتائج، عدّل الكلمات المفتاحية أو انتظر تحميل الصفحة.",
-                changeMessage: "انتقل إلى الحملات لرؤية الدروبات النشطة.",
                 searching: "جاري البحث", reload: "إعادة تحميل الدروبات",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -668,36 +610,32 @@
                 markAllAsViewed: "Mark all as viewed",
                 accept: "قبول", cancel: "إلغاء", yes: "نعم", no: "لا",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
-                iconLink: "🔗", iconCross: "❌",
                 scriptInfoTitle: "معلومات السكربت", scriptInfoName: "الاسم:",
                 scriptInfoVersion: "الإصدار:", scriptInfoDescription: "الوصف:",
-                scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "المؤلف:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
-                newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Drop details"
             },
             hi: {
-                collapse: "संक्षिप्त करें", expand: "विस्तार करें", addKeyword: "कीवर्ड जोड़ें",
+addKeyword: "कीवर्ड जोड़ें",
                 deleteKeywordTooltip: "हटाने के लिए क्लिक करें", deleteKeywordQuestion: "कीवर्ड हटाएं ",
                 editKeywords: "कीवर्ड संपादित करें", resetKeywords: "डिफ़ॉल्ट पर रीसेट करें",
                 confirmReset: "कीवर्ड को डिफ़ॉल्ट पर रीसेट करें?",
                 keywordsRestored: "कीवर्ड बहाल। पुनः लोड हो रहा है...",
-                keywordsUpdated: "कीवर्ड अपडेट। पुनः लोड हो रहा है...",
                 keywordsModified: "Keywords modified. These are the current keywords: ",
                 reloading: "पुनः लोड हो रहा है...", currentKeywords: "वर्तमान कीवर्ड (हटाने के लिए क्लिक करें):",
                 noResults: "कोई ड्रॉप नहीं मिला।",
                 dropsActive: "सक्रिय ड्रॉप", dropsExpired: "बंद ड्रॉप",
-                dropsNone: "0 ड्रॉप", editPrompt: "अल्पविराम से अलग कीवर्ड:",
+editPrompt: "अल्पविराम से अलग कीवर्ड:",
                 waitMessage: "यदि परिणाम नहीं दिखते, तो कीवर्ड संपादित करें या पेज लोड होने की प्रतीक्षा करें।",
-                changeMessage: "सक्रिय ड्रॉप देखने के लिए अभियानों पर जाएं।",
                 searching: "खोज रहे हैं", reload: "ड्रॉप पुनः लोड करें",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -706,36 +644,32 @@
                 markAllAsViewed: "Mark all as viewed",
                 accept: "स्वीकार करें", cancel: "रद्द करें", yes: "हां", no: "नहीं",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
-                iconLink: "🔗", iconCross: "❌",
                 scriptInfoTitle: "स्क्रिप्ट जानकारी", scriptInfoName: "नाम:",
                 scriptInfoVersion: "संस्करण:", scriptInfoDescription: "विवरण:",
-                scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "लेखक:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
-                newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Drop details"
             },
             id: {
-                collapse: "Ciutkan", expand: "Perluas", addKeyword: "Tambah Kata Kunci",
+addKeyword: "Tambah Kata Kunci",
                 deleteKeywordTooltip: "Klik untuk menghapus", deleteKeywordQuestion: "Hapus kata kunci ",
                 editKeywords: "Edit Kata Kunci", resetKeywords: "Kembalikan Default",
                 confirmReset: "Kembalikan kata kunci default?",
                 keywordsRestored: "Kata kunci dikembalikan. Memuat ulang...",
-                keywordsUpdated: "Kata kunci diperbarui. Memuat ulang...",
                 keywordsModified: "Keywords modified. These are the current keywords: ",
                 reloading: "Memuat ulang...", currentKeywords: "Kata kunci saat ini (klik untuk menghapus):",
                 noResults: "Tidak ada drop yang cocok.",
                 dropsActive: "Drop Terbuka", dropsExpired: "Drop Tertutup",
-                dropsNone: "0 drop", editPrompt: "Kata kunci dipisahkan koma:",
+editPrompt: "Kata kunci dipisahkan koma:",
                 waitMessage: "Jika tidak ada hasil, edit kata kunci atau tunggu halaman dimuat.",
-                changeMessage: "Beralih ke kampanye untuk melihat drop aktif.",
                 searching: "Mencari", reload: "Muat ulang drop",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -744,22 +678,20 @@
                 markAllAsViewed: "Mark all as viewed",
                 accept: "Terima", cancel: "Batal", yes: "Ya", no: "Tidak",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
-                iconLink: "🔗", iconCross: "❌",
                 scriptInfoTitle: "Informasi Script", scriptInfoName: "Nama:",
                 scriptInfoVersion: "Versi:", scriptInfoDescription: "Deskripsi:",
-                scriptInfoDescriptionText: "Automatically highlights active and expired drops based on customizable keywords. Real-time change notifications, advanced inventory management, and multi-language support.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Penulis:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
-                newCampaign: "New campaign", removedCampaign: "Removed campaign",
                 notifTitle: "Twitch Drops - Changes",
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details",
-            },
+                dropDetails: "Drop details"
+            }
         };
         const t = i18n[lang] || i18n["en"];
 
@@ -769,7 +701,7 @@
 
         const DEFAULT_KEYWORDS = [
             "halo", "doom", "quake", "wolfenstein", "rage", "fortnite",
-            "rocket league", "among us", "minecraft", "roblox", "star wars", "marvel",
+            "rocket league", "among us", "minecraft", "roblox", "star wars", "marvel"
         ];
 
         const STORAGE_KEY = "twitch_drop_keywords";
@@ -814,7 +746,7 @@
             "已关闭的掉宝活动",
             "已結束的掉寶活動",
             "Dropsキャンペーンを閉じる",
-            "종료된 드롭 캠페인",
+            "종료된 드롭 캠페인"
         ];
 
         const CLOSED_DROP_TEXTS = [
@@ -846,7 +778,7 @@
             "此活动已关闭。",
             "活動已結束。",
             "このキャンペーンは終了しています。",
-            "종료된 캠페인입니다.",
+            "종료된 캠페인입니다."
         ];
 
         const ACTIVE_STYLE = `border: 4px solid #772ce8 !important; box-shadow: 0 0 30px #9147ff !important; border-radius: 16px !important; scroll-margin-top: 100px;`;
@@ -893,7 +825,7 @@
             bg: "#0e0e10",
             text: "#efeff1",
             surface: "#18181b",
-            border: "#2f2f35",
+            border: "#2f2f35"
         } : {
             purple: "#9147ff",
             purpleLight: "#6441a5",
@@ -905,7 +837,7 @@
             bg: "#ffffff",
             text: "#0e0e10",
             surface: "#f7f7f8",
-            border: "#dad8de",
+            border: "#dad8de"
         };
 
         // =============================================
@@ -1049,9 +981,9 @@
                     "client-session-id": s.sessionId,
                     "client-version": s.clientVersion,
                     "content-type": "text/plain;charset=UTF-8",
-                    "x-device-id": s.deviceId,
+                    "x-device-id": s.deviceId
                 },
-                body: JSON.stringify(body),
+                body: JSON.stringify(body)
             });
             return res.json();
         }
@@ -1061,13 +993,13 @@
             const body = [{
                 operationName: "ViewerDropsDashboard",
                 variables: { fetchRewardCampaigns: true },
-                extensions: { persistedQuery: { version: 1, sha256Hash: "5a4da2ab3d5b47c9f9ce864e727b2cb346af1e3ea8b897fe8f704a97ff017619" } },
+                extensions: { persistedQuery: { version: 1, sha256Hash: "5a4da2ab3d5b47c9f9ce864e727b2cb346af1e3ea8b897fe8f704a97ff017619" } }
             }];
             const res = await _gqlRequest(body);
             const data = res?.[0]?.data;
             return {
                 dropCampaigns: data?.currentUser?.dropCampaigns ?? [],
-                rewardCampaigns: data?.rewardCampaignsAvailableToUser ?? [],
+                rewardCampaigns: data?.rewardCampaignsAvailableToUser ?? []
             };
         }
 
@@ -1076,7 +1008,7 @@
             const body = [{
                 operationName: "DropCampaignDetails",
                 variables: { dropID, channelLogin },
-                extensions: { persistedQuery: { version: 1, sha256Hash: "039277bf98f3130929262cc7c6efd9c141ca3749cb6dca442fc8ead9a53f77c1" } },
+                extensions: { persistedQuery: { version: 1, sha256Hash: "039277bf98f3130929262cc7c6efd9c141ca3749cb6dca442fc8ead9a53f77c1" } }
             }];
             const res = await _gqlRequest(body);
             return res?.[0]?.data ?? null;
@@ -1087,7 +1019,7 @@
             const body = [{
                 operationName: "Inventory",
                 variables: { fetchRewardCampaigns: true },
-                extensions: { persistedQuery: { version: 1, sha256Hash: "d86775d0ef16a63a33ad52e80eaff963b2d5b72fada7c991504a57496e1d8e4b" } },
+                extensions: { persistedQuery: { version: 1, sha256Hash: "d86775d0ef16a63a33ad52e80eaff963b2d5b72fada7c991504a57496e1d8e4b" } }
             }];
             const res = await _gqlRequest(body);
             return res?.[0]?.data?.currentUser?.inventory ?? null;
@@ -1110,7 +1042,7 @@
                             required: drop.requiredMinutesWatched || 0,
                             dropName: drop.name || '',
                             rewards: rewardEdges.map(b => b.benefit?.name).filter(Boolean),
-                            imageUrl: rewardEdges[0]?.benefit?.imageAssetURL || '',
+                            imageUrl: rewardEdges[0]?.benefit?.imageAssetURL || ''
                         };
                     }
                 }
@@ -1145,7 +1077,7 @@
             for (const p of pNodes) {
                 const txt = (p.textContent || '').toLowerCase();
                 let h = 0, m = 0;
-                const mHours = txt.match(/(\d+(?:[.,]\d+)?)\s*(?:hours?|horas?|stunden?|heures?|ore|godzin|h\b)/);
+                const mHours = txt.match(/(\d+(?:[.]\d+)?)\s*(?:hours?|horas?|stunden?|heures?|ore|godzin|h\b)/);
                 if (mHours) h = parseFloat(mHours[1].replace(',', '.'));
                 const mMin = txt.match(/(\d+)\s*(?:minutes?|minutos?|min\b)/);
                 if (mMin) m = parseInt(mMin[1], 10);
@@ -1173,7 +1105,7 @@
                 fontFamily: 'Inter, system-ui, sans-serif',
                 boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
                 pointerEvents: 'none', opacity: '0',
-                transition: 'opacity 120ms ease', whiteSpace: 'nowrap',
+                transition: 'opacity 120ms ease', whiteSpace: 'nowrap'
             });
             document.body.appendChild(el);
             _dropTooltipEl = el;
@@ -1220,7 +1152,7 @@
                     required: fromDom.required,
                     dropName: fromDom.dropName || (fromApi && fromApi.dropName) || '',
                     rewards: (fromApi && fromApi.rewards) || [],
-                    imageUrl: (fromApi && fromApi.imageUrl) || '',
+                    imageUrl: (fromApi && fromApi.imageUrl) || ''
                 };
             }
             if (fromApi && fromApi.required > 0) return fromApi;
@@ -1249,7 +1181,7 @@
                 img.src = imgSrc;
                 Object.assign(img.style, {
                     width: '56px', height: '56px', borderRadius: '8px', objectFit: 'cover',
-                    border: `1px solid ${colors.border}`,
+                    border: `1px solid ${colors.border}`
                 });
                 header.appendChild(img);
             }
@@ -1298,7 +1230,7 @@
             Object.assign(closeBtn.style, {
                 padding: '6px 12px', backgroundColor: colors.surface,
                 color: colors.purple, border: `1px solid ${colors.purple}`,
-                borderRadius: '6px', cursor: 'pointer', fontWeight: '600',
+                borderRadius: '6px', cursor: 'pointer', fontWeight: '600'
             });
             closeBtn.onclick = () => closeOverlayAnimated(overlay);
             actions.appendChild(closeBtn);
@@ -1426,7 +1358,7 @@
                 const rewards = (rc.rewards || []).map(r => ({
                     name: r.name || '',
                     rewards: [r.name].filter(Boolean),
-                    minutes,
+                    minutes
                 })).filter(r => r.name);
 
                 if (rewards.length > 0) {
@@ -1456,7 +1388,7 @@
                         drops.push({
                             name: drop.name,
                             rewards: rewardNames,
-                            minutes: drop.requiredMinutesWatched || 0,
+                            minutes: drop.requiredMinutesWatched || 0
                         });
                     }
                     if (drops.length > 0) {
@@ -1494,7 +1426,7 @@
                             drops.push({
                                 name: drop.name,
                                 rewards: rewardNames,
-                                minutes: drop.requiredMinutesWatched || 0,
+                                minutes: drop.requiredMinutesWatched || 0
                             });
                         }
                     }
@@ -1584,7 +1516,7 @@
                         key: title + '|api',
                         dataSnapshot: dataSnapshot,
                         seen: false, changed: true,
-                        createdAt: Date.now(), updatedAt: Date.now(),
+                        createdAt: Date.now(), updatedAt: Date.now()
                     });
                     hasChanges = true;
                 }
@@ -1616,7 +1548,7 @@
             const container = document.createElement("div");
             container.className = "drop-api-names";
             Object.assign(container.style, {
-                display: "flex", flexWrap: "wrap", gap: "3px", marginTop: "4px",
+                display: "flex", flexWrap: "wrap", gap: "3px", marginTop: "4px"
             });
             // Group by minutes
             const grouped = {};
@@ -1639,7 +1571,7 @@
                     backgroundColor: colors.text + "18",
                     color: colors.text,
                     border: `1px solid ${colors.text}40`,
-                    borderRadius: "8px", fontSize: "10px",
+                    borderRadius: "8px", fontSize: "10px"
                 });
                 container.appendChild(chip);
             });
@@ -1867,7 +1799,7 @@
                 borderRadius: "6px",
                 cursor: "pointer",
                 fontSize: "12px",
-                marginTop: inline ? "10px" : "0",
+                marginTop: inline ? "10px" : "0"
             });
             btn.onmouseenter = () => { btn.style.opacity = "0.8"; };
             btn.onmouseleave = () => { btn.style.opacity = "1"; };
@@ -1930,7 +1862,7 @@
                 position: 'fixed', left: '0', top: '0', width: '100%', height: '100%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 backgroundColor: 'rgba(0,0,0,0.6)', zIndex: '99999',
-                transition: 'opacity 180ms ease', opacity: '0',
+                transition: 'opacity 180ms ease', opacity: '0'
             });
             const box = document.createElement('div');
             Object.assign(box.style, {
@@ -1939,7 +1871,7 @@
                 boxShadow: '0 8px 32px rgba(0,0,0,0.5)', border: `1px solid ${colors.purple}`,
                 fontFamily: 'Inter, system-ui, sans-serif', fontSize: '14px',
                 transition: 'transform 180ms ease, opacity 180ms ease',
-                transform: 'translateY(8px) scale(0.98)', opacity: '0',
+                transform: 'translateY(8px) scale(0.98)', opacity: '0'
             });
             overlay.appendChild(box);
             return { overlay, box };
@@ -1960,7 +1892,7 @@
                     width: '100%', padding: '8px', marginBottom: '10px',
                     boxSizing: 'border-box', borderRadius: '4px',
                     border: `1px solid ${colors.purple}`,
-                    background: colors.bg, color: colors.text,
+                    background: colors.bg, color: colors.text
                 });
                 box.appendChild(input);
 
@@ -1973,7 +1905,7 @@
                 cancelBtn.textContent = t.cancel || 'Cancel';
                 Object.assign(cancelBtn.style, {
                     padding: '6px 10px', backgroundColor: colors.surface,
-                    color: colors.red, border: `1px solid ${colors.red}`, borderRadius: '6px', cursor: 'pointer',
+                    color: colors.red, border: `1px solid ${colors.red}`, borderRadius: '6px', cursor: 'pointer'
                 });
                 cancelBtn.onclick = () => { closeOverlayAnimated(overlay).then(() => resolve(null)); };
 
@@ -1981,7 +1913,7 @@
                 okBtn.textContent = t.accept || 'Accept';
                 Object.assign(okBtn.style, {
                     padding: '6px 10px', backgroundColor: colors.surface,
-                    color: colors.purple, border: `1px solid ${colors.purple}`, borderRadius: '6px', cursor: 'pointer',
+                    color: colors.purple, border: `1px solid ${colors.purple}`, borderRadius: '6px', cursor: 'pointer'
                 });
                 okBtn.onclick = () => {
                     const v = input.value;
@@ -2042,7 +1974,7 @@
                 const noBtn = document.createElement('button');
                 Object.assign(noBtn.style, {
                     padding: '6px 10px', backgroundColor: colors.surface,
-                    color: colors.red, border: `1px solid ${colors.red}`, borderRadius: '6px', cursor: 'pointer',
+                    color: colors.red, border: `1px solid ${colors.red}`, borderRadius: '6px', cursor: 'pointer'
                 });
                 noBtn.textContent = t.no || 'No';
                 noBtn.onclick = () => { closeOverlayAnimated(overlay).then(() => resolve(false)); };
@@ -2050,7 +1982,7 @@
                 const yesBtn = document.createElement('button');
                 Object.assign(yesBtn.style, {
                     padding: '6px 10px', backgroundColor: colors.surface,
-                    color: colors.purple, border: `1px solid ${colors.purple}`, borderRadius: '6px', cursor: 'pointer',
+                    color: colors.purple, border: `1px solid ${colors.purple}`, borderRadius: '6px', cursor: 'pointer'
                 });
                 yesBtn.textContent = t.yes || 'Yes';
                 yesBtn.onclick = () => { closeOverlayAnimated(overlay).then(() => resolve(true)); };
@@ -2101,7 +2033,7 @@
                 const okBtn = document.createElement('button');
                 Object.assign(okBtn.style, {
                     padding: '6px 10px', backgroundColor: colors.surface,
-                    color: colors.purple, border: `1px solid ${colors.purple}`, borderRadius: '6px', cursor: 'pointer',
+                    color: colors.purple, border: `1px solid ${colors.purple}`, borderRadius: '6px', cursor: 'pointer'
                 });
                 okBtn.textContent = t.accept || 'Accept';
                 okBtn.onclick = () => { closeOverlayAnimated(overlay).then(() => resolve()); };
@@ -2184,7 +2116,7 @@
                 borderRadius: "4px",
                 padding: "2px 6px",
                 fontWeight: "bold",
-                fontSize: "11px",
+                fontSize: "11px"
             });
             addBtn.title = t.addKeyword;
             addBtn.onclick = () => {
@@ -2208,7 +2140,7 @@
             const container = document.createElement('div');
             Object.assign(container.style, {
                 display: 'flex', flexDirection: 'column', gap: '6px',
-                marginTop: inline ? '10px' : '0',
+                marginTop: inline ? '10px' : '0'
             });
 
             const makeCheckbox = (id, labelText, initial, onChange) => {
@@ -2268,9 +2200,9 @@
                 // Solo es/en tienen texto propio de privacidad; el resto cae al ingles.
                 {
                     label: t.scriptInfoPrivacy || i18n.en.scriptInfoPrivacy,
-                    value: t.scriptInfoPrivacyText || i18n.en.scriptInfoPrivacyText,
+                    value: t.scriptInfoPrivacyText || i18n.en.scriptInfoPrivacyText
                 },
-                { label: "☕ Ko-fi:", value: "ko-fi.com/g31w0fw0rld", isLink: true },
+                { label: "☕ Ko-fi:", value: "ko-fi.com/g31w0fw0rld", isLink: true }
             ];
             const titleEl = document.createElement('div');
             titleEl.textContent = t.scriptInfoTitle;
@@ -2334,7 +2266,7 @@
                 padding: "0", fontFamily: "Inter, system-ui, sans-serif",
                 fontSize: "13px", boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
                 maxWidth: "390px", minWidth: "300px", maxHeight: "80vh",
-                display: "flex", flexDirection: "column", overflow: "hidden",
+                display: "flex", flexDirection: "column", overflow: "hidden"
             });
 
             // Header with gradient
@@ -2343,7 +2275,7 @@
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "10px 14px", borderBottom: `1px solid ${colors.border}`,
                 cursor: "move", userSelect: "none",
-                background: `linear-gradient(135deg, ${colors.purpleDark}22, ${colors.surface})`,
+                background: `linear-gradient(135deg, ${colors.purpleDark}22, ${colors.surface})`
             });
 
             const titleEl = document.createElement("span");
@@ -2379,7 +2311,7 @@
             body.id = "twitch-drops-panel-body";
             Object.assign(body.style, {
                 padding: "10px 14px", overflow: "hidden", flex: "1",
-                display: isCollapsed ? "none" : "flex", flexDirection: "column",
+                display: isCollapsed ? "none" : "flex", flexDirection: "column"
             });
 
             collapseBtn.onclick = () => {
@@ -2413,7 +2345,7 @@
                     padding: "2px 8px", backgroundColor: colors.bg,
                     border: `1px solid ${colors.border}`, borderRadius: "12px",
                     fontSize: "11px", cursor: "pointer", transition: "all 0.15s",
-                    color: colors.text,
+                    color: colors.text
                 });
                 chip.onmouseenter = () => { chip.style.borderColor = colors.red; chip.style.color = colors.red; };
                 chip.onmouseleave = () => { chip.style.borderColor = colors.border; chip.style.color = colors.text; };
@@ -2440,7 +2372,7 @@
                 padding: "2px 8px", backgroundColor: colors.bg,
                 border: `1px solid ${colors.purple}`, borderRadius: "12px",
                 fontSize: "11px", cursor: "pointer", transition: "all 0.15s",
-                color: colors.purple, fontWeight: "bold",
+                color: colors.purple, fontWeight: "bold"
             });
             addChip.onmouseenter = () => { addChip.style.backgroundColor = colors.purple; addChip.style.color = colors.bg; };
             addChip.onmouseleave = () => { addChip.style.backgroundColor = colors.bg; addChip.style.color = colors.purple; };
@@ -2466,7 +2398,7 @@
             // Buttons row
             const btnRow = document.createElement("div");
             Object.assign(btnRow.style, {
-                display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "10px",
+                display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "10px"
             });
             btnRow.appendChild(createEditKeywordsButton());
             btnRow.appendChild(createResetKeywordsButton());
@@ -2482,7 +2414,7 @@
             const tabBar = document.createElement("div");
             Object.assign(tabBar.style, {
                 display: "flex", gap: "0", marginBottom: "10px",
-                borderBottom: `1px solid ${colors.border}`,
+                borderBottom: `1px solid ${colors.border}`
             });
 
             const tabStyle = {
@@ -2514,7 +2446,7 @@
             // Scrollable tab content area (takes remaining space)
             const tabContent = document.createElement("div");
             Object.assign(tabContent.style, {
-                flex: "1", overflowY: "auto", minHeight: "0",
+                flex: "1", overflowY: "auto", minHeight: "0"
             });
 
             // Active drops pane
@@ -2550,13 +2482,13 @@
                 backgroundColor: colors.orange + "15",
                 border: `1px solid ${colors.orange}40`,
                 borderRadius: "6px", fontSize: "11px",
-                color: colors.orange,
+                color: colors.orange
             });
             const pulseDot = document.createElement("span");
             Object.assign(pulseDot.style, {
                 display: "inline-block", width: "8px", height: "8px",
                 borderRadius: "50%", backgroundColor: colors.orange,
-                animation: "twitch-pulse-dot 1.2s infinite",
+                animation: "twitch-pulse-dot 1.2s infinite"
             });
             apiLoadingEl.appendChild(pulseDot);
             apiLoadingEl.appendChild(document.createTextNode(t.readingApiDrops || "Reading drop changes from GQL/API..."));
@@ -2633,7 +2565,7 @@
             Object.assign(card.style, {
                 backgroundColor: colors.bg, border: `1px solid ${accentColor}`,
                 borderRadius: "8px", padding: "10px", marginBottom: "8px", cursor: "pointer",
-                transition: "all 0.15s",
+                transition: "all 0.15s"
             });
             card.onmouseenter = () => { card.style.boxShadow = `0 0 12px ${accentColor}40`; };
             card.onmouseleave = () => { card.style.boxShadow = "none"; };
@@ -2711,7 +2643,7 @@
                         padding: "1px 6px", backgroundColor: accentColor + "20",
                         color: accentColor,
                         border: `1px solid ${accentColor}40`,
-                        borderRadius: "8px", fontSize: "10px",
+                        borderRadius: "8px", fontSize: "10px"
                     });
                     kwRow.appendChild(chip);
                 });
@@ -2878,14 +2810,14 @@
             // Mark all as viewed button
             const markAllRow = document.createElement("div");
             Object.assign(markAllRow.style, {
-                display: "flex", justifyContent: "flex-end", marginBottom: "8px",
+                display: "flex", justifyContent: "flex-end", marginBottom: "8px"
             });
             const markAllBtn = document.createElement("button");
             markAllBtn.textContent = t.markAllAsViewed;
             Object.assign(markAllBtn.style, {
                 backgroundColor: colors.surface, border: `1px solid ${colors.purple}`,
                 color: colors.text, padding: "4px 8px", borderRadius: "4px",
-                cursor: "pointer", fontSize: "11px",
+                cursor: "pointer", fontSize: "11px"
             });
             markAllBtn.onclick = () => {
                 markAllNotificationsSeen();
@@ -2902,7 +2834,7 @@
                     display: "flex", alignItems: "center", gap: "8px",
                     padding: "6px 8px", marginBottom: "4px",
                     backgroundColor: colors.bg, borderRadius: "6px",
-                    border: `1px solid ${colors.border}`,
+                    border: `1px solid ${colors.border}`
                 });
 
                 const titleDiv = document.createElement("div");
@@ -2920,7 +2852,7 @@
                 Object.assign(viewBtn.style, {
                     backgroundColor: colors.surface, border: `1px solid ${colors.purple}`,
                     color: colors.text, padding: "4px 8px", borderRadius: "4px",
-                    cursor: "pointer", fontSize: "11px", flexShrink: "0",
+                    cursor: "pointer", fontSize: "11px", flexShrink: "0"
                 });
                 viewBtn.onclick = () => {
                     const notifTitle = n.title;
@@ -3013,7 +2945,7 @@
             return JSON.stringify({
                 drops: sortedDrops,
                 startAt: entry.startAt || '',
-                endAt: entry.endAt || '',
+                endAt: entry.endAt || ''
             });
         }
 
@@ -3149,7 +3081,7 @@
                                 id: id, title: displayTitle, key: computedKey,
                                 dataSnapshot: dataSnapshot,
                                 seen: false, changed: true,
-                                createdAt: Date.now(), updatedAt: Date.now(),
+                                createdAt: Date.now(), updatedAt: Date.now()
                             };
                             notifs.push(newN);
                             saveNotifications(notifs);
@@ -3164,7 +3096,7 @@
                             id: id, title: displayTitle, key: computedKey,
                             dataSnapshot: '',
                             seen: false, changed: true,
-                            createdAt: Date.now(), updatedAt: Date.now(),
+                            createdAt: Date.now(), updatedAt: Date.now()
                         };
                         notifs.push(newN);
                         saveNotifications(notifs);
@@ -3176,7 +3108,7 @@
                     title: displayTitle, studio: studioText, id, changed: changedFlag,
                     key: computedKey, status: isExpired ? 'expired' : 'active',
                     idx: index, imgSrc, dateRange, matchedKeywords,
-                    element: node,
+                    element: node
                 };
                 (isExpired ? expired : active).push(item);
             });
@@ -3481,14 +3413,14 @@
             Object.assign(overlay.style, {
                 position: 'fixed', left: '0', top: '0', width: '100%', height: '100%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                backgroundColor: 'rgba(0,0,0,0.5)', zIndex: '999999',
+                backgroundColor: 'rgba(0,0,0,0.5)', zIndex: '999999'
             });
             const box = document.createElement('div');
             Object.assign(box.style, {
                 background: colors.surface, color: colors.text,
                 padding: '24px 32px', borderRadius: '10px', fontSize: '16px',
                 fontWeight: '600', boxShadow: '0 6px 18px rgba(0,0,0,0.3)',
-                border: `2px solid ${colors.purple}`, textAlign: 'center',
+                border: `2px solid ${colors.purple}`, textAlign: 'center'
             });
             box.textContent = message;
             overlay.appendChild(box);
@@ -3661,11 +3593,11 @@
                 colors = _isDark ? {
                     purple: "#9147ff", purpleLight: "#bf94ff", purpleDark: "#772ce8",
                     green: "#00c274", red: "#ff4d4d", gray: "#adadb8", orange: "#ff9900",
-                    bg: "#0e0e10", text: "#efeff1", surface: "#18181b", border: "#2f2f35",
+                    bg: "#0e0e10", text: "#efeff1", surface: "#18181b", border: "#2f2f35"
                 } : {
                     purple: "#9147ff", purpleLight: "#6441a5", purpleDark: "#772ce8",
                     green: "#00a67e", red: "#d92f2f", gray: "#53535f", orange: "#cc7a00",
-                    bg: "#ffffff", text: "#0e0e10", surface: "#f7f7f8", border: "#dad8de",
+                    bg: "#ffffff", text: "#0e0e10", surface: "#f7f7f8", border: "#dad8de"
                 };
                 // Rebuild panel with new colors
                 const resultsContainer = buildPanel();
