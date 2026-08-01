@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.6
-// @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired, each reward with the hours it needs. Hovering a drop in progress shows the exact watch time left; clicking it opens the full detail. It flags campaigns that changed with a bell in the panel and on the card, and can optionally auto-claim your finished drops. Editable keywords, 16 languages, read-only GraphQL queries.
+// @version      1.2.7
+// @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired, each reward with the hours it needs. Rewards you already own are ticked and struck through, and a campaign closing within 72 hours is flagged with the time left and the watch time you still need. Hovering a drop in progress shows the exact watch time left; clicking it opens the full detail. It flags campaigns that changed with a bell in the panel and on the card, and can optionally auto-claim your finished drops. Editable keywords, 16 languages, read-only GraphQL queries.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
 // @license      MIT
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.2.6";
+    const SCRIPT_VERSION = "1.2.7";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -146,7 +146,7 @@
                 scriptInfoName: "Nombre:",
                 scriptInfoVersion: "Version:",
                 scriptInfoDescription: "Descripcion:",
-                scriptInfoDescriptionText: "Resalta en la propia página las campañas de drops que coinciden con tus keywords: morado las abiertas, rojo las cerradas. El panel las lista separadas en abiertos y cerrados, con la ventana de fechas, la keyword que la encontró y cada recompensa con las horas que pide. Keywords editables: clic en una para borrarla, + para añadir, editarlas en bloque o restaurar las predeterminadas. En el inventario puedes ver el detalle de un drop (progreso y tiempo restante), descartar entradas con la ✕ —«Recargar drops» las devuelve— y marcar una casilla que oculta lo cerrado/completado y activa la reclamación automática. Marca con 🔔 —en el panel y en la propia tarjeta— las campañas que cambiaron desde la última vez, con una cuenta de pendientes, notificación de escritorio y un botón 👁️ que además te lleva hasta la campaña. 16 idiomas.",
+                scriptInfoDescriptionText: "Resalta en la propia página las campañas de drops que coinciden con tus keywords: morado las abiertas, rojo las cerradas. El panel las lista separadas en abiertos y cerrados, con la ventana de fechas, la keyword que la encontró y cada recompensa con las horas que pide. Las recompensas que ya tienes van con ✓ y tachadas, una a una, y el badge que no tiene nada pendiente se queda sin su tiempo. Lo que está por cerrar va primero: cuando a una recompensa que aún no tienes se le acaba el tiempo en menos de 72 h, su tarjeta dice cuánto queda y cuánto te falta por ver —rojo por debajo de 24 h— o que ya no da tiempo, y el mismo ⏳ cae en la tarjeta de la campaña en la página. Keywords editables: clic en una para borrarla, + para añadir, editarlas en bloque o restaurar las predeterminadas. En el inventario puedes ver el detalle de un drop (progreso y tiempo restante), descartar entradas con la ✕ —«Recargar drops» las devuelve— y marcar una casilla que oculta lo cerrado/completado y activa la reclamación automática. Marca con 🔔 —en el panel y en la propia tarjeta— las campañas que cambiaron desde la última vez, con una cuenta de pendientes, notificación de escritorio y un botón 👁️ que además te lleva hasta la campaña. 16 idiomas.",
                 scriptInfoAuthor: "Autor:",
                 scriptInfoGitHub: "GitHub:",
                 scriptInfoPrivacy: "Privacidad:",
@@ -161,6 +161,9 @@
                 rewards: "Recompensas",
                 minutesShort: "min",
                 dropDetails: "Detalle del drop",
+                urgentClosesIn: "cierra en",
+                urgentNeed: "te faltan",
+                urgentNoTime: "no da tiempo",
                 claimedInventoryTitle: "Reclamados"
             },
             en: {
@@ -201,7 +204,7 @@
                 scriptInfoName: "Name:",
                 scriptInfoVersion: "Version:",
                 scriptInfoDescription: "Description:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Author:",
                 scriptInfoGitHub: "GitHub:",
                 scriptInfoPrivacy: "Privacy:",
@@ -216,6 +219,9 @@
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                urgentClosesIn: "closes in",
+                urgentNeed: "you still need",
+                urgentNoTime: "not enough time",
                 claimedInventoryTitle: "Claimed"
             },
             de: {
@@ -240,7 +246,7 @@ addKeyword: "Keyword hinzufügen",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 scriptInfoTitle: "Skript-Informationen", scriptInfoName: "Name:",
                 scriptInfoVersion: "Version:", scriptInfoDescription: "Beschreibung:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Autor:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
@@ -251,6 +257,9 @@ addKeyword: "Keyword hinzufügen",
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                urgentClosesIn: "endet in",
+                urgentNeed: "dir fehlen",
+                urgentNoTime: "Zeit reicht nicht",
                 claimedInventoryTitle: "Beansprucht"
             },
             fr: {
@@ -275,7 +284,7 @@ editPrompt: "Mots-clés séparés par des virgules :",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 scriptInfoTitle: "Informations du script", scriptInfoName: "Nom :",
                 scriptInfoVersion: "Version :", scriptInfoDescription: "Description :",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Auteur :", scriptInfoGitHub: "GitHub :",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
@@ -286,6 +295,9 @@ editPrompt: "Mots-clés séparés par des virgules :",
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                urgentClosesIn: "se termine dans",
+                urgentNeed: "il te manque",
+                urgentNoTime: "pas assez de temps",
                 claimedInventoryTitle: "Réclamés"
             },
             pt: {
@@ -310,7 +322,7 @@ editPrompt: "Keywords separadas por vírgula:",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 scriptInfoTitle: "Informações do script", scriptInfoName: "Nome:",
                 scriptInfoVersion: "Versão:", scriptInfoDescription: "Descrição:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Autor:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
@@ -321,6 +333,9 @@ editPrompt: "Keywords separadas por vírgula:",
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                urgentClosesIn: "fecha em",
+                urgentNeed: "faltam",
+                urgentNoTime: "não dá tempo",
                 claimedInventoryTitle: "Resgatados"
             },
             ru: {
@@ -345,7 +360,7 @@ addKeyword: "Добавить ключевое слово",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 scriptInfoTitle: "Информация о скрипте", scriptInfoName: "Имя:",
                 scriptInfoVersion: "Версия:", scriptInfoDescription: "Описание:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Автор:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
@@ -356,6 +371,9 @@ addKeyword: "Добавить ключевое слово",
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                urgentClosesIn: "закроется через",
+                urgentNeed: "осталось",
+                urgentNoTime: "не успеешь",
                 claimedInventoryTitle: "Востребованные"
             },
             tr: {
@@ -380,7 +398,7 @@ editPrompt: "Virgülle ayrılmış anahtar kelimeler:",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 scriptInfoTitle: "Script Bilgisi", scriptInfoName: "Ad:",
                 scriptInfoVersion: "Sürüm:", scriptInfoDescription: "Açıklama:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Yazar:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
@@ -391,6 +409,9 @@ editPrompt: "Virgülle ayrılmış anahtar kelimeler:",
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                urgentClosesIn: "kapanışa",
+                urgentNeed: "kalan",
+                urgentNoTime: "zaman yetmiyor",
                 claimedInventoryTitle: "Talep Edilenler"
             },
             ja: {
@@ -415,7 +436,7 @@ editPrompt: "カンマ区切りのキーワード:",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 scriptInfoTitle: "スクリプト情報", scriptInfoName: "名前:",
                 scriptInfoVersion: "バージョン:", scriptInfoDescription: "説明:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "作者:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
@@ -426,6 +447,9 @@ editPrompt: "カンマ区切りのキーワード:",
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                urgentClosesIn: "終了まで",
+                urgentNeed: "残り",
+                urgentNoTime: "時間が足りません",
                 claimedInventoryTitle: "受け取り済み"
             },
             ko: {
@@ -450,7 +474,7 @@ editPrompt: "쉼표로 구분된 키워드:",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 scriptInfoTitle: "스크립트 정보", scriptInfoName: "이름:",
                 scriptInfoVersion: "버전:", scriptInfoDescription: "설명:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "작성자:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
@@ -461,6 +485,9 @@ editPrompt: "쉼표로 구분된 키워드:",
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                urgentClosesIn: "종료까지",
+                urgentNeed: "남은 시간",
+                urgentNoTime: "시간이 부족",
                 claimedInventoryTitle: "수령 완료"
             },
             pl: {
@@ -485,7 +512,7 @@ editPrompt: "Słowa kluczowe oddzielone przecinkami:",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 scriptInfoTitle: "Informacje o skrypcie", scriptInfoName: "Nazwa:",
                 scriptInfoVersion: "Wersja:", scriptInfoDescription: "Opis:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Autor:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
@@ -496,6 +523,9 @@ editPrompt: "Słowa kluczowe oddzielone przecinkami:",
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                urgentClosesIn: "kończy się za",
+                urgentNeed: "brakuje",
+                urgentNoTime: "za mało czasu",
                 claimedInventoryTitle: "Odebrane"
             },
             fi: {
@@ -520,7 +550,7 @@ editPrompt: "Avainsanat pilkulla eroteltuina:",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 scriptInfoTitle: "Skriptin tiedot", scriptInfoName: "Nimi:",
                 scriptInfoVersion: "Versio:", scriptInfoDescription: "Kuvaus:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Tekijä:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
@@ -531,6 +561,9 @@ editPrompt: "Avainsanat pilkulla eroteltuina:",
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                urgentClosesIn: "päättyy",
+                urgentNeed: "jäljellä",
+                urgentNoTime: "aika ei riitä",
                 claimedInventoryTitle: "Lunastettu"
             },
             vi: {
@@ -555,7 +588,7 @@ editPrompt: "Từ khóa phân cách bằng dấu phẩy:",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 scriptInfoTitle: "Thông tin script", scriptInfoName: "Tên:",
                 scriptInfoVersion: "Phiên bản:", scriptInfoDescription: "Mô tả:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Tác giả:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
@@ -566,6 +599,9 @@ editPrompt: "Từ khóa phân cách bằng dấu phẩy:",
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                urgentClosesIn: "kết thúc sau",
+                urgentNeed: "còn thiếu",
+                urgentNoTime: "không kịp",
                 claimedInventoryTitle: "Đã nhận"
             },
             zh: {
@@ -590,7 +626,7 @@ editPrompt: "逗号分隔的关键词：",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 scriptInfoTitle: "脚本信息", scriptInfoName: "名称：",
                 scriptInfoVersion: "版本：", scriptInfoDescription: "描述：",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "作者：", scriptInfoGitHub: "GitHub：",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
@@ -601,6 +637,9 @@ editPrompt: "逗号分隔的关键词：",
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                urgentClosesIn: "距结束",
+                urgentNeed: "还需",
+                urgentNoTime: "时间不够",
                 claimedInventoryTitle: "已领取"
             },
             ar: {
@@ -625,7 +664,7 @@ editPrompt: "كلمات مفتاحية مفصولة بفواصل:",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 scriptInfoTitle: "معلومات السكربت", scriptInfoName: "الاسم:",
                 scriptInfoVersion: "الإصدار:", scriptInfoDescription: "الوصف:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "المؤلف:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
@@ -636,6 +675,9 @@ editPrompt: "كلمات مفتاحية مفصولة بفواصل:",
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                urgentClosesIn: "ينتهي خلال",
+                urgentNeed: "يتبقى",
+                urgentNoTime: "الوقت لا يكفي",
                 claimedInventoryTitle: "تم المطالبة"
             },
             hi: {
@@ -660,7 +702,7 @@ editPrompt: "अल्पविराम से अलग कीवर्ड:",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 scriptInfoTitle: "स्क्रिप्ट जानकारी", scriptInfoName: "नाम:",
                 scriptInfoVersion: "संस्करण:", scriptInfoDescription: "विवरण:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "लेखक:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
@@ -671,6 +713,9 @@ editPrompt: "अल्पविराम से अलग कीवर्ड:",
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                urgentClosesIn: "समाप्त होने में",
+                urgentNeed: "बाकी",
+                urgentNoTime: "समय कम है",
                 claimedInventoryTitle: "दावा किया गया"
             },
             id: {
@@ -695,7 +740,7 @@ editPrompt: "Kata kunci dipisahkan koma:",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 scriptInfoTitle: "Informasi Script", scriptInfoName: "Nama:",
                 scriptInfoVersion: "Versi:", scriptInfoDescription: "Deskripsi:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
                 scriptInfoAuthor: "Penulis:", scriptInfoGitHub: "GitHub:",
                 loadingDropsFromInventory: "Reading drops from campaigns, please wait...",
                 loadingDrops: "Searching drops...",
@@ -706,6 +751,9 @@ editPrompt: "Kata kunci dipisahkan koma:",
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                urgentClosesIn: "berakhir dalam",
+                urgentNeed: "kurang",
+                urgentNoTime: "waktu tidak cukup",
                 claimedInventoryTitle: "Diklaim"
             }
         };
@@ -1610,6 +1658,11 @@ editPrompt: "Kata kunci dipisahkan koma:",
                     // que las añade.
                     const previous = card.querySelector(".drop-api-names");
                     if (previous) previous.remove();
+                    // La linea de urgencia entra en el mismo repintado: el "te
+                    // faltan" necesita los minutos vistos, que llegan con este pase.
+                    const previousUrgency = card.querySelector(".drop-urgency");
+                    if (previousUrgency) previousUrgency.remove();
+                    _appendUrgencyTo(card, _findEntryForTitle(ct));
                     _appendDropNamesTo(card, drops);
                 });
             }
@@ -1684,6 +1737,109 @@ editPrompt: "Kata kunci dipisahkan koma:",
                 container.appendChild(chip);
             });
             card.appendChild(container);
+        }
+
+        // =============================================
+        // URGENCIA: CIERRA PRONTO Y AUN TE FALTA TIEMPO
+        // =============================================
+
+        // Dos umbrales y no uno: "cierra hoy" y "cierra este fin de semana" se
+        // deciden distinto, y un solo color los iguala. Van fijos a proposito —como
+        // ajuste serian 16 traducciones, validacion y persistencia para un numero
+        // que casi nadie tocaria.
+        const URGENT_SOON_HOURS = 24;
+        const URGENT_WARN_HOURS = 72;
+
+        // Cuenta atras gruesa: para un cierre no importan los minutos salvo en la
+        // ultima hora. formatHoursMinutes() sigue siendo la de los tiempos de
+        // visualizacion, donde el minuto si cuenta.
+        function _formatCountdown(totalMinutes) {
+            const m = Math.max(0, Math.round(totalMinutes));
+            if (m < 60) return `${m} min`;
+            return `${Math.floor(m / 60)} h`;
+        }
+
+        // Minutos ya vistos de ESTE tramo. Al reves que en Kick, Twitch cuenta el
+        // progreso por drop y no por campaña. Devuelve null —no 0— mientras no haya
+        // llegado el inventario: decirle "te faltan 10 h" a quien lleva 9 vistas es
+        // peor que no decir nada. Un drop ausente del inventario si es un 0 real: la
+        // campaña no esta en curso, o sea que no la has empezado.
+        function _watchedMinutesFor(drop) {
+            if (!_inventoryProgressReady) return null;
+            const p = drop && drop.id ? _inventoryProgress[drop.id] : null;
+            return p ? (Number(p.current) || 0) : 0;
+        }
+
+        // Recibe la entrada del API ({drops, endAt}) y no solo los drops: en Twitch
+        // el cierre es de la campaña, no de cada recompensa. Devuelve
+        // {level, minutesLeft, needed, feasible} o null si no corre prisa.
+        function _computeUrgency(entry) {
+            if (!entry || !entry.endAt) return null;   // el fallback publico no trae fechas
+            const now = Date.now();
+            const end = Date.parse(entry.endAt);
+            if (!Number.isFinite(end) || end <= now) return null;
+            const minutesLeft = (end - now) / 60000;
+            if (minutesLeft > URGENT_WARN_HOURS * 60) return null;
+
+            // Solo cuenta lo que aun no es tuyo: una campaña cuyos tramos ya tienes
+            // no tiene ninguna prisa, por mucho que cierre mañana. Se descarta solo
+            // lo que CONSTA reclamado (true); mientras el indice no ha llegado,
+            // _isDropClaimed devuelve null y el tramo sigue contando.
+            const pending = (entry.drops || []).filter(d => _isDropClaimed(d) !== true);
+            if (pending.length === 0) return null;
+
+            // El tramo mas barato de los que quedan: es el que dice si todavia se
+            // puede sacar algo de la campaña —si el mas barato no da tiempo, ninguno
+            // da—. Se ignoran los de resto 0 (ganados y sin reclamar): ahi no falta
+            // tiempo, falta pulsar, que es otra cosa.
+            let needed = null;
+            for (const d of pending) {
+                const watched = _watchedMinutesFor(d);
+                if (watched === null) continue;
+                const rest = Math.max(0, (Number(d.minutes) || 0) - watched);
+                if (rest > 0 && (needed === null || rest < needed)) needed = rest;
+            }
+            return {
+                level: minutesLeft <= URGENT_SOON_HOURS * 60 ? 'soon' : 'warn',
+                minutesLeft,
+                needed,                                 // null = sin dato de progreso
+                feasible: needed === null ? null : needed <= minutesLeft
+            };
+        }
+
+        function _urgencyColor(u) {
+            return u.level === 'soon' ? colors.red : colors.orange;
+        }
+
+        function _urgencyText(u) {
+            let txt = `⏳ ${t.urgentClosesIn || 'closes in'} ${_formatCountdown(u.minutesLeft)}`;
+            if (u.needed !== null) txt += ` · ${t.urgentNeed || 'you still need'} ${formatHoursMinutes(u.needed)}`;
+            if (u.feasible === false) txt += ` · ${t.urgentNoTime || 'not enough time'}`;
+            return txt;
+        }
+
+        // Clave de orden: cuanto antes cierre, mas arriba. Lo que no corre prisa se
+        // va al final con Infinity y conserva el orden de la pagina, porque sort()
+        // es estable.
+        function _urgencySortKey(item) {
+            const u = _computeUrgency(_findEntryForTitle(item && item.title));
+            return u ? u.minutesLeft : Infinity;
+        }
+
+        // La linea va justo debajo de la cabecera —encima de las keywords y de los
+        // badges— porque es lo que decide si la tarjeta te importa hoy.
+        function _appendUrgencyTo(card, entry) {
+            const u = _computeUrgency(entry);
+            if (!u) return;
+            const line = document.createElement("div");
+            line.className = "drop-urgency";
+            line.textContent = _urgencyText(u);
+            Object.assign(line.style, {
+                fontSize: "11px", fontWeight: "700", marginBottom: "4px",
+                color: _urgencyColor(u),
+                opacity: u.feasible === false ? "0.75" : "1"
+            });
+            card.insertBefore(line, card.children[1] || null);
         }
 
         function checkAndHandleScriptVersion() {
@@ -2762,6 +2918,7 @@ editPrompt: "Kata kunci dipisahkan koma:",
             if (isActive) {
                 const dropNames = _findDropNamesForTitle(campaign.title);
                 if (dropNames && dropNames.length > 0) {
+                    _appendUrgencyTo(card, _findEntryForTitle(campaign.title));
                     _appendDropNamesTo(card, dropNames);
                 }
             }
@@ -2819,9 +2976,14 @@ editPrompt: "Kata kunci dipisahkan koma:",
                     msg.style.textAlign = "center";
                     activePane.appendChild(msg);
                 } else {
-                    activeItems.forEach(c => {
-                        activePane.appendChild(renderCampaignCard(c, true));
-                    });
+                    // Lo que antes cierra, primero, y solo en Activos: en Cerrados
+                    // ya se acabo. Se ordena una copia para no tocar el array que
+                    // mantiene el escaneo de la pagina.
+                    [...activeItems]
+                        .sort((a, b) => _urgencySortKey(a) - _urgencySortKey(b))
+                        .forEach(c => {
+                            activePane.appendChild(renderCampaignCard(c, true));
+                        });
                 }
             }
 
@@ -2863,6 +3025,15 @@ editPrompt: "Kata kunci dipisahkan koma:",
                     });
                 }
             });
+            // El mismo 🔔 puesto sobre la tarjeta de la pagina: marcarla como vista
+            // lo quita de los dos sitios, no solo del panel.
+            document.querySelectorAll(".drop-page-bell").forEach(bell => {
+                const bellTitle = bell.getAttribute("data-notif-title") || "";
+                const bellId = bell.getAttribute("data-notif-id") || "";
+                if ((notifTitle && bellTitle === notifTitle) || (notifId && bellId === notifId)) {
+                    bell.remove();
+                }
+            });
         }
 
         function removeAllBellsFromCards() {
@@ -2872,6 +3043,7 @@ editPrompt: "Kata kunci dipisahkan koma:",
                     pane.querySelectorAll(".drop-bell-icon").forEach(bell => bell.remove());
                 }
             });
+            document.querySelectorAll(".drop-page-bell").forEach(bell => bell.remove());
         }
 
         // Lightweight update: only refresh notification count badge without re-rendering/switching tabs
@@ -3081,6 +3253,11 @@ editPrompt: "Kata kunci dipisahkan koma:",
             idx = 0;
             // Clear previous drop-match IDs to allow re-scanning (needed when API data arrives after first DOM scan)
             document.querySelectorAll('[id^="drop-match-"]').forEach(el => el.removeAttribute('id'));
+            // Las marcas de la pagina (⏳ y 🔔) se borran enteras y se vuelven a
+            // poner: asi se van solas las de campañas que dejaron de correr prisa
+            // —la reclamaste, o cruzo el umbral— sin llevar la cuenta de cual habia
+            // en cada nodo.
+            document.querySelectorAll('.twitch-drop-page-mark').forEach(el => el.remove());
             // APPROACH 1: Find closed header using CLOSED_HEADER_TEXTS (28 locales)
             const closedHeader = Array.from(document.querySelectorAll('h4[class^="CoreText-sc"]'))
                 .find(h => CLOSED_HEADER_TEXTS.some(text => h.textContent.trim().toLowerCase() === text.toLowerCase()));
@@ -3118,6 +3295,11 @@ editPrompt: "Kata kunci dipisahkan koma:",
                 }
 
                 if (!titleText) return;
+
+                // El elemento del que salio el titulo, para colgar de el la marca de
+                // urgencia. Reproduce las ramas de arriba: el primer CoreText si lo
+                // hay, y si no el primer <p> suelto.
+                const titleEl = corePs[0] || node.querySelector('p') || null;
 
                 // Combine title + studio for keyword matching (match against both fields)
                 const searchText = (titleText + " " + studioText).toLowerCase();
@@ -3225,6 +3407,41 @@ editPrompt: "Kata kunci dipisahkan koma:",
                         notifs.push(newN);
                         saveNotifications(notifs);
                         changedFlag = true;
+                    }
+                }
+
+                // Marcas sobre la propia tarjeta de Twitch, para que la prisa y el
+                // cambio se vean haciendo scroll y no solo dentro del panel. Van
+                // como HERMANAS del titulo y nunca dentro: el titulo se relee con
+                // textContent en cada pasada, asi que un hijo acabaria colandose en
+                // el texto que se compara con las keywords y en el nombre de la
+                // campaña. Se insertan en orden inverso al que se leen, porque cada
+                // una entra pegada al titulo y empuja a la anterior.
+                if (titleEl && titleEl.parentElement) {
+                    const pageMark = (text, color, tooltip, extraClass) => {
+                        const el = document.createElement('span');
+                        el.className = 'twitch-drop-page-mark' + (extraClass ? ' ' + extraClass : '');
+                        el.textContent = text;
+                        if (tooltip) el.title = tooltip;
+                        // Los mismos atributos que la tarjeta del panel: es lo que
+                        // permite que "marcar como vista" quite el 🔔 de los dos sitios.
+                        el.setAttribute('data-notif-title', displayTitle);
+                        el.setAttribute('data-notif-id', id);
+                        Object.assign(el.style, {
+                            marginLeft: '8px', fontSize: '12px', fontWeight: '700',
+                            color: color, whiteSpace: 'nowrap'
+                        });
+                        titleEl.insertAdjacentElement('afterend', el);
+                    };
+                    if (changedFlag) {
+                        pageMark(t.changedIcon || '🔔', colors.orange, t.changes_detected || '', 'drop-page-bell');
+                    }
+                    if (!isExpired) {
+                        const urgency = _computeUrgency(_findEntryForTitle(displayTitle));
+                        if (urgency) {
+                            pageMark(`⏳ ${_formatCountdown(urgency.minutesLeft)}`,
+                                _urgencyColor(urgency), _urgencyText(urgency));
+                        }
                     }
                 }
 
