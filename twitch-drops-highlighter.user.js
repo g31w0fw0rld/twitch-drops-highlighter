@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.5
+// @version      1.2.6
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired, each reward with the hours it needs. Hovering a drop in progress shows the exact watch time left; clicking it opens the full detail. It flags campaigns that changed with a bell in the panel and on the card, and can optionally auto-claim your finished drops. Editable keywords, 16 languages, read-only GraphQL queries.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.2.5";
+    const SCRIPT_VERSION = "1.2.6";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -160,7 +160,8 @@
                 progress: "Progreso",
                 rewards: "Recompensas",
                 minutesShort: "min",
-                dropDetails: "Detalle del drop"
+                dropDetails: "Detalle del drop",
+                claimedInventoryTitle: "Reclamados"
             },
             en: {
 
@@ -214,7 +215,8 @@
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details"
+                dropDetails: "Drop details",
+                claimedInventoryTitle: "Claimed"
             },
             de: {
 addKeyword: "Keyword hinzufügen",
@@ -248,7 +250,8 @@ addKeyword: "Keyword hinzufügen",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details"
+                dropDetails: "Drop details",
+                claimedInventoryTitle: "Beansprucht"
             },
             fr: {
 addKeyword: "Ajouter un mot-clé",
@@ -282,7 +285,8 @@ editPrompt: "Mots-clés séparés par des virgules :",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details"
+                dropDetails: "Drop details",
+                claimedInventoryTitle: "Réclamés"
             },
             pt: {
 addKeyword: "Adicionar Keyword",
@@ -316,7 +320,8 @@ editPrompt: "Keywords separadas por vírgula:",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details"
+                dropDetails: "Drop details",
+                claimedInventoryTitle: "Resgatados"
             },
             ru: {
 addKeyword: "Добавить ключевое слово",
@@ -350,7 +355,8 @@ addKeyword: "Добавить ключевое слово",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details"
+                dropDetails: "Drop details",
+                claimedInventoryTitle: "Востребованные"
             },
             tr: {
 addKeyword: "Anahtar Kelime Ekle",
@@ -384,7 +390,8 @@ editPrompt: "Virgülle ayrılmış anahtar kelimeler:",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details"
+                dropDetails: "Drop details",
+                claimedInventoryTitle: "Talep Edilenler"
             },
             ja: {
 addKeyword: "キーワード追加",
@@ -418,7 +425,8 @@ editPrompt: "カンマ区切りのキーワード:",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details"
+                dropDetails: "Drop details",
+                claimedInventoryTitle: "受け取り済み"
             },
             ko: {
 addKeyword: "키워드 추가",
@@ -452,7 +460,8 @@ editPrompt: "쉼표로 구분된 키워드:",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details"
+                dropDetails: "Drop details",
+                claimedInventoryTitle: "수령 완료"
             },
             pl: {
 addKeyword: "Dodaj słowo kluczowe",
@@ -486,7 +495,8 @@ editPrompt: "Słowa kluczowe oddzielone przecinkami:",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details"
+                dropDetails: "Drop details",
+                claimedInventoryTitle: "Odebrane"
             },
             fi: {
 addKeyword: "Lisää avainsana",
@@ -520,7 +530,8 @@ editPrompt: "Avainsanat pilkulla eroteltuina:",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details"
+                dropDetails: "Drop details",
+                claimedInventoryTitle: "Lunastettu"
             },
             vi: {
 addKeyword: "Thêm từ khóa",
@@ -554,7 +565,8 @@ editPrompt: "Từ khóa phân cách bằng dấu phẩy:",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details"
+                dropDetails: "Drop details",
+                claimedInventoryTitle: "Đã nhận"
             },
             zh: {
 addKeyword: "添加关键词",
@@ -588,7 +600,8 @@ editPrompt: "逗号分隔的关键词：",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details"
+                dropDetails: "Drop details",
+                claimedInventoryTitle: "已领取"
             },
             ar: {
 addKeyword: "إضافة كلمة مفتاحية",
@@ -622,7 +635,8 @@ editPrompt: "كلمات مفتاحية مفصولة بفواصل:",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details"
+                dropDetails: "Drop details",
+                claimedInventoryTitle: "تم المطالبة"
             },
             hi: {
 addKeyword: "कीवर्ड जोड़ें",
@@ -656,7 +670,8 @@ editPrompt: "अल्पविराम से अलग कीवर्ड:",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details"
+                dropDetails: "Drop details",
+                claimedInventoryTitle: "दावा किया गया"
             },
             id: {
 addKeyword: "Tambah Kata Kunci",
@@ -690,7 +705,8 @@ editPrompt: "Kata kunci dipisahkan koma:",
                 progress: "Progress",
                 rewards: "Rewards",
                 minutesShort: "min",
-                dropDetails: "Drop details"
+                dropDetails: "Drop details",
+                claimedInventoryTitle: "Diklaim"
             }
         };
         const t = i18n[lang] || i18n["en"];
@@ -1029,10 +1045,21 @@ editPrompt: "Kata kunci dipisahkan koma:",
         const _inventoryProgress = {};
         let _inventoryProgressReady = false;
 
+        // Ids de lo ya reclamado. Son dos conjuntos porque hay dos formas de saberlo
+        // y cubren casos distintos: `self.isClaimed` marca el tramo dentro de una
+        // campaña que sigue EN CURSO, mientras que `gameEventDrops` es la lista de
+        // recompensas ya concedidas, que sobrevive aunque la campaña deje de estar en
+        // curso por haberla completado.
+        let _claimedDropIds = new Set();
+        let _claimedBenefitIds = new Set();
+        let _claimedIndexReady = false;
+
         async function fetchInventoryProgress() {
             try {
                 const inv = await _gqlGetInventory();
                 const campaigns = inv?.dropCampaignsInProgress || [];
+                const claimedDrops = new Set();
+                const claimedBenefits = new Set();
                 for (const c of campaigns) {
                     for (const drop of (c.timeBasedDrops || [])) {
                         if (!drop?.id) continue;
@@ -1044,12 +1071,36 @@ editPrompt: "Kata kunci dipisahkan koma:",
                             rewards: rewardEdges.map(b => b.benefit?.name).filter(Boolean),
                             imageUrl: rewardEdges[0]?.benefit?.imageAssetURL || ''
                         };
+                        if (drop.self?.isClaimed) claimedDrops.add(drop.id);
                     }
                 }
+                for (const g of (inv?.gameEventDrops || [])) {
+                    if (g?.id) claimedBenefits.add(g.id);
+                }
+                _claimedDropIds = claimedDrops;
+                _claimedBenefitIds = claimedBenefits;
+                _claimedIndexReady = true;
                 _inventoryProgressReady = true;
+                // Los badges ya estan pintados (los nombres salen de otra consulta,
+                // mas rapida); este es el pase que les añade las marcas de obtenido.
+                _updateAllCardsWithDropNames();
             } catch (e) {
                 console.warn('[Inventory] fetch failed:', e);
             }
+        }
+
+        // Devuelve null —no false— mientras no haya llegado el inventario. Sin datos
+        // no se marca nada, en vez de pintar todo como no obtenido, que seria mentir
+        // en la direccion contraria y encima con aspecto de dato.
+        function _isDropClaimed(drop) {
+            if (!_claimedIndexReady || !drop) return null;
+            if (drop.id && _claimedDropIds.has(drop.id)) return true;
+            // Por benefit hace falta que esten TODOS: un tramo entrega varias
+            // recompensas de golpe, asi que con una sola concedida no se puede dar el
+            // tramo por reclamado.
+            const benefitIds = drop.benefitIds || [];
+            if (benefitIds.length > 0 && benefitIds.every(id => _claimedBenefitIds.has(id))) return true;
+            return false;
         }
 
         // =============================================
@@ -1358,7 +1409,9 @@ editPrompt: "Kata kunci dipisahkan koma:",
                 const rewards = (rc.rewards || []).map(r => ({
                     name: r.name || '',
                     rewards: [r.name].filter(Boolean),
-                    minutes
+                    minutes,
+                    id: r.id || '',
+                    benefitIds: []
                 })).filter(r => r.name);
 
                 if (rewards.length > 0) {
@@ -1388,7 +1441,16 @@ editPrompt: "Kata kunci dipisahkan koma:",
                         drops.push({
                             name: drop.name,
                             rewards: rewardNames,
-                            minutes: drop.requiredMinutesWatched || 0
+                            minutes: drop.requiredMinutesWatched || 0,
+                            // Identidad del drop, para cruzarlo con el inventario y
+                            // saber si ya esta reclamado. Se guardan las dos claves
+                            // posibles porque el reclamado se puede mirar por tramo
+                            // (id del drop) o por recompensa concreta (id del
+                            // benefit), y no son intercambiables: un tramo reparte
+                            // varios benefits de golpe.
+                            id: drop.id || '',
+                            benefitIds: (drop.benefitEdges || [])
+                                .map(b => b.benefit?.id).filter(Boolean)
                         });
                     }
                     if (drops.length > 0) {
@@ -1426,7 +1488,10 @@ editPrompt: "Kata kunci dipisahkan koma:",
                             drops.push({
                                 name: drop.name,
                                 rewards: rewardNames,
-                                minutes: drop.requiredMinutesWatched || 0
+                                minutes: drop.requiredMinutesWatched || 0,
+                                id: drop.id || '',
+                                benefitIds: (drop.benefitEdges || [])
+                                    .map(b => b.benefit?.id).filter(Boolean)
                             });
                         }
                     }
@@ -1536,10 +1601,16 @@ editPrompt: "Kata kunci dipisahkan koma:",
                 const pane = document.getElementById(paneId);
                 if (!pane) continue;
                 pane.querySelectorAll("[data-notif-title]").forEach(card => {
-                    if (card.querySelector(".drop-api-names")) return;
                     const ct = card.getAttribute("data-notif-title");
                     const drops = _findDropNamesForTitle(ct);
-                    if (drops && drops.length > 0) _appendDropNamesTo(card, drops);
+                    if (!drops || drops.length === 0) return;
+                    // Se repinta en vez de saltarse los badges ya puestos: el estado de
+                    // reclamado llega del inventario, despues que los nombres, asi que
+                    // el primer pintado se hace sin marcas y este segundo pase es el
+                    // que las añade.
+                    const previous = card.querySelector(".drop-api-names");
+                    if (previous) previous.remove();
+                    _appendDropNamesTo(card, drops);
                 });
             }
         }
@@ -1550,22 +1621,35 @@ editPrompt: "Kata kunci dipisahkan koma:",
             Object.assign(container.style, {
                 display: "flex", flexWrap: "wrap", gap: "3px", marginTop: "4px"
             });
-            // Group by minutes
+            // Group by minutes: un chip por tramo de visualizacion. Dentro del chip va
+            // un span POR DROP, no un texto unico. El drop es la unidad de reclamo
+            // —un tramo entrega todas sus recompensas de golpe—, y una campaña puede
+            // tener varios drops en el mismo tramo, cada uno con su propio estado.
             const grouped = {};
             drops.forEach(d => {
                 const key = d.minutes || 0;
                 if (!grouped[key]) grouped[key] = [];
                 const name = (d.rewards && d.rewards.length > 0) ? d.rewards.join(", ") : d.name;
-                grouped[key].push(name);
+                if (!name) return;
+                const claimed = _isDropClaimed(d);
+                // Deduplicado por (nombre + estado) y no solo por nombre: dos drops
+                // homonimos en el mismo tramo se siguen viendo como uno mientras
+                // compartan estado, y se separan en cuanto uno esta reclamado y el
+                // otro no — que es justo lo que este badge viene a decir.
+                if (grouped[key].some(x => x.name === name && x.claimed === claimed)) return;
+                grouped[key].push({ name, claimed });
             });
-            Object.entries(grouped).forEach(([min, names]) => {
+            Object.entries(grouped).forEach(([min, items]) => {
                 const minutes = parseInt(min);
                 const hours = minutes / 60;
-                let label = names.join(", ");
-                label += hours >= 1 ? ` (${hours} h)` : minutes > 0 ? ` (${minutes} min)` : '';
+                // Con el tramo entero reclamado, el tiempo que pedia ya no le sirve a
+                // nadie: desaparece de la etiqueta, y quien lo dice es el tooltip, que
+                // es donde vivia ese dato.
+                const allClaimed = items.length > 0 && items.every(x => x.claimed === true);
                 const chip = document.createElement("span");
-                chip.textContent = label;
-                chip.title = minutes ? `${minutes} min` : '';
+                chip.title = allClaimed
+                    ? (t.claimedInventoryTitle || 'Claimed')
+                    : (minutes ? `${minutes} min` : '');
                 Object.assign(chip.style, {
                     padding: "1px 6px",
                     backgroundColor: colors.text + "18",
@@ -1573,6 +1657,30 @@ editPrompt: "Kata kunci dipisahkan koma:",
                     border: `1px solid ${colors.text}40`,
                     borderRadius: "8px", fontSize: "10px"
                 });
+                items.forEach((item, i) => {
+                    if (i > 0) chip.appendChild(document.createTextNode(", "));
+                    if (item.claimed) {
+                        // El ✓ va en su propio span y SIN tachar: es la marca positiva
+                        // de que lo tienes, y tachado se leeria como lo contrario. El
+                        // tachado es solo para el nombre, y la opacidad hunde el
+                        // conjunto para que lo que resalte sea lo que aun falta.
+                        const tick = document.createElement("span");
+                        tick.textContent = "✓ ";
+                        tick.style.opacity = "0.6";
+                        chip.appendChild(tick);
+                    }
+                    const nameEl = document.createElement("span");
+                    nameEl.textContent = item.name;
+                    if (item.claimed) {
+                        nameEl.style.textDecoration = "line-through";
+                        nameEl.style.opacity = "0.6";
+                    }
+                    chip.appendChild(nameEl);
+                });
+                if (!allClaimed) {
+                    const suffix = hours >= 1 ? ` (${hours} h)` : minutes > 0 ? ` (${minutes} min)` : '';
+                    if (suffix) chip.appendChild(document.createTextNode(suffix));
+                }
                 container.appendChild(chip);
             });
             card.appendChild(container);
@@ -2935,13 +3043,29 @@ editPrompt: "Kata kunci dipisahkan koma:",
         let reseted = false;
         let divIdClickAfterClick = null;
 
+        // Los campos que entran en el snapshot son los que definen "la campaña
+        // cambio". Se proyectan de forma explicita en vez de serializar el drop
+        // entero: los objetos de _apiDropNames llevan ademas identidad (id,
+        // benefitIds) y, sobre todo, NO puede entrar aqui nada que dependa del
+        // usuario. Si el estado de reclamado formara parte del snapshot, reclamar un
+        // drop marcaria su campaña como cambiada y levantaria un 🔔 falso cada vez.
+        function _snapshotFieldsOf(drop) {
+            return {
+                name: drop.name || '',
+                rewards: drop.rewards || [],
+                minutes: drop.minutes || 0
+            };
+        }
+
         function buildDataSnapshot(displayTitle) {
             const entry = _findEntryForTitle(displayTitle);
             if (!entry || !entry.drops || entry.drops.length === 0) {
                 return JSON.stringify({ title: displayTitle.toLowerCase() });
             }
             // Sort drops by name for consistent comparison
-            const sortedDrops = [...entry.drops].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            const sortedDrops = [...entry.drops]
+                .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                .map(_snapshotFieldsOf);
             return JSON.stringify({
                 drops: sortedDrops,
                 startAt: entry.startAt || '',
