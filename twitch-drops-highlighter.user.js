@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.12
+// @version      1.2.14
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. 16 languages, read-only GraphQL queries.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.2.12";
+    const SCRIPT_VERSION = "1.2.14";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -1603,11 +1603,29 @@ editPrompt: "Kata kunci dipisahkan koma:",
                 const required = p ? (Number(p.required) || 0) : 0;
                 if (p && required > 0 && (Number(p.current) || 0) >= required) return true;
             }
-            // Por benefit hace falta que esten TODOS: un tramo entrega varias
-            // recompensas de golpe, asi que con una sola concedida no se puede dar el
-            // tramo por reclamado.
-            const benefitIds = drop.benefitIds || [];
-            if (benefitIds.length > 0 && benefitIds.every(id => _claimedBenefitIds.has(id))) return true;
+            // El cruce por benefit es un RECURSO, no la fuente buena, y solo vale
+            // cuando no hay dato por tramo: si la campaña esta en el inventario, Twitch
+            // ya dijo tramo a tramo lo que tienes (self.isClaimed, arriba) y esto solo
+            // puede contradecirlo.
+            //
+            // Contradecirlo pasaba de verdad, y no en un caso raro: una campaña puede
+            // repartir LA MISMA recompensa en varios tramos, y entonces todos comparten
+            // un unico benefit.id. Visto en Overwatch - Blizzard, cinco tramos de «100
+            // Comp Points» a 2/4/6/8/10 h con el id `9620a89d-...-ae832fa6985e_CUSTOM_
+            // ID_1852792` en los cinco: reclamar el de 2 h metia ese id en el indice y
+            // los cinco pasaban a salir con ✓. En el historial de este usuario hay 8 ids
+            // que se repiten asi, o sea que no es una campaña rara.
+            //
+            // Fuera del inventario —campaña completada o cerrada— no hay nada por tramo
+            // y esto es lo unico que queda, con su imprecision: si comparten id, o salen
+            // todos o ninguno. Se prefiere marcarlos, que es lo que hace que los emotes
+            // y emblemas consten; ahi el tramo suele ser uno solo.
+            if (!(drop.id && _inventoryProgress[drop.id])) {
+                // Hacen falta TODOS: un tramo entrega varias recompensas de golpe, asi
+                // que con una sola concedida no se puede dar el tramo por reclamado.
+                const benefitIds = drop.benefitIds || [];
+                if (benefitIds.length > 0 && benefitIds.every(id => _claimedBenefitIds.has(id))) return true;
+            }
             return false;
         }
 
