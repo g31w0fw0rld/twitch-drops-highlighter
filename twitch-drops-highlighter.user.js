@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.14
+// @version      1.2.15
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. 16 languages, read-only GraphQL queries.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.2.14";
+    const SCRIPT_VERSION = "1.2.15";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -1576,12 +1576,16 @@ editPrompt: "Kata kunci dipisahkan koma:",
         // de mas, que es la regla del resto del archivo.
         const AUTO_GRANTED_TYPES = ['EMOTE', 'BADGE'];
 
-        // Marcador que Twitch mete en el enlace del aviso de «te concedimos esto», visto
-        // el 2026-08-07 en el del Bop2bop:
-        //   help.twitch.tv/...?tt_content=quests_viewer_reward_campaign_earned_emote
-        // Se compara el PREFIJO, sin el `_emote` final, a proposito: asi entra tambien
-        // la variante de emblema sin haber visto una —y si Twitch usara otra cadena para
-        // esas, simplemente no casa; nunca puede acertarle a una notificacion ajena—.
+        // Marcador que Twitch mete en el enlace del aviso de «te concedimos esto». Se
+        // compara el PREFIJO, sin el sufijo final, y las DOS variantes estan vistas en
+        // notificaciones reales:
+        //   emote   (2026-08-07, Bop2bop)
+        //     help.twitch.tv/s/article/how-to-use-emotes?tt_content=..._earned_emote
+        //   emblema (2026-08-08, EWC 2026 Platinum)
+        //     help.twitch.tv/s/article/how-to-use-badges?tt_content=..._earned_badge
+        // Cambia el articulo de ayuda y cambia el sufijo; lo que no cambia es este
+        // prefijo. Si un dia Twitch usara otra cadena, simplemente no casa: nunca puede
+        // acertarle a una notificacion ajena.
         const EARNED_REWARD_NOTIF_MARK = 'quests_viewer_reward_campaign_earned';
 
         function _autoGrantedFrom(benefitEdges) {
@@ -1945,12 +1949,90 @@ editPrompt: "Kata kunci dipisahkan koma:",
         // y el <img> de la tarjeta pide la URL tal cual, asi que una con llaves no
         // carga. Se prueban varios campos porque la consulta es PERSISTIDA: su
         // seleccion la fija Twitch y no se puede pedir un campo concreto.
+        // Un campo de imagen no siempre es una cadena: las reward campaigns traen
+        // `image` como OBJETO, y al concatenarlo salia un src de "[object Object]" —la
+        // imagen rota que se veia en el inventario en «Boss Run Marathon - Minecraft»,
+        // y solo ahi: en campañas esa tarjeta la pinta el DOM, con su <img> de verdad—.
+        //
+        // No se pide un nombre de campo concreto porque la consulta es PERSISTIDA: su
+        // seleccion la fija Twitch, asi que se coge el primer valor del objeto que sea
+        // una URL. Adivinar el nombre envejece peor.
+        function _imageUrlOf(raw) {
+            if (!raw) return '';
+            if (typeof raw === 'string') return raw;
+            if (typeof raw !== 'object') return '';
+            for (const v of Object.values(raw)) {
+                if (typeof v === 'string' && /^https?:\/\//.test(v)) return v;
+            }
+            return '';
+        }
+
+        // La CARATULA manda, y las imagenes propias de la campaña quedan de respaldo.
+        // Es lo que hace que la misma campaña se vea igual en las dos paginas: en
+        // /drops/campaigns la tarjeta la pinta el DOM, cuyo <img> es la caratula, asi
+        // que preferir aqui `imageURL` hacia que en el inventario saliera OTRA imagen
+        // para lo mismo. Visto en «FF14 Support a Streamer»:
+        //     DOM        ttv-boxart/24241_IGDB-120x160.jpg
+        //     imageURL   twitch-quests-assets/CAMPAIGN/67ca517b-....jpeg
+        // Precio a pagar, y se asume: la caratula es del JUEGO, asi que dos campañas
+        // del mismo juego se ven iguales. Ya pasaba con las de drops —ese mapa va
+        // indexado por juego— y el titulo es quien las distingue.
         function _apiImage(c) {
-            const raw = (c && (c.imageURL || c.image
-                || (c.game && c.game.boxArtURL)
-                || (c.owner && c.owner.profileImageURL))) || '';
+            const raw = _imageUrlOf(c && c.game && c.game.boxArtURL)
+                || _imageUrlOf(c && c.imageURL)
+                || _imageUrlOf(c && c.image)
+                || _imageUrlOf(c && c.owner && c.owner.profileImageURL);
             if (!raw) return '';
             return String(raw).replace('{width}', '144').replace('{height}', '192');
+        }
+
+        // El NOMBRE del juego lo traduce Twitch en la pagina y no en la API: el DOM dice
+        // "Eventos especiales" donde la API dice "Special Events", y "DJ" donde dice
+        // "DJs". Como todo el cruce entre las dos fuentes iba por titulo, esas campañas
+        // salian DOS veces en el panel —la tarjeta del DOM y la de la API— y ademas la
+        // del DOM se quedaba sin chips de recompensa, porque _findEntryForTitle tampoco
+        // las encontraba.
+        //
+        // El id del juego si es el mismo en los dos lados, y no hace falta pedirlo
+        // aparte: viene DENTRO de la URL de la caratula, que las dos fuentes publican.
+        //     DOM  Eventos especiales -> ttv-boxart/509663-120x160.jpg
+        //     API  Special Events     -> game.id "509663"
+        // El sufijo _IGDB de algunas (ttv-boxart/23020_IGDB-120x160.jpg) no estorba
+        // porque solo se leen los digitos de delante.
+        function _gameIdFromBoxArt(url) {
+            const m = String(url || '').match(/ttv-boxart\/(\d+)/);
+            return m ? m[1] : '';
+        }
+        function _gameIdOf(c) {
+            const id = c && c.game && c.game.id;
+            if (id && /^\d+$/.test(String(id))) return String(id);
+            return _gameIdFromBoxArt(c && c.game && c.game.boxArtURL);
+        }
+
+        // Titulo con el que la PAGINA llama a cada juego, indexado por id. Lo llena el
+        // escaneo del DOM y lo consultan la deduplicacion y la busqueda de recompensas.
+        // Va en un mapa aparte, y no pegado a la entrada de la API, porque las dos
+        // fuentes llegan por su cuenta: si se guardara en la entrada, un escaneo previo
+        // a la respuesta de la API no tendria donde dejarlo y el alias se perderia.
+        const _domTitleByGameId = {};
+        function _domAliasFor(entry) {
+            // Las entradas indexadas POR CAMPAÑA quedan fuera: varias comparten juego,
+            // asi que un alias por id las deduplicaria todas de golpe (ver donde se
+            // construyen las reward campaigns). Llevan gameId solo para la caratula.
+            if (!entry || entry.perCampaign) return '';
+            const id = entry.gameId;
+            return id ? (_domTitleByGameId[id] || '') : '';
+        }
+
+        // La caratula a partir del id del juego. `game` de la API trae el id pero NO
+        // siempre la URL, asi que hay que componerla — y tiene una trampa: unas van
+        // como `ttv-boxart/509663-...` y otras como `ttv-boxart/24241_IGDB-...`. En el
+        // volcado real de 100 juegos (2026-08-08) no habia una tercera forma, asi que
+        // se prueban las dos y quien decide es el navegador, con el onerror del <img>.
+        function _boxArtCandidates(gameId) {
+            if (!gameId) return [];
+            const base = 'https://static-cdn.jtvnw.net/ttv-boxart/' + gameId;
+            return [base + '_IGDB-144x192.jpg', base + '-144x192.jpg'];
         }
 
         // El MISMO texto contra el que se acaba de filtrar, guardado en la entrada. Se
@@ -1980,7 +2062,11 @@ editPrompt: "Kata kunci dipisahkan koma:",
 
             // Process reward campaigns first (specific keys like "Turtle Tunes - Minecraft")
             for (const rc of rewardCampaigns) {
-                //if (rc.status !== 'ACTIVE') continue;
+                // NO se filtra por `status`, y ahora se sabe por que: una reward
+                // campaign viva llega con `status: "UNKNOWN"` —visto el 2026-08-08 en
+                // «FF14 Support a Streamer», abierta y en la pagina—. Descartar lo que
+                // no sea ACTIVE las escondia todas. Lo que si acota es la fecha, en
+                // _apiItemsFor. Por eso este filtro se queda fuera; no lo reactives.
                 const campaignName = rc.name || '';
                 const gameName = rc.game?.displayName || '';
                 const searchText = (campaignName + ' ' + gameName).toLowerCase();
@@ -2006,7 +2092,27 @@ editPrompt: "Kata kunci dipisahkan koma:",
                     // que searchText es coherente por si solo. Se guarda igual para que
                     // las cuatro entradas tengan la misma forma y nadie tenga que
                     // acordarse de la excepcion.
-                    _apiDropNames[key] = { drops: rewards, startAt: rc.startsAt || '', endAt: rc.endsAt || '', displayTitle: key, imgSrc: _apiImage(rc), searchText };
+                    // SIN gameId, y no es un olvido. El alias por juego vale para las
+                    // campañas de drops porque ese mapa va indexado POR JUEGO y hay una
+                    // entrada como mucho; estas van indexadas por campaña, asi que un
+                    // juego puede tener varias, y todas compartirian el mismo alias: la
+                    // primera tarjeta de ese juego que trajera el DOM las habria
+                    // deduplicado a TODAS de golpe. Tampoco les hace falta: su clave
+                    // lleva el nombre de la campaña, que Twitch no traduce.
+                    //
+                    // SIN campaignId tampoco, y esto no es una suposicion: NO EXISTE
+                    // enlace profundo a una reward campaign. Comprobado el 2026-08-08
+                    // por los dos lados con «FF14 Support a Streamer»:
+                    //   · se le paso su id a `?dropID=` —que si funciona con las
+                    //     campañas de drops, tambien verificado— y Twitch no lo
+                    //     reconoce: abre la lista y no enfoca nada;
+                    //   · volcando los enlaces de su tarjeta en la pagina, lo unico que
+                    //     hay es vincular cuenta (secure.square-enix.com), el directorio
+                    //     del juego (/directory/category/...) y /drops/inventory. Twitch
+                    //     no las trata como algo navegable.
+                    // Asi que el 🔗 copia la pagina de campañas a secas, que es la
+                    // verdad: mejor un enlace generico que uno con un uuid inerte.
+                    _apiDropNames[key] = { drops: rewards, startAt: rc.startsAt || '', endAt: rc.endsAt || '', displayTitle: key, imgSrc: _apiImage(rc), searchText, gameId: _gameIdOf(rc), perCampaign: true };
                 }
             }
 
@@ -2034,13 +2140,17 @@ editPrompt: "Kata kunci dipisahkan koma:",
                         _apiClosedCampaigns[apiKey] = {
                             displayTitle, startAt: campaign.startAt || '',
                             endAt: campaign.endAt || '', imgSrc: _apiImage(campaign),
-                            campaignId: campaign.id || '', searchText
+                            campaignId: campaign.id || '', searchText,
+                            gameId: _gameIdOf(campaign)
                         };
                     } else {
                         // Un juego agrupa varias campañas y la primera puede no traer
                         // imagen: se toma la primera que la tenga.
                         if (!_apiClosedCampaigns[apiKey].imgSrc) {
                             _apiClosedCampaigns[apiKey].imgSrc = _apiImage(campaign);
+                        }
+                        if (!_apiClosedCampaigns[apiKey].gameId) {
+                            _apiClosedCampaigns[apiKey].gameId = _gameIdOf(campaign);
                         }
                         // Fuera del if de la imagen a proposito: el texto se acumula
                         // aunque la entrada ya tuviera imagen, que no tienen nada que ver.
@@ -2081,13 +2191,16 @@ editPrompt: "Kata kunci dipisahkan koma:",
                             // juego: la clave del mapa es el juego, asi que un juego con
                             // varias campañas las funde en una entrada y solo cabe un id.
                             // Es la misma limitacion que ya funde sus badges.
-                            _apiDropNames[apiKey] = { drops: [], startAt: campaign.startAt || '', endAt: campaign.endAt || '', displayTitle, imgSrc: _apiImage(campaign), campaignId: campaign.id || '', searchText };
+                            _apiDropNames[apiKey] = { drops: [], startAt: campaign.startAt || '', endAt: campaign.endAt || '', displayTitle, imgSrc: _apiImage(campaign), campaignId: campaign.id || '', searchText, gameId: _gameIdOf(campaign) };
                         } else {
                             _mergeSearchText(_apiDropNames[apiKey], searchText);
                         }
                         _apiDropNames[apiKey].drops.push(...drops);
                         if (!_apiDropNames[apiKey].imgSrc) {
                             _apiDropNames[apiKey].imgSrc = _apiImage(campaign);
+                        }
+                        if (!_apiDropNames[apiKey].gameId) {
+                            _apiDropNames[apiKey].gameId = _gameIdOf(campaign);
                         }
                     }
                 } catch (e) { /* skip this campaign */ }
@@ -2157,13 +2270,27 @@ editPrompt: "Kata kunci dipisahkan koma:",
                         // Coherente por casualidad —filtra por gameName y el titulo ES
                         // gameName—, pero se guarda igual: la forma de la entrada tiene
                         // que ser una sola, no una por rama.
-                        _apiDropNames[gameName] = { drops, startAt: '', endAt: '', displayTitle: gameName, searchText };
+                        _apiDropNames[gameName] = { drops, startAt: '', endAt: '', displayTitle: gameName, searchText, gameId: _gameIdFromBoxArt(game.gameBoxArtURL) };
                     }
                 }
             } catch (e) { console.warn('[Public API] Fetch error:', e); }
         }
 
         // Find full API entry for a card title (best match wins) — returns {drops, startAt, endAt}
+        function _titleScore(ct, k) {
+            if (!k) return 0;
+            if (ct === k) return 1000;              // exact match
+            if (ct.includes(k)) return k.length;    // longer key = more specific
+            if (k.includes(ct)) return ct.length;
+            // Try matching just the game name part (before " - ")
+            const cardGame = ct.split(' - ')[0].trim();
+            const keyGame = k.split(' - ')[0].trim();
+            if (cardGame && keyGame && (cardGame.includes(keyGame) || keyGame.includes(cardGame))) {
+                return Math.min(cardGame.length, keyGame.length);
+            }
+            return 0;
+        }
+
         function _findEntryForTitle(cardTitle) {
             if (!cardTitle) return null;
             const ct = cardTitle.toLowerCase();
@@ -2172,23 +2299,13 @@ editPrompt: "Kata kunci dipisahkan koma:",
 
             for (const [key, entry] of Object.entries(_apiDropNames)) {
                 if (key === '__all') continue;
-                const k = key.toLowerCase();
-                let score = 0;
-
-                if (ct === k) {
-                    score = 1000; // exact match
-                } else if (ct.includes(k)) {
-                    score = k.length; // longer key = more specific
-                } else if (k.includes(ct)) {
-                    score = ct.length;
-                } else {
-                    // Try matching just the game name part (before " - ")
-                    const cardGame = ct.split(' - ')[0].trim();
-                    const keyGame = k.split(' - ')[0].trim();
-                    if (cardGame && keyGame && (cardGame.includes(keyGame) || keyGame.includes(cardGame))) {
-                        score = Math.min(cardGame.length, keyGame.length);
-                    }
-                }
+                // Se puntua contra la clave de la API Y contra el nombre que la pagina
+                // le da al mismo juego: si no, una tarjeta que dice "Eventos especiales"
+                // no encuentra nunca la entrada "Special Events" y se queda sin chips.
+                const score = Math.max(
+                    _titleScore(ct, key.toLowerCase()),
+                    _titleScore(ct, _domAliasFor(entry))
+                );
 
                 if (score > bestScore) {
                     bestScore = score;
@@ -3917,8 +4034,17 @@ editPrompt: "Kata kunci dipisahkan koma:",
         //     se le pasa `campaign.id`;
         //   · el enlace del inventario (a.tw-link[href*="dropID="]) es de campaña, no
         //     de tramo, segun la nota ya verificada sobre DOM real en _findPerCardWrapper.
-        // La ruta exacta es lo unico que queda por confirmar en vivo, y por eso
-        // cleanInventory vuelca en consola el primer href real que encuentra.
+        // Y la ruta quedo COMPROBADA EN VIVO el 2026-08-08: abriendo el enlace copiado
+        // por el 🔗, Twitch reconoce el id y despliega esa campaña.
+        //
+        // Solo vale para campañas de DROPS. Las reward campaigns son otro sistema: se
+        // probo pasarles su propio id por aqui y Twitch no lo reconoce, asi que sus
+        // entradas se guardan sin `campaignId` y este enlace cae al generico (ver el
+        // comentario donde se construyen).
+        //
+        // cleanInventory sigue volcando en consola el primer href real que encuentra:
+        // ya no hace falta para comprobar la ruta, pero es lo que avisaria si Twitch
+        // la cambiara.
         const TWITCH_CAMPAIGNS_URL = 'https://www.twitch.tv/drops/campaigns';
 
         function _shareUrlFor(campaign, entry) {
@@ -4032,9 +4158,21 @@ editPrompt: "Kata kunci dipisahkan koma:",
             cardHeader.style.gap = "8px";
             cardHeader.style.marginBottom = "6px";
 
-            if (campaign.imgSrc) {
+            // La caratula primero y la imagen de la campaña de respaldo, para que la
+            // misma campaña se vea igual aqui y en /drops/campaigns. Se prueban por
+            // orden con el onerror: las dos formas de caratula y, si ninguna carga,
+            // lo que traiga la entrada. Sin candidatos no se pinta nada, como antes.
+            const _imgTries = _boxArtCandidates(campaign.gameId)
+                .concat(campaign.imgSrc ? [campaign.imgSrc] : []);
+            if (_imgTries.length > 0) {
                 const img = document.createElement("img");
-                img.src = campaign.imgSrc;
+                let intento = 0;
+                img.onerror = () => {
+                    intento++;
+                    if (intento < _imgTries.length) img.src = _imgTries[intento];
+                    else img.remove();
+                };
+                img.src = _imgTries[0];
                 img.style.width = "36px";
                 img.style.height = "48px";
                 img.style.borderRadius = "4px";
@@ -4207,6 +4345,11 @@ editPrompt: "Kata kunci dipisahkan koma:",
                 // _apiDropNames va indexado por juego, asi que por juego hay como
                 // mucho una entrada de la API a la que renunciar.
                 if (seen.has(titleLower) || seen.has(titleLower.split(' - ')[0].trim())) continue;
+                // Y por el nombre que la pagina le da al mismo juego, que es el que hay
+                // en `seen` cuando Twitch lo traduce: sin esto la tarjeta de la API se
+                // añadia junto a la del DOM y la campaña salia dos veces.
+                const alias = _domAliasFor(entry);
+                if (alias && (seen.has(alias) || seen.has(alias.split(' - ')[0].trim()))) continue;
                 const n = notifs.find(x => x.title === title);
                 out.push({
                     title, studio: '', id: '', key: title + '|api', status,
@@ -4224,6 +4367,10 @@ editPrompt: "Kata kunci dipisahkan koma:",
                     // Viaja en la tarjeta porque las cerradas viven en
                     // _apiClosedCampaigns y _findEntryForTitle solo mira las abiertas.
                     campaignId: entry.campaignId || '',
+                    // Para componer la caratula: es la MISMA imagen que pinta la pagina
+                    // de campañas, y sin ella esta tarjeta saldria con la imagen propia
+                    // de la campaña —otra distinta para lo mismo—.
+                    gameId: entry.gameId || '',
                     // Marca que esta tarjeta no tiene nodo en esta pagina: al pulsarla
                     // se va a campañas, en vez de intentar un scroll a algo que no existe.
                     fromApi: true
@@ -4862,6 +5009,13 @@ editPrompt: "Kata kunci dipisahkan koma:",
                 let imgSrc = '';
                 const imgEl = node.querySelector('img.partner-thumbnail, img.tw-image, img');
                 if (imgEl) imgSrc = imgEl.src;
+
+                // La caratula del acordeon lleva el id del juego, que es lo unico que
+                // no se traduce. Se apunta como el nombre que la PAGINA usa para ese
+                // juego, para que la entrada de la API se reconozca por el (ver
+                // _domTitleByGameId).
+                const domGameId = _gameIdFromBoxArt(imgSrc);
+                if (domGameId) _domTitleByGameId[domGameId] = displayTitle.toLowerCase();
 
                 // Extract date range from the accordion header date div
                 let dateRange = '';
