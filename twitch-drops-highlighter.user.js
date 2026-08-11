@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.15
+// @version      1.2.16
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. 16 languages, read-only GraphQL queries.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
@@ -11,14 +11,13 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_deleteValue
-// @grant        GM_notification
 // @grant        unsafeWindow
 // @run-at       document-start
 // ==/UserScript==
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.2.15";
+    const SCRIPT_VERSION = "1.2.16";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -257,7 +256,7 @@
                 claimedInventoryTitle: "Claimed"
             },
             de: {
-addKeyword: "Keyword hinzufügen",
+                addKeyword: "Keyword hinzufügen",
                 deleteKeywordTooltip: "Klicken um Keyword zu löschen", deleteKeywordQuestion: "Keyword löschen ",
                 editKeywords: "Keywords bearbeiten", resetKeywords: "Standard wiederherstellen",
                 confirmReset: "Keywords auf Standard zurücksetzen?",
@@ -310,7 +309,7 @@ addKeyword: "Keyword hinzufügen",
                 claimedInventoryTitle: "Beansprucht"
             },
             fr: {
-addKeyword: "Ajouter un mot-clé",
+                addKeyword: "Ajouter un mot-clé",
                 deleteKeywordTooltip: "Cliquez pour supprimer le mot-clé", deleteKeywordQuestion: "Supprimer le mot-clé ",
                 editKeywords: "Modifier les mots-clés", resetKeywords: "Réinitialiser par défaut",
                 confirmReset: "Réinitialiser les mots-clés par défaut ?",
@@ -319,7 +318,7 @@ addKeyword: "Ajouter un mot-clé",
                 reloading: "Rechargement...", currentKeywords: "Mots-clés actuels (cliquez pour supprimer) :",
                 noResults: "Aucun drop ne correspond à vos mots-clés.",
                 dropsActive: "Drops ouverts", dropsExpired: "Drops fermés",
-editPrompt: "Mots-clés séparés par des virgules :",
+                editPrompt: "Mots-clés séparés par des virgules :",
                 reload: "Recharger les drops",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -363,7 +362,7 @@ editPrompt: "Mots-clés séparés par des virgules :",
                 claimedInventoryTitle: "Réclamés"
             },
             pt: {
-addKeyword: "Adicionar Keyword",
+                addKeyword: "Adicionar Keyword",
                 deleteKeywordTooltip: "Clique para deletar keyword", deleteKeywordQuestion: "Deletar keyword ",
                 editKeywords: "Editar Keywords", resetKeywords: "Restaurar Padrão",
                 confirmReset: "Restaurar keywords padrão?",
@@ -372,7 +371,7 @@ addKeyword: "Adicionar Keyword",
                 reloading: "Recarregando...", currentKeywords: "Keywords atuais (clique para deletar):",
                 noResults: "Nenhum drop encontrado com suas keywords.",
                 dropsActive: "Drops Abertos", dropsExpired: "Drops Fechados",
-editPrompt: "Keywords separadas por vírgula:",
+                editPrompt: "Keywords separadas por vírgula:",
                 reload: "Recarregar drops",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -416,7 +415,7 @@ editPrompt: "Keywords separadas por vírgula:",
                 claimedInventoryTitle: "Resgatados"
             },
             ru: {
-addKeyword: "Добавить ключевое слово",
+                addKeyword: "Добавить ключевое слово",
                 deleteKeywordTooltip: "Нажмите для удаления", deleteKeywordQuestion: "Удалить ключевое слово ",
                 editKeywords: "Редактировать ключевые слова", resetKeywords: "Сбросить по умолчанию",
                 confirmReset: "Сбросить ключевые слова по умолчанию?",
@@ -469,7 +468,7 @@ addKeyword: "Добавить ключевое слово",
                 claimedInventoryTitle: "Востребованные"
             },
             tr: {
-addKeyword: "Anahtar Kelime Ekle",
+                addKeyword: "Anahtar Kelime Ekle",
                 deleteKeywordTooltip: "Silmek için tıklayın", deleteKeywordQuestion: "Anahtar kelimeyi sil ",
                 editKeywords: "Anahtar Kelimeleri Düzenle", resetKeywords: "Varsayılana Sıfırla",
                 confirmReset: "Anahtar kelimeleri varsayılana sıfırla?",
@@ -478,7 +477,7 @@ addKeyword: "Anahtar Kelime Ekle",
                 reloading: "Yeniden yükleniyor...", currentKeywords: "Mevcut anahtar kelimeler (silmek için tıklayın):",
                 noResults: "Anahtar kelimelerinize uygun drop bulunamadı.",
                 dropsActive: "Açık Drops", dropsExpired: "Kapalı Drops",
-editPrompt: "Virgülle ayrılmış anahtar kelimeler:",
+                editPrompt: "Virgülle ayrılmış anahtar kelimeler:",
                 reload: "Dropları yeniden yükle",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -522,7 +521,7 @@ editPrompt: "Virgülle ayrılmış anahtar kelimeler:",
                 claimedInventoryTitle: "Talep Edilenler"
             },
             ja: {
-addKeyword: "キーワード追加",
+                addKeyword: "キーワード追加",
                 deleteKeywordTooltip: "クリックで削除", deleteKeywordQuestion: "キーワードを削除 ",
                 editKeywords: "キーワード編集", resetKeywords: "デフォルトに戻す",
                 confirmReset: "キーワードをデフォルトに戻しますか？",
@@ -531,7 +530,7 @@ addKeyword: "キーワード追加",
                 reloading: "再読み込み中...", currentKeywords: "現在のキーワード（クリックで削除）:",
                 noResults: "キーワードに一致するドロップはありません。",
                 dropsActive: "アクティブなドロップ", dropsExpired: "終了したドロップ",
-editPrompt: "カンマ区切りのキーワード:",
+                editPrompt: "カンマ区切りのキーワード:",
                 reload: "ドロップを再読み込み",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -575,7 +574,7 @@ editPrompt: "カンマ区切りのキーワード:",
                 claimedInventoryTitle: "受け取り済み"
             },
             ko: {
-addKeyword: "키워드 추가",
+                addKeyword: "키워드 추가",
                 deleteKeywordTooltip: "클릭하여 삭제", deleteKeywordQuestion: "키워드 삭제 ",
                 editKeywords: "키워드 편집", resetKeywords: "기본값 복원",
                 confirmReset: "키워드를 기본값으로 복원하시겠습니까?",
@@ -584,7 +583,7 @@ addKeyword: "키워드 추가",
                 reloading: "새로고침 중...", currentKeywords: "현재 키워드 (클릭하여 삭제):",
                 noResults: "키워드와 일치하는 드롭이 없습니다.",
                 dropsActive: "활성 드롭", dropsExpired: "종료된 드롭",
-editPrompt: "쉼표로 구분된 키워드:",
+                editPrompt: "쉼표로 구분된 키워드:",
                 reload: "드롭 새로고침",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -628,7 +627,7 @@ editPrompt: "쉼표로 구분된 키워드:",
                 claimedInventoryTitle: "수령 완료"
             },
             pl: {
-addKeyword: "Dodaj słowo kluczowe",
+                addKeyword: "Dodaj słowo kluczowe",
                 deleteKeywordTooltip: "Kliknij aby usunąć", deleteKeywordQuestion: "Usunąć słowo kluczowe ",
                 editKeywords: "Edytuj słowa kluczowe", resetKeywords: "Przywróć domyślne",
                 confirmReset: "Przywrócić domyślne słowa kluczowe?",
@@ -637,7 +636,7 @@ addKeyword: "Dodaj słowo kluczowe",
                 reloading: "Przeładowywanie...", currentKeywords: "Aktualne słowa kluczowe (kliknij aby usunąć):",
                 noResults: "Nie znaleziono dropów pasujących do słów kluczowych.",
                 dropsActive: "Otwarte dropy", dropsExpired: "Zamknięte dropy",
-editPrompt: "Słowa kluczowe oddzielone przecinkami:",
+                editPrompt: "Słowa kluczowe oddzielone przecinkami:",
                 reload: "Przeładuj dropy",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -681,7 +680,7 @@ editPrompt: "Słowa kluczowe oddzielone przecinkami:",
                 claimedInventoryTitle: "Odebrane"
             },
             fi: {
-addKeyword: "Lisää avainsana",
+                addKeyword: "Lisää avainsana",
                 deleteKeywordTooltip: "Klikkaa poistaaksesi", deleteKeywordQuestion: "Poista avainsana ",
                 editKeywords: "Muokkaa avainsanoja", resetKeywords: "Palauta oletukset",
                 confirmReset: "Palauta avainsanat oletuksiin?",
@@ -690,7 +689,7 @@ addKeyword: "Lisää avainsana",
                 reloading: "Ladataan uudelleen...", currentKeywords: "Nykyiset avainsanat (klikkaa poistaaksesi):",
                 noResults: "Avainsanoihin sopivia droppeja ei löytynyt.",
                 dropsActive: "Avoimet dropit", dropsExpired: "Suljetut dropit",
-editPrompt: "Avainsanat pilkulla eroteltuina:",
+                editPrompt: "Avainsanat pilkulla eroteltuina:",
                 reload: "Lataa dropit uudelleen",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -734,7 +733,7 @@ editPrompt: "Avainsanat pilkulla eroteltuina:",
                 claimedInventoryTitle: "Lunastettu"
             },
             vi: {
-addKeyword: "Thêm từ khóa",
+                addKeyword: "Thêm từ khóa",
                 deleteKeywordTooltip: "Nhấp để xóa", deleteKeywordQuestion: "Xóa từ khóa ",
                 editKeywords: "Sửa từ khóa", resetKeywords: "Khôi phục mặc định",
                 confirmReset: "Khôi phục từ khóa mặc định?",
@@ -743,7 +742,7 @@ addKeyword: "Thêm từ khóa",
                 reloading: "Đang tải lại...", currentKeywords: "Từ khóa hiện tại (nhấp để xóa):",
                 noResults: "Không tìm thấy drop nào khớp.",
                 dropsActive: "Drop đang mở", dropsExpired: "Drop đã đóng",
-editPrompt: "Từ khóa phân cách bằng dấu phẩy:",
+                editPrompt: "Từ khóa phân cách bằng dấu phẩy:",
                 reload: "Tải lại drop",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -787,7 +786,7 @@ editPrompt: "Từ khóa phân cách bằng dấu phẩy:",
                 claimedInventoryTitle: "Đã nhận"
             },
             zh: {
-addKeyword: "添加关键词",
+                addKeyword: "添加关键词",
                 deleteKeywordTooltip: "点击删除", deleteKeywordQuestion: "删除关键词 ",
                 editKeywords: "编辑关键词", resetKeywords: "恢复默认",
                 confirmReset: "恢复默认关键词？",
@@ -796,7 +795,7 @@ addKeyword: "添加关键词",
                 reloading: "重新加载...", currentKeywords: "当前关键词（点击删除）：",
                 noResults: "没有找到匹配的掉宝。",
                 dropsActive: "活跃掉宝", dropsExpired: "已关闭掉宝",
-editPrompt: "逗号分隔的关键词：",
+                editPrompt: "逗号分隔的关键词：",
                 reload: "重新加载掉宝",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -840,7 +839,7 @@ editPrompt: "逗号分隔的关键词：",
                 claimedInventoryTitle: "已领取"
             },
             ar: {
-addKeyword: "إضافة كلمة مفتاحية",
+                addKeyword: "إضافة كلمة مفتاحية",
                 deleteKeywordTooltip: "انقر للحذف", deleteKeywordQuestion: "حذف الكلمة المفتاحية ",
                 editKeywords: "تعديل الكلمات المفتاحية", resetKeywords: "استعادة الافتراضية",
                 confirmReset: "استعادة الكلمات المفتاحية الافتراضية؟",
@@ -849,7 +848,7 @@ addKeyword: "إضافة كلمة مفتاحية",
                 reloading: "إعادة التحميل...", currentKeywords: "الكلمات المفتاحية الحالية (انقر للحذف):",
                 noResults: "لم يتم العثور على نتائج.",
                 dropsActive: "دروبات نشطة", dropsExpired: "دروبات مغلقة",
-editPrompt: "كلمات مفتاحية مفصولة بفواصل:",
+                editPrompt: "كلمات مفتاحية مفصولة بفواصل:",
                 reload: "إعادة تحميل الدروبات",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -893,7 +892,7 @@ editPrompt: "كلمات مفتاحية مفصولة بفواصل:",
                 claimedInventoryTitle: "تم المطالبة"
             },
             hi: {
-addKeyword: "कीवर्ड जोड़ें",
+                addKeyword: "कीवर्ड जोड़ें",
                 deleteKeywordTooltip: "हटाने के लिए क्लिक करें", deleteKeywordQuestion: "कीवर्ड हटाएं ",
                 editKeywords: "कीवर्ड संपादित करें", resetKeywords: "डिफ़ॉल्ट पर रीसेट करें",
                 confirmReset: "कीवर्ड को डिफ़ॉल्ट पर रीसेट करें?",
@@ -902,7 +901,7 @@ addKeyword: "कीवर्ड जोड़ें",
                 reloading: "पुनः लोड हो रहा है...", currentKeywords: "वर्तमान कीवर्ड (हटाने के लिए क्लिक करें):",
                 noResults: "कोई ड्रॉप नहीं मिला।",
                 dropsActive: "सक्रिय ड्रॉप", dropsExpired: "बंद ड्रॉप",
-editPrompt: "अल्पविराम से अलग कीवर्ड:",
+                editPrompt: "अल्पविराम से अलग कीवर्ड:",
                 reload: "ड्रॉप पुनः लोड करें",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -946,7 +945,7 @@ editPrompt: "अल्पविराम से अलग कीवर्ड:",
                 claimedInventoryTitle: "दावा किया गया"
             },
             id: {
-addKeyword: "Tambah Kata Kunci",
+                addKeyword: "Tambah Kata Kunci",
                 deleteKeywordTooltip: "Klik untuk menghapus", deleteKeywordQuestion: "Hapus kata kunci ",
                 editKeywords: "Edit Kata Kunci", resetKeywords: "Kembalikan Default",
                 confirmReset: "Kembalikan kata kunci default?",
@@ -955,7 +954,7 @@ addKeyword: "Tambah Kata Kunci",
                 reloading: "Memuat ulang...", currentKeywords: "Kata kunci saat ini (klik untuk menghapus):",
                 noResults: "Tidak ada drop yang cocok.",
                 dropsActive: "Drop Terbuka", dropsExpired: "Drop Tertutup",
-editPrompt: "Kata kunci dipisahkan koma:",
+                editPrompt: "Kata kunci dipisahkan koma:",
                 reload: "Muat ulang drop",
                 hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
                 hideActive: "Hide active from inventory",
@@ -1265,9 +1264,10 @@ editPrompt: "Kata kunci dipisahkan koma:",
         // tenian tope. Una campaña que expiraba dejaba su entrada para siempre
         // (el chequeo de cambios solo hace "continue" cuando ya no quedan drops),
         // y las claves descartadas solo se borraban con los botones de reinicio.
-        // Lo unico que vaciaba las notificaciones era el reset por cambio de
-        // @version: de golpe y solo si habia release. Ahora se acotan al leer y
-        // al escribir, asi que el limite se aplica siempre.
+        // Ahora se acotan al leer y al escribir, asi que el limite se aplica siempre.
+        // Y es lo UNICO que las acota sin que tu lo pidas: antes habia ademas un
+        // vaciado por cambio de @version —de golpe, y solo si habia release—, que se
+        // quito por borrar avisos sin verlos. A mano sigue estando «Recargar drops».
 
         // Una campaña de drops dura semanas: a los 60 dias sin actualizarse la
         // entrada ya no describe nada vivo, este vista o no.
@@ -2751,14 +2751,13 @@ editPrompt: "Kata kunci dipisahkan koma:",
             return [...(items || [])].sort((a, b) => key(a) - key(b));
         }
 
-        function checkAndHandleScriptVersion() {
-            const storedVersion = GM_getValue('twitch_drop_script_version', null);
-            if (storedVersion !== SCRIPT_VERSION) {
-                // Version changed — reset notifications
-                resetNotifications();
-                GM_setValue('twitch_drop_script_version', SCRIPT_VERSION);
-            }
-        }
+        // Aqui vivia checkAndHandleScriptVersion, que al cambiar la @version borraba
+        // TODAS las notificaciones. Borrar por publicar no tiene nada que ver con lo
+        // que el aviso dice —que una campaña cambio—, asi que una release cualquiera
+        // te tiraba avisos que no habias visto. Del volumen ya se encargan los topes
+        // de pruneNotifications (60 dias / 200 entradas), y para vaciarlas a mano
+        // sigue estando el boton de «Recargar drops».
+        const LEGACY_VERSION_KEY = 'twitch_drop_script_version';
 
         function setInventoryExpiredFlag(value) {
             GM_setValue(SHOW_HIDE_INVENTORY_EXPIRED, value);
@@ -2793,11 +2792,10 @@ editPrompt: "Kata kunci dipisahkan koma:",
         let cleanActiveInventoryFlag = GM_getValue(SHOW_HIDE_INVENTORY_ACTIVE, false);
         let _notificationSoundInterval = null;
 
-        try {
-            if (typeof checkAndHandleScriptVersion === 'function') checkAndHandleScriptVersion();
-        } catch (e) {
-            console.warn('Error ejecutando checkAndHandleScriptVersion:', e);
-        }
+        // La clave que llevaba la cuenta de la version ya no la lee nadie: se borra
+        // una vez para no dejarla ahi para siempre en quien viene de una version
+        // anterior. Mismo gesto que con LEGACY_GQL_STORAGE_KEY.
+        try { GM_deleteValue(LEGACY_VERSION_KEY); } catch (e) { /* noop */ }
 
         // Fetch drops from public API on load
         fetchDropsFromAPI();
@@ -2808,34 +2806,13 @@ editPrompt: "Kata kunci dipisahkan koma:",
         // FUNCIONES DE AUDIO / NOTIFICACION SONORA
         // =============================================
 
-        // Pedir permiso de notificaciones del navegador al inicio
-        if ('Notification' in window && Notification.permission === 'default') {
-            Notification.requestPermission();
-        }
-        let _lastNotifiedPending = 0;
-
-        function _sendBrowserNotification(pending) {
-            // Notificacion nativa del navegador (solo una vez al detectar cambios nuevos)
-            if ('Notification' in window && Notification.permission === 'granted') {
-                const n = new Notification(t.notifTitle || 'Twitch Drops Alert', {
-                    body: '🔔 ' + (t.changes_detected || 'Changes detected') + ` (${pending})`,
-                    icon: 'https://static.twitchcdn.net/assets/favicon-32-e29e246c157142c94346.png',
-                    tag: 'twitch-drops-change',
-                    renotify: true
-                });
-                n.onclick = () => { window.focus(); n.close(); };
-                setTimeout(() => n.close(), 8000);
-            }
-            // Fallback: GM_notification para navegadores que no soporten Notification API
-            try {
-                GM_notification({
-                    text: '🔔 ' + (t.notifTitle || 'Twitch Drops') + ': ' + (t.changes_detected || 'Changes detected'),
-                    title: t.notifTitle || 'Twitch Drops Alert',
-                    timeout: 4000,
-                    onclick: () => { window.focus(); }
-                });
-            } catch (e) { /* noop */ }
-        }
+        // Aqui vivian las notificaciones de ESCRITORIO: se pedia permiso al cargar
+        // —un cuadro del navegador nada mas entrar en Twitch, sin haber pedido nada—
+        // y luego se lanzaba una notificacion nativa, con GM_notification de respaldo.
+        // Se van enteras. Lo que avisa de un cambio sigue siendo el 🔔 del panel, el
+        // contador en el titulo de la pestaña y el pitido; todo eso vive DENTRO de la
+        // pagina, que es donde el aviso significa algo. Con ellas se va el permiso que
+        // se pedia y el @grant GM_notification.
 
         function playBeep() {
             try {
@@ -2871,17 +2848,11 @@ editPrompt: "Kata kunci dipisahkan koma:",
                 }
 
                 if (pending > 0) {
-                    // Notificacion del navegador solo cuando pending sube (nuevos cambios)
-                    if (pending > _lastNotifiedPending) {
-                        _sendBrowserNotification(pending);
-                    }
-                    _lastNotifiedPending = pending;
                     startNotificationSound();
                     setTimeout(() => {
                         document.title = `(${pending}) ${ORIGINAL_TITLE}`;
                     }, 100);
                 } else {
-                    _lastNotifiedPending = 0;
                     stopNotificationSound();
                     setTimeout(() => {
                         if (document.title.startsWith('(')) document.title = ORIGINAL_TITLE;
