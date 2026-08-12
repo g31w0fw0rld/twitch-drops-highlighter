@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.17
+// @version      1.2.18
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. 16 languages, read-only GraphQL queries.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
@@ -17,7 +17,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.2.17";
+    const SCRIPT_VERSION = "1.2.18";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -1452,6 +1452,21 @@
         // curso por haberla completado.
         let _claimedDropIds = new Set();
         let _claimedBenefitIds = new Set();
+        // El mismo historial, pero con la campaña pegada: "campaignId|benefitId". Existe
+        // porque un benefit.id se REUTILIZA entre ediciones de la misma campaña, asi que
+        // el conjunto plano de arriba no distingue «ya lo tienes» de «tuviste el del año
+        // pasado». Ver _isDropClaimed, que explica el caso con nombres y fechas.
+        //
+        // Solo lo alimenta `earnedDropRewards`, que es el unico que dice de que campaña
+        // salio cada cosa; `gameEventDrops` llega sin campaña y no se puede acotar. No se
+        // pierde nada: en el volcado del 2026-08-11 sus 18 ids estaban TODOS tambien en
+        // earnedDropRewards, que es el historial completo. Sigue en el plano por si acaso.
+        let _claimedBenefitsByCampaign = new Set();
+        // Si los ids de campaña de earnedDropRewards resultaran ser de otro espacio que
+        // los de las campañas, acotar por campaña no casaria NUNCA y todo saldria sin
+        // reclamar: un falso negativo constante a cambio de un falso positivo raro. Asi
+        // que no se da por hecho, se comprueba con los datos de la propia respuesta.
+        let _campaignScopeUsable = false;
         let _claimedIndexReady = false;
 
         async function fetchInventoryProgress() {
@@ -1460,7 +1475,10 @@
                 const campaigns = inv?.dropCampaignsInProgress || [];
                 const claimedDrops = new Set();
                 const claimedBenefits = new Set();
+                const claimedByCampaign = new Set();
+                const campaignIdsInProgress = new Set();
                 for (const c of campaigns) {
+                    if (c?.id) campaignIdsInProgress.add(c.id);
                     for (const drop of (c.timeBasedDrops || [])) {
                         if (!drop?.id) continue;
                         const rewardEdges = drop.benefitEdges || [];
@@ -1491,14 +1509,47 @@
                 //
                 // Solo CLAIMED: cualquier otro estado no es «lo tienes», y un estado
                 // que no conozcamos no se presume a favor.
+                //
+                // Y cada nodo dice ADEMAS de que campaña salio, que es lo que permite no
+                // confundir ediciones. Se indexa por las dos vias: plana para lo que no
+                // sabe de que campaña es —el respaldo publico—, y acotada para lo demas.
+                const campaignIdsEarned = new Set();
                 for (const edge of (inv?.earnedDropRewards?.edges || [])) {
                     const n = edge?.node;
                     if (!n || n.status !== 'CLAIMED') continue;
-                    if (n.id) claimedBenefits.add(n.id);
-                    if (n.item?.id) claimedBenefits.add(n.item.id);
+                    const cid = n.campaign?.id || '';
+                    if (cid) campaignIdsEarned.add(cid);
+                    if (n.id) {
+                        claimedBenefits.add(n.id);
+                        if (cid) claimedByCampaign.add(cid + '|' + n.id);
+                    }
+                    if (n.item?.id) {
+                        claimedBenefits.add(n.item.id);
+                        if (cid) claimedByCampaign.add(cid + '|' + n.item.id);
+                    }
                 }
+                // La comprobacion: los dos lados de esta misma respuesta tienen que
+                // hablar del mismo id. Si ni una sola campaña en curso aparece en el
+                // historial no se puede afirmar que casen, asi que se sigue con el
+                // indice plano de siempre —que es como venia funcionando— en vez de
+                // apostar. Sin campañas en curso tampoco hay nada que afirmar.
+                let scopeUsable = false;
+                for (const cid of campaignIdsInProgress) {
+                    if (campaignIdsEarned.has(cid)) { scopeUsable = true; break; }
+                }
+                // Se dice SIEMPRE en que modo quedo y con que cuentas, porque los dos
+                // motivos de caer al plano —que los ids no casen o que no haya con que
+                // compararlos— se ven igual desde fuera y desde dentro no hay forma de
+                // distinguirlos sin este numero.
+                console.log('[Twitch Drops] indice de reclamados:',
+                    scopeUsable ? 'acotado por campaña' : 'plano (benefit a secas)',
+                    '| campañas en curso', campaignIdsInProgress.size,
+                    '| campañas en el historial', campaignIdsEarned.size,
+                    '| benefits', claimedBenefits.size);
                 _claimedDropIds = claimedDrops;
                 _claimedBenefitIds = claimedBenefits;
+                _claimedBenefitsByCampaign = claimedByCampaign;
+                _campaignScopeUsable = scopeUsable;
                 _claimedIndexReady = true;
                 _inventoryProgressReady = true;
                 // Los badges ya estan pintados (los nombres salen de otra consulta,
@@ -1592,11 +1643,29 @@
             // y esto es lo unico que queda, con su imprecision: si comparten id, o salen
             // todos o ninguno. Se prefiere marcarlos, que es lo que hace que los emotes
             // y emblemas consten; ahi el tramo suele ser uno solo.
+            //
+            // Y hay una segunda forma de contradecirlo, peor porque no se nota: el
+            // benefit.id tambien se REPITE ENTRE EDICIONES de una campaña. Visto el
+            // 2026-08-11 con «RLCS 2025 Exotic/Import/Very Rare Drop», que son nuevos y
+            // acumulables cada temporada: en el historial de este usuario los mismos tres
+            // ids constan bajo CUATRO campañas distintas, asi que los de este año salian
+            // con ✓ nada mas aparecer, y solo se corregian al empezar a ver stream —al
+            // entrar la campaña en el inventario, este bloque deja de opinar—. Por eso el
+            // cruce va acotado a la campaña del tramo: la misma recompensa concedida en
+            // la edicion del año pasado ya no dice nada de la de este.
             if (!(drop.id && _inventoryProgress[drop.id])) {
                 // Hacen falta TODOS: un tramo entrega varias recompensas de golpe, asi
                 // que con una sola concedida no se puede dar el tramo por reclamado.
                 const benefitIds = drop.benefitIds || [];
-                if (benefitIds.length > 0 && benefitIds.every(id => _claimedBenefitIds.has(id))) return true;
+                if (benefitIds.length === 0) return false;
+                // Sin campaña —el respaldo publico no la trae— o sin poder fiarse de que
+                // los ids casen, se sigue mirando el conjunto plano: es menos preciso,
+                // pero es lo que habia y marca de mas, no de menos.
+                const scoped = _campaignScopeUsable && drop.campaignId;
+                const has = scoped
+                    ? (id => _claimedBenefitsByCampaign.has(drop.campaignId + '|' + id))
+                    : (id => _claimedBenefitIds.has(id));
+                if (benefitIds.every(has)) return true;
             }
             return false;
         }
@@ -2047,6 +2116,9 @@
                     minutes,
                     id: r.id || '',
                     benefitIds: [],
+                    // Vacio y no `rc.id`: sin benefits no hay nada que acotar, y poner un
+                    // id que no aparece en el historial solo invitaria a creer que si.
+                    campaignId: '',
                     // Las reward campaigns son otro sistema y no traen benefits, asi que
                     // aqui no hay tipo que mirar. Se pone para que las tres formas del
                     // tramo sean una sola y nadie tenga que acordarse de cual es cual.
@@ -2149,6 +2221,11 @@
                             id: drop.id || '',
                             benefitIds: (drop.benefitEdges || [])
                                 .map(b => b.benefit?.id).filter(Boolean),
+                            // Por tramo y no en la entrada del mapa, que va indexada por
+                            // JUEGO y funde varias campañas en una: ahi solo cabe un id
+                            // —el de la primera— y acotar el reclamado con el de otra
+                            // campaña seria peor que no acotarlo.
+                            campaignId: campaign.id || '',
                             autoGranted: _autoGrantedFrom(drop.benefitEdges)
                         });
                     }
@@ -2230,6 +2307,10 @@
                                 id: drop.id || '',
                                 benefitIds: (drop.benefitEdges || [])
                                     .map(b => b.benefit?.id).filter(Boolean),
+                                // El espejo publico no expone el id de la campaña, asi
+                                // que estos tramos se quedan con el cruce plano. Es el
+                                // respaldo: se usa solo cuando GQL no responde.
+                                campaignId: '',
                                 autoGranted: _autoGrantedFrom(drop.benefitEdges)
                             });
                         }
