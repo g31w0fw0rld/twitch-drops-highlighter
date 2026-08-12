@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.18
+// @version      1.2.19
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. 16 languages, read-only GraphQL queries.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
@@ -17,7 +17,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.2.18";
+    const SCRIPT_VERSION = "1.2.19";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -1462,11 +1462,15 @@
         // pierde nada: en el volcado del 2026-08-11 sus 18 ids estaban TODOS tambien en
         // earnedDropRewards, que es el historial completo. Sigue en el plano por si acaso.
         let _claimedBenefitsByCampaign = new Set();
-        // Si los ids de campaña de earnedDropRewards resultaran ser de otro espacio que
-        // los de las campañas, acotar por campaña no casaria NUNCA y todo saldria sin
-        // reclamar: un falso negativo constante a cambio de un falso positivo raro. Asi
-        // que no se da por hecho, se comprueba con los datos de la propia respuesta.
-        let _campaignScopeUsable = false;
+        // Que los ids de campaña de earnedDropRewards son los MISMOS que los de las
+        // campañas quedo comprobado el 2026-08-12 en la consola de este usuario (1 en
+        // curso, 65 en el historial, casaron). Si no lo fueran, acotar no casaria nunca y
+        // todo saldria sin reclamar: un falso negativo constante a cambio de un falso
+        // positivo raro. Por eso se sigue vigilando, pero al reves de como estaba: se
+        // acota por defecto y solo se desactiva con PRUEBAS de que no casan. Al reves
+        // —exigir la prueba para activarlo— bastaba con no tener ninguna campaña en curso
+        // para que el arreglo se apagara solo y sin avisar.
+        let _campaignScopeUsable = true;
         let _claimedIndexReady = false;
 
         async function fetchInventoryProgress() {
@@ -1528,24 +1532,36 @@
                         if (cid) claimedByCampaign.add(cid + '|' + n.item.id);
                     }
                 }
-                // La comprobacion: los dos lados de esta misma respuesta tienen que
-                // hablar del mismo id. Si ni una sola campaña en curso aparece en el
-                // historial no se puede afirmar que casen, asi que se sigue con el
-                // indice plano de siempre —que es como venia funcionando— en vez de
-                // apostar. Sin campañas en curso tampoco hay nada que afirmar.
-                let scopeUsable = false;
-                for (const cid of campaignIdsInProgress) {
-                    if (campaignIdsEarned.has(cid)) { scopeUsable = true; break; }
+                // Las dos formas en que acotar dejaria de valer, y solo esas dos. No se
+                // exige demostrar que SI vale —eso se apagaba solo en cuanto no tuvieras
+                // ninguna campaña en curso, que es lo normal—, se exige demostrar que NO.
+                let scopeUsable = true;
+                let motivo = '';
+                if (claimedBenefits.size > 0 && claimedByCampaign.size === 0) {
+                    // El historial llego sin campaña por nodo: la consulta persistida
+                    // habra cambiado de forma otra vez. Acotar dejaria todo sin marcar.
+                    scopeUsable = false;
+                    motivo = 'earnedDropRewards no trae campaign.id';
+                } else if (campaignIdsInProgress.size > 0 && campaignIdsEarned.size > 0) {
+                    let alguna = false;
+                    for (const cid of campaignIdsInProgress) {
+                        if (campaignIdsEarned.has(cid)) { alguna = true; break; }
+                    }
+                    // Con campañas en curso Y historial, que no coincida NINGUNA es la
+                    // señal de que los dos lados hablan de espacios de id distintos.
+                    if (!alguna) {
+                        scopeUsable = false;
+                        motivo = 'ningun id de campaña en comun con las que estan en curso';
+                    }
                 }
-                // Se dice SIEMPRE en que modo quedo y con que cuentas, porque los dos
-                // motivos de caer al plano —que los ids no casen o que no haya con que
-                // compararlos— se ven igual desde fuera y desde dentro no hay forma de
-                // distinguirlos sin este numero.
+                // Se dice SIEMPRE en que modo quedo y por que, porque desde fuera los dos
+                // modos se ven igual hasta que uno marca de mas o de menos.
                 console.log('[Twitch Drops] indice de reclamados:',
-                    scopeUsable ? 'acotado por campaña' : 'plano (benefit a secas)',
+                    scopeUsable ? 'acotado por campaña' : 'plano (benefit a secas) <- ' + motivo,
                     '| campañas en curso', campaignIdsInProgress.size,
                     '| campañas en el historial', campaignIdsEarned.size,
-                    '| benefits', claimedBenefits.size);
+                    '| benefits', claimedBenefits.size,
+                    '| pares campaña+benefit', claimedByCampaign.size);
                 _claimedDropIds = claimedDrops;
                 _claimedBenefitIds = claimedBenefits;
                 _claimedBenefitsByCampaign = claimedByCampaign;
