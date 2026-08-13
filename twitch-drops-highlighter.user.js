@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.19
+// @version      1.2.20
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. 16 languages, read-only GraphQL queries.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
@@ -17,7 +17,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.2.19";
+    const SCRIPT_VERSION = "1.2.20";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -1183,6 +1183,15 @@
             const { positive, negative } = _splitKeywords(keywords);
             if (negative.some(k => searchText.includes(k))) return false;
             return positive.some(k => searchText.includes(k));
+        }
+
+        // La mitad negativa de _matchesKeywords, suelta. Hace falta aparte porque «no
+        // casa» tiene dos motivos que NO son intercambiables: no haber encontrado
+        // ninguna positiva —que otra fuente todavia puede desmentir, ver
+        // _apiEntryForCard— o haber encontrado una negativa, que es una orden y no
+        // admite segunda opinion.
+        function _hasNegativeKeyword(searchText) {
+            return _splitKeywords(keywords).negative.some(k => searchText.includes(k));
         }
 
         // Las que se enseñan en la tarjeta: solo positivas, porque son las que
@@ -2378,6 +2387,38 @@
                 }
             }
             return bestMatch;
+        }
+
+        // Lo que la fila de la pagina NO puede saber por si sola. Una fila dice
+        // «<juego> - <estudio>» y nada mas, pero el filtro de la API mira ADEMAS el
+        // nombre de la campaña, asi que una campaña que casa solo por ahi entraba en el
+        // panel y la pagina la dejaba sin marcar: dos respuestas distintas a la misma
+        // pregunta, y la unica pista era el contador de «casan por algo que no esta en
+        // el titulo». Visto el 2026-08-13 con «OneState - Chillbase», que casa por
+        // `twitch` porque lo lleva el nombre de la campaña, no la fila.
+        //
+        // El cruce se exige EXACTO —mismo id de juego, o mismo nombre de juego entero— y
+        // deliberadamente NO se usa _findEntryForTitle, que puntua por subcadena:
+        // aflojar el filtro de la pagina con una regla laxa marcaria filas de mas, que
+        // es peor que la falta que arregla. Las dos vias se complementan: el nombre
+        // falla cuando la pagina lo traduce y el id falla cuando la fila no trae
+        // caratula.
+        //
+        // Se miran tambien las cerradas porque en el punto donde se llama todavia no se
+        // sabe de que lado del separador cae la fila.
+        function _apiEntryForCard(titleText, domGameId) {
+            const t = String(titleText || '').trim().toLowerCase();
+            if (!t && !domGameId) return null;
+            for (const src of [_apiDropNames, _apiClosedCampaigns]) {
+                for (const [key, entry] of Object.entries(src)) {
+                    // perCampaign fuera por lo mismo que en _domAliasFor: varias campañas
+                    // comparten juego, asi que el id las casaria todas de golpe.
+                    if (key === '__all' || !entry || entry.perCampaign) continue;
+                    if (domGameId && entry.gameId && entry.gameId === domGameId) return entry;
+                    if (t && key.toLowerCase() === t) return entry;
+                }
+            }
+            return null;
         }
 
         // Find drop names array for a card title (convenience wrapper)
@@ -5011,10 +5052,34 @@
 
                 // Combine title + studio for keyword matching (match against both fields)
                 const searchText = (titleText + " " + studioText).toLowerCase();
-                if (!_matchesKeywords(searchText)) return;
 
                 // Display title includes studio when present
                 const displayTitle = studioText ? titleText + " - " + studioText : titleText;
+
+                // Extract image and extra info for card rendering
+                let imgSrc = '';
+                const imgEl = node.querySelector('img.partner-thumbnail, img.tw-image, img');
+                if (imgEl) imgSrc = imgEl.src;
+
+                // La caratula del acordeon lleva el id del juego, que es lo unico que
+                // no se traduce. Se apunta como el nombre que la PAGINA usa para ese
+                // juego, para que la entrada de la API se reconozca por el (ver
+                // _domTitleByGameId). Se apunta de TODAS las filas, casen o no: antes
+                // solo se aprendia de las que ya casaban, y el alias sirve justamente
+                // para reconocer las que su propio texto no delata.
+                const domGameId = _gameIdFromBoxArt(imgSrc);
+                if (domGameId) _domTitleByGameId[domGameId] = displayTitle.toLowerCase();
+
+                // Aqui se decide si la fila se marca, y no basta con su propio texto: el
+                // filtro de la API vio ademas el nombre de la campaña. La fila tiene la
+                // ultima palabra solo cuando dice que NO por una keyword negativa; si
+                // simplemente no encuentra ninguna positiva, se le pregunta a la API.
+                let apiEntry = null;
+                if (!_matchesKeywords(searchText)) {
+                    if (_hasNegativeKeyword(searchText)) return;
+                    apiEntry = _apiEntryForCard(titleText, domGameId);
+                    if (!apiEntry) return;
+                }
 
                 // Determine if expired
                 let isExpired = false;
@@ -5041,18 +5106,6 @@
                 node.id = id;
                 if (node.parentElement) node.parentElement.setAttribute('style', isExpired ? EXPIRED_STYLE : ACTIVE_STYLE);
 
-                // Extract image and extra info for card rendering
-                let imgSrc = '';
-                const imgEl = node.querySelector('img.partner-thumbnail, img.tw-image, img');
-                if (imgEl) imgSrc = imgEl.src;
-
-                // La caratula del acordeon lleva el id del juego, que es lo unico que
-                // no se traduce. Se apunta como el nombre que la PAGINA usa para ese
-                // juego, para que la entrada de la API se reconozca por el (ver
-                // _domTitleByGameId).
-                const domGameId = _gameIdFromBoxArt(imgSrc);
-                if (domGameId) _domTitleByGameId[domGameId] = displayTitle.toLowerCase();
-
                 // Extract date range from the accordion header date div
                 let dateRange = '';
                 const allDivs = node.querySelectorAll('div[class^="Layout-sc"]');
@@ -5065,8 +5118,13 @@
                     }
                 }
 
-                // Matched keywords (search against both title + studio)
-                const matchedKeywords = _matchedPositiveKeywords(searchText);
+                // Matched keywords (search against both title + studio). Si la fila entro
+                // por la API, las etiquetas salen de SU texto: con el de la fila no
+                // saldria ninguna —la keyword no esta ahi, por eso hizo falta la API— y
+                // una tarjeta sin etiquetas no explica por que aparece, que es
+                // indistinguible de un fallo del filtro.
+                const matchedKeywords = _matchedPositiveKeywords(
+                    apiEntry ? (apiEntry.searchText || searchText) : searchText);
 
                 // Update/create notification (using GQL/API data instead of HTML snapshots)
                 let changedFlag = false;
