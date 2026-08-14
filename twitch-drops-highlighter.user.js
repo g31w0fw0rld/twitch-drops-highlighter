@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.2.20
+// @version      1.2.21
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. 16 languages, read-only GraphQL queries.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
@@ -17,7 +17,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.2.20";
+    const SCRIPT_VERSION = "1.2.21";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -252,36 +252,40 @@
                 claimedInventoryTitle: "Claimed"
             },
             de: {
+                scriptInfoPrivacyText: "Deine Schlüsselwörter und Einstellungen bleiben nur in deinem Browser. Drop-Abfragen gehen an gql.twitch.tv mit deiner eigenen Sitzung (das Token wird nie auf die Festplatte geschrieben); scheitert das, wird die öffentliche API twitch-drops-api.sunkwi.com genutzt, die nur eine Anfrage ohne jegliche Daten von dir erhält. An den Autor des Skripts wird nichts gesendet.",
+                urgentMinimum: "mindestens",
+                remainingToFinish: "was dir noch fehlt, um hier alles mitzunehmen",
+                scriptInfoPrivacy: "Datenschutz:",
                 addKeyword: "Keyword hinzufügen",
                 deleteKeywordTooltip: "Klicken um Keyword zu löschen", deleteKeywordQuestion: "Keyword löschen ",
                 editKeywords: "Keywords bearbeiten", resetKeywords: "Standard wiederherstellen",
                 confirmReset: "Keywords auf Standard zurücksetzen?",
                 keywordsRestored: "Keywords wiederhergestellt. Neu laden...",
-                keywordsModified: "Keywords modified. These are the current keywords: ",
+                keywordsModified: "Schlüsselwörter geändert. Das sind die aktuellen: ",
                 reloading: "Neu laden...", currentKeywords: "Aktuelle Keywords (klicken zum Löschen):",
                 noResults: "Keine Drops gefunden.", dropsActive: "Offene Drops",
                 dropsExpired: "Geschlossene Drops",
                 editPrompt: "Kommagetrennte Keywords:",
                 reload: "Drops neu laden",
-                hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
-                hideActive: "Hide active from inventory",
-                removeInventory: "Click to remove from inventory, to show again press the reload drops button",
-                changes_detected: "Changes detected", viewed: "Shown",
-                markAllAsViewed: "Mark all as viewed",
+                hideExpired: "Abgelaufene/erledigte aus dem Inventar ausblenden, Drops automatisch abholen",
+                hideActive: "Aktive aus dem Inventar ausblenden",
+                removeInventory: "Zum Entfernen aus dem Inventar klicken; zum erneuten Anzeigen die Drops neu laden",
+                changes_detected: "Änderungen erkannt", viewed: "Anzeigen",
+                markAllAsViewed: "Alle als gesehen markieren",
                 accept: "Akzeptieren", cancel: "Abbrechen", yes: "Ja", no: "Nein",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 shareCopy: "Zum Teilen kopieren",
                 shareCopied: "Kopiert",
                 scriptInfoTitle: "Skript-Informationen", scriptInfoName: "Name:",
                 scriptInfoVersion: "Version:", scriptInfoDescription: "Beschreibung:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. It fills from Twitch's own API, so it works the same in the inventory without pulling you over to campaigns, and while the answer is on its way it stays quiet instead of reporting a zero it does not know yet. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What you already earned but have not collected is flagged apart with 🎁 —not dimmed— because it only needs a click, and the closing warning counts those too. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. A keyword starting with \"-\" excludes: \"-console\" drops the campaign even if another keyword had found it, and takes the highlight, the card and the alert with it. And four view filters trim the open list without touching anything else —what you still have left, what closes soon, what you already earned and have not collected, and what takes an hour or less—: they add up, they are remembered, and the tab says how many cards are showing out of how many there are. The open list is sorted by whatever closes first or by whatever asks the least time, your choice. And every open campaign carries, on its own card on the page, the time you still need to take everything that is left —its most expensive reward, because the watch time is per campaign—, so the cost is visible while scrolling. If the inventory never arrives —without it there is no telling what you own or how much you have watched— the panel says so instead of going quiet with its marks switched off. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. A 🔗 on every open campaign copies its name, its dates, every reward with what it asks and a link that opens it on Twitch: text and not an image, so it stays searchable and the link stays clickable. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Hebt die Drop-Kampagnen, die zu deinen Schlüsselwörtern passen, direkt auf der Seite hervor: violett für offene, rot für geschlossene. Das Panel listet sie getrennt nach aktiv und beendet auf, mit dem Datumsfenster, dem Schlüsselwort, das sie gefunden hat, und jeder Belohnung samt der Stunden, die sie verlangt. Es füllt sich aus der eigenen API von Twitch, funktioniert also im Inventar genauso, ohne dich zu den Kampagnen zu ziehen, und solange die Antwort unterwegs ist, bleibt es still, statt eine Null zu melden, die es noch nicht kennt. Belohnungen, die du schon hast, sind einzeln abgehakt und durchgestrichen, und ein Abzeichen, bei dem nichts mehr offen ist, verliert seine Zeitangabe. Was du bereits verdient, aber nicht abgeholt hast, steht separat mit 🎁 und ungedimmt, weil nur ein Klick fehlt, und die Schlusswarnung zählt es mit. Was kurz vor dem Ende steht, kommt zuerst: läuft einer Belohnung, die du noch nicht hast, in weniger als 72 Stunden die Zeit ab, sagt ihre Karte, wie viel bleibt und wie viel Sehzeit dir noch fehlt —unter 24 Stunden in Rot— oder dass es nicht mehr reicht, und dasselbe ⏳ landet auf der Karte der Kampagne auf der Seite. Schlüsselwörter sind bearbeitbar: eines anklicken, um es zu löschen, + zum Hinzufügen, alle auf einmal bearbeiten oder die Standardliste wiederherstellen. Ein Schlüsselwort, das mit „-“ beginnt, schließt aus: „-console“ lässt die Kampagne draußen, auch wenn ein anderes Schlüsselwort sie gefunden hätte, und nimmt Hervorhebung, Karte und Warnung mit. Und vier Ansichtsfilter kürzen die Liste der offenen, ohne sonst etwas anzurühren —was dir noch fehlt, was bald schließt, was du verdient und nicht abgeholt hast, und was in einer Stunde oder weniger zu holen ist—: sie addieren sich, sie werden gemerkt, und der Reiter sagt, wie viele Karten von wie vielen zu sehen sind. Die Liste der offenen wird nach dem sortiert, was zuerst schließt, oder nach dem, was am wenigsten Zeit verlangt, wie du willst. Und jede offene Kampagne trägt auf ihrer eigenen Karte auf der Seite die Zeit, die dir fehlt, um alles Verbleibende mitzunehmen —ihre teuerste Belohnung, denn die Sehzeit gilt pro Kampagne—, sodass die Kosten beim Scrollen sichtbar sind. Kommt das Inventar nicht an —ohne es lässt sich nicht sagen, was du hast oder wie viel du gesehen hast—, sagt das Panel es, statt mit abgeschalteten Markierungen zu schweigen. Im Inventar kannst du die Details eines Drops ansehen (Fortschritt und Restzeit), Einträge mit dem ✕ verwerfen —„Drops neu laden“ bringt sie zurück— und ein Kästchen ankreuzen, das Beendetes/Erledigtes ausblendet und das automatische Abholen einschaltet. Ein 🔗 auf jeder offenen Kampagne kopiert ihren Namen, ihre Daten, jede Belohnung mit dem, was sie verlangt, und einen Link, der sie auf Twitch öffnet: Text und kein Bild, also bleibt es durchsuchbar und der Link klickbar. Kampagnen, die sich seit deinem letzten Blick geändert haben, markiert es mit einem 🔔 —im Panel und auf der Karte selbst— dazu eine Zahl offener Änderungen, eine Desktop-Benachrichtigung und eine 👁️-Schaltfläche, die dich außerdem zur Kampagne bringt. 16 Sprachen.",
                 scriptInfoAuthor: "Autor:", scriptInfoGitHub: "GitHub:",
-                readingApiDrops: "Reading drop changes from GQL/API...",
-                timeRemaining: "Time remaining",
-                progress: "Progress",
-                rewards: "Rewards",
+                readingApiDrops: "Drop-Änderungen werden von GQL/API gelesen...",
+                timeRemaining: "Restzeit",
+                progress: "Fortschritt",
+                rewards: "Belohnungen",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Drop-Details",
                 earnedUnclaimed: "verdient, nicht abgeholt",
                 urgentUnclaimed: "nicht abgeholt",
                 filterPending: "Noch offen",
@@ -303,36 +307,40 @@
                 claimedInventoryTitle: "Beansprucht"
             },
             fr: {
+                scriptInfoPrivacyText: "Tes mots-clés et tes réglages restent uniquement dans ton navigateur. Les requêtes de drops vont à gql.twitch.tv avec ta propre session (le jeton n'est jamais écrit sur le disque) ; si cela échoue, l'API publique twitch-drops-api.sunkwi.com est utilisée, et elle ne reçoit qu'une requête sans aucune donnée te concernant. Rien n'est envoyé à l'auteur du script.",
+                urgentMinimum: "au minimum",
+                remainingToFinish: "ce qu'il te manque pour tout emporter d'ici",
+                scriptInfoPrivacy: "Confidentialité :",
                 addKeyword: "Ajouter un mot-clé",
                 deleteKeywordTooltip: "Cliquez pour supprimer le mot-clé", deleteKeywordQuestion: "Supprimer le mot-clé ",
                 editKeywords: "Modifier les mots-clés", resetKeywords: "Réinitialiser par défaut",
                 confirmReset: "Réinitialiser les mots-clés par défaut ?",
                 keywordsRestored: "Mots-clés restaurés. Rechargement...",
-                keywordsModified: "Keywords modified. These are the current keywords: ",
+                keywordsModified: "Mots-clés modifiés. Voici les actuels : ",
                 reloading: "Rechargement...", currentKeywords: "Mots-clés actuels (cliquez pour supprimer) :",
                 noResults: "Aucun drop ne correspond à vos mots-clés.",
                 dropsActive: "Drops ouverts", dropsExpired: "Drops fermés",
                 editPrompt: "Mots-clés séparés par des virgules :",
                 reload: "Recharger les drops",
-                hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
-                hideActive: "Hide active from inventory",
-                removeInventory: "Click to remove from inventory, to show again press the reload drops button",
-                changes_detected: "Changes detected", viewed: "Shown",
-                markAllAsViewed: "Mark all as viewed",
+                hideExpired: "Masquer les terminés/complétés de l'inventaire, réclamation automatique des drops",
+                hideActive: "Masquer les actifs de l'inventaire",
+                removeInventory: "Clique pour retirer de l'inventaire ; pour le réafficher, recharge les drops",
+                changes_detected: "Changements détectés", viewed: "Afficher",
+                markAllAsViewed: "Tout marquer comme vu",
                 accept: "Accepter", cancel: "Annuler", yes: "Oui", no: "Non",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 shareCopy: "Copier pour partager",
                 shareCopied: "Copié",
                 scriptInfoTitle: "Informations du script", scriptInfoName: "Nom :",
                 scriptInfoVersion: "Version :", scriptInfoDescription: "Description :",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. It fills from Twitch's own API, so it works the same in the inventory without pulling you over to campaigns, and while the answer is on its way it stays quiet instead of reporting a zero it does not know yet. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What you already earned but have not collected is flagged apart with 🎁 —not dimmed— because it only needs a click, and the closing warning counts those too. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. A keyword starting with \"-\" excludes: \"-console\" drops the campaign even if another keyword had found it, and takes the highlight, the card and the alert with it. And four view filters trim the open list without touching anything else —what you still have left, what closes soon, what you already earned and have not collected, and what takes an hour or less—: they add up, they are remembered, and the tab says how many cards are showing out of how many there are. The open list is sorted by whatever closes first or by whatever asks the least time, your choice. And every open campaign carries, on its own card on the page, the time you still need to take everything that is left —its most expensive reward, because the watch time is per campaign—, so the cost is visible while scrolling. If the inventory never arrives —without it there is no telling what you own or how much you have watched— the panel says so instead of going quiet with its marks switched off. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. A 🔗 on every open campaign copies its name, its dates, every reward with what it asks and a link that opens it on Twitch: text and not an image, so it stays searchable and the link stays clickable. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Met en évidence, sur la page même, les campagnes de drops qui correspondent à tes mots-clés : violet pour les ouvertes, rouge pour les fermées. Le panneau les liste séparées en actives et terminées, avec la fenêtre de dates, le mot-clé qui l'a trouvée et chaque récompense avec les heures qu'elle demande. Il se remplit depuis l'API de Twitch elle-même, il fonctionne donc pareil dans l'inventaire sans t'emmener vers les campagnes, et pendant que la réponse est en route il se tait au lieu d'annoncer un zéro qu'il ne connaît pas encore. Les récompenses que tu as déjà sont cochées et barrées une à une, et un badge qui n'a plus rien à gagner perd son temps de visionnage. Ce que tu as déjà gagné sans l'avoir récupéré est à part, avec 🎁 et sans être atténué, parce qu'il ne manque qu'un clic, et l'avertissement de fermeture les compte aussi. Ce qui est sur le point de fermer passe en premier : quand le temps d'une récompense que tu n'as pas encore s'épuise en moins de 72 heures, sa carte dit combien il reste et combien de visionnage il te manque —en rouge sous 24 heures— ou que ça ne rentre plus, et le même ⏳ se pose sur la carte de la campagne sur la page. Les mots-clés sont modifiables : clique sur l'un pour le supprimer, + pour en ajouter, modifie-les en bloc ou rétablis ceux d'origine. Un mot-clé qui commence par « - » exclut : « -console » écarte la campagne même si un autre mot-clé l'avait trouvée, et emporte avec lui la mise en évidence, la carte et l'alerte. Et quatre filtres d'affichage réduisent la liste des ouvertes sans rien toucher d'autre —ce qu'il te reste, ce qui ferme bientôt, ce que tu as gagné sans le récupérer, et ce qui se prend en une heure ou moins— : ils s'additionnent, ils sont mémorisés, et l'onglet dit combien de cartes s'affichent sur combien il y en a. La liste des ouvertes se trie par ce qui ferme le plus tôt ou par ce qui demande le moins de temps, à ton choix. Et chaque campagne ouverte porte, sur sa propre carte de la page, le temps qu'il te manque pour tout emporter —sa récompense la plus chère, parce que le visionnage compte par campagne—, si bien que le coût se voit en défilant. Si l'inventaire n'arrive pas —sans lui, impossible de savoir ce que tu as ni combien tu as regardé—, le panneau le dit au lieu de rester muet avec ses marques éteintes. Dans l'inventaire tu peux voir le détail d'un drop (progression et temps restant), écarter des entrées avec le ✕ —« Recharger les drops » les ramène— et cocher une case qui masque les terminés/complétés et active la réclamation automatique. Un 🔗 sur chaque campagne ouverte copie son nom, ses dates, chaque récompense avec ce qu'elle demande et un lien qui l'ouvre sur Twitch : du texte et non une image, donc ça reste cherchable et le lien reste cliquable. Il signale avec un 🔔 —dans le panneau et sur la carte elle-même— les campagnes qui ont changé depuis ta dernière visite, avec un compte d'éléments en attente, une notification de bureau et un bouton 👁️ qui t'emmène en plus jusqu'à la campagne. 16 langues.",
                 scriptInfoAuthor: "Auteur :", scriptInfoGitHub: "GitHub :",
-                readingApiDrops: "Reading drop changes from GQL/API...",
-                timeRemaining: "Time remaining",
-                progress: "Progress",
-                rewards: "Rewards",
+                readingApiDrops: "Lecture des changements de drops depuis GQL/API...",
+                timeRemaining: "Temps restant",
+                progress: "Progression",
+                rewards: "Récompenses",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Détail du drop",
                 earnedUnclaimed: "gagné, non réclamé",
                 urgentUnclaimed: "non réclamés",
                 filterPending: "Reste à faire",
@@ -354,36 +362,40 @@
                 claimedInventoryTitle: "Réclamés"
             },
             pt: {
+                scriptInfoPrivacyText: "As tuas palavras-chave e definições ficam apenas no teu navegador. As consultas de drops vão para gql.twitch.tv com a tua própria sessão (o token nunca é gravado no disco); se isso falhar, é usada a API pública twitch-drops-api.sunkwi.com, que apenas recebe um pedido sem quaisquer dados teus. Nada é enviado ao autor do script.",
+                urgentMinimum: "no mínimo",
+                remainingToFinish: "o que te falta para levar tudo daqui",
+                scriptInfoPrivacy: "Privacidade:",
                 addKeyword: "Adicionar Keyword",
                 deleteKeywordTooltip: "Clique para deletar keyword", deleteKeywordQuestion: "Deletar keyword ",
                 editKeywords: "Editar Keywords", resetKeywords: "Restaurar Padrão",
                 confirmReset: "Restaurar keywords padrão?",
                 keywordsRestored: "Keywords restauradas. Recarregando...",
-                keywordsModified: "Keywords modified. These are the current keywords: ",
+                keywordsModified: "Palavras-chave alteradas. Estas são as atuais: ",
                 reloading: "Recarregando...", currentKeywords: "Keywords atuais (clique para deletar):",
                 noResults: "Nenhum drop encontrado com suas keywords.",
                 dropsActive: "Drops Abertos", dropsExpired: "Drops Fechados",
                 editPrompt: "Keywords separadas por vírgula:",
                 reload: "Recarregar drops",
-                hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
-                hideActive: "Hide active from inventory",
-                removeInventory: "Click to remove from inventory, to show again press the reload drops button",
-                changes_detected: "Changes detected", viewed: "Shown",
-                markAllAsViewed: "Mark all as viewed",
+                hideExpired: "Ocultar fechados/completos do inventário, resgate automático de drops",
+                hideActive: "Ocultar abertos do inventário",
+                removeInventory: "Clica para remover do inventário; para mostrar de novo, recarrega os drops",
+                changes_detected: "Alterações detetadas", viewed: "Mostrar",
+                markAllAsViewed: "Marcar todas como vistas",
                 accept: "Aceitar", cancel: "Cancelar", yes: "Sim", no: "Não",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 shareCopy: "Copiar para compartilhar",
                 shareCopied: "Copiado",
                 scriptInfoTitle: "Informações do script", scriptInfoName: "Nome:",
                 scriptInfoVersion: "Versão:", scriptInfoDescription: "Descrição:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. It fills from Twitch's own API, so it works the same in the inventory without pulling you over to campaigns, and while the answer is on its way it stays quiet instead of reporting a zero it does not know yet. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What you already earned but have not collected is flagged apart with 🎁 —not dimmed— because it only needs a click, and the closing warning counts those too. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. A keyword starting with \"-\" excludes: \"-console\" drops the campaign even if another keyword had found it, and takes the highlight, the card and the alert with it. And four view filters trim the open list without touching anything else —what you still have left, what closes soon, what you already earned and have not collected, and what takes an hour or less—: they add up, they are remembered, and the tab says how many cards are showing out of how many there are. The open list is sorted by whatever closes first or by whatever asks the least time, your choice. And every open campaign carries, on its own card on the page, the time you still need to take everything that is left —its most expensive reward, because the watch time is per campaign—, so the cost is visible while scrolling. If the inventory never arrives —without it there is no telling what you own or how much you have watched— the panel says so instead of going quiet with its marks switched off. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. A 🔗 on every open campaign copies its name, its dates, every reward with what it asks and a link that opens it on Twitch: text and not an image, so it stays searchable and the link stays clickable. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Realça na própria página as campanhas de drops que correspondem às tuas palavras-chave: roxo as abertas, vermelho as fechadas. O painel lista-as separadas em ativas e fechadas, com a janela de datas, a palavra-chave que a encontrou e cada recompensa com as horas que pede. Enche-se a partir da própria API do Twitch, por isso funciona igual no inventário sem te levar para as campanhas, e enquanto a resposta vem a caminho cala-se em vez de cantar um zero que ainda não sabe. As recompensas que já tens vão com ✓ e riscadas, uma a uma, e o badge que não tem nada pendente fica sem o seu tempo. O que já ganhaste e não recolheste vai à parte, com 🎁 e sem atenuar, porque só lhe falta um clique, e o aviso de fecho também os conta. O que está a fechar vai primeiro: quando a uma recompensa que ainda não tens acaba o tempo em menos de 72 h, o seu cartão diz quanto falta e quanto te falta ver —vermelho abaixo de 24 h— ou que já não dá tempo, e o mesmo ⏳ cai no cartão da campanha na página. Palavras-chave editáveis: clica numa para a apagar, + para adicionar, edita-as em bloco ou restaura as predefinidas. Uma palavra-chave que começa por «-» descarta: «-console» deixa a campanha de fora mesmo que outra a tivesse encontrado, e leva com ela o realce, o cartão e o aviso. E quatro filtros de vista encurtam a lista de abertas sem tocar em mais nada —o que ainda te falta, o que fecha em breve, o que já ganhaste e não recolheste, e o que se tira numa hora ou menos—: somam-se entre si, são recordados, e o separador diz quantos cartões se veem de quantos há. A lista de abertas ordena-se pelo que fecha primeiro ou pelo que pede menos tempo, à tua escolha. E cada campanha aberta leva no seu próprio cartão da página o tempo que te falta para levar tudo o que resta —a sua recompensa mais cara, porque o tempo visto é por campanha—, de modo que o custo se vê ao fazer scroll. Se o inventário não chegar —sem ele não se sabe o que tens nem quanto já viste—, o painel di-lo em vez de ficar calado com as marcas apagadas. No inventário podes ver o detalhe de um drop (progresso e tempo restante), descartar entradas com o ✕ —«Recarregar drops» devolve-as— e marcar uma caixa que oculta o fechado/completo e ativa o resgate automático. Um 🔗 em cada campanha aberta copia o seu nome, as suas datas, cada recompensa com o que pede e um link que a abre no Twitch: texto e não imagem, por isso continua a poder pesquisar-se e o link continua clicável. Marca com 🔔 —no painel e no próprio cartão— as campanhas que mudaram desde a última vez, com uma contagem de pendentes, notificação no computador e um botão 👁️ que ainda te leva até à campanha. 16 idiomas.",
                 scriptInfoAuthor: "Autor:", scriptInfoGitHub: "GitHub:",
-                readingApiDrops: "Reading drop changes from GQL/API...",
-                timeRemaining: "Time remaining",
-                progress: "Progress",
-                rewards: "Rewards",
+                readingApiDrops: "A ler alterações de drops de GQL/API...",
+                timeRemaining: "Tempo restante",
+                progress: "Progresso",
+                rewards: "Recompensas",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Detalhe do drop",
                 earnedUnclaimed: "ganho, falta resgatar",
                 urgentUnclaimed: "sem resgatar",
                 filterPending: "Falta algo",
@@ -405,36 +417,40 @@
                 claimedInventoryTitle: "Resgatados"
             },
             ru: {
+                scriptInfoPrivacyText: "Ваши ключевые слова и настройки хранятся только в браузере. Запросы о дропах идут на gql.twitch.tv с вашей собственной сессией (токен никогда не записывается на диск); если это не удаётся, используется публичный API twitch-drops-api.sunkwi.com, который получает лишь запрос без каких-либо ваших данных. Автору скрипта ничего не отправляется.",
+                urgentMinimum: "минимум",
+                remainingToFinish: "сколько осталось, чтобы забрать здесь всё",
+                scriptInfoPrivacy: "Конфиденциальность:",
                 addKeyword: "Добавить ключевое слово",
                 deleteKeywordTooltip: "Нажмите для удаления", deleteKeywordQuestion: "Удалить ключевое слово ",
                 editKeywords: "Редактировать ключевые слова", resetKeywords: "Сбросить по умолчанию",
                 confirmReset: "Сбросить ключевые слова по умолчанию?",
                 keywordsRestored: "Ключевые слова восстановлены. Перезагрузка...",
-                keywordsModified: "Keywords modified. These are the current keywords: ",
+                keywordsModified: "Ключевые слова изменены. Текущие: ",
                 reloading: "Перезагрузка...", currentKeywords: "Текущие ключевые слова (нажмите для удаления):",
                 noResults: "Дропы не найдены.", dropsActive: "Открытые дропы",
                 dropsExpired: "Закрытые дропы",
                 editPrompt: "Ключевые слова через запятую:",
                 reload: "Перезагрузить дропы",
-                hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
-                hideActive: "Hide active from inventory",
-                removeInventory: "Click to remove from inventory, to show again press the reload drops button",
-                changes_detected: "Changes detected", viewed: "Shown",
-                markAllAsViewed: "Mark all as viewed",
+                hideExpired: "Скрывать закрытые/выполненные из инвентаря, автоматический сбор дропов",
+                hideActive: "Скрывать активные из инвентаря",
+                removeInventory: "Нажми, чтобы убрать из инвентаря; чтобы показать снова, обнови дропы",
+                changes_detected: "Обнаружены изменения", viewed: "Показать",
+                markAllAsViewed: "Отметить все как просмотренные",
                 accept: "Принять", cancel: "Отмена", yes: "Да", no: "Нет",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 shareCopy: "Скопировать, чтобы поделиться",
                 shareCopied: "Скопировано",
                 scriptInfoTitle: "Информация о скрипте", scriptInfoName: "Имя:",
                 scriptInfoVersion: "Версия:", scriptInfoDescription: "Описание:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. It fills from Twitch's own API, so it works the same in the inventory without pulling you over to campaigns, and while the answer is on its way it stays quiet instead of reporting a zero it does not know yet. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What you already earned but have not collected is flagged apart with 🎁 —not dimmed— because it only needs a click, and the closing warning counts those too. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. A keyword starting with \"-\" excludes: \"-console\" drops the campaign even if another keyword had found it, and takes the highlight, the card and the alert with it. And four view filters trim the open list without touching anything else —what you still have left, what closes soon, what you already earned and have not collected, and what takes an hour or less—: they add up, they are remembered, and the tab says how many cards are showing out of how many there are. The open list is sorted by whatever closes first or by whatever asks the least time, your choice. And every open campaign carries, on its own card on the page, the time you still need to take everything that is left —its most expensive reward, because the watch time is per campaign—, so the cost is visible while scrolling. If the inventory never arrives —without it there is no telling what you own or how much you have watched— the panel says so instead of going quiet with its marks switched off. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. A 🔗 on every open campaign copies its name, its dates, every reward with what it asks and a link that opens it on Twitch: text and not an image, so it stays searchable and the link stays clickable. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Подсвечивает прямо на странице кампании дропов, которые совпали с вашими ключевыми словами: фиолетовым — открытые, красным — закрытые. Панель показывает их отдельно по активным и завершённым, с окном дат, ключевым словом, которое их нашло, и каждой награды с часами, которые она требует. Данные берутся из собственного API Twitch, поэтому в инвентаре всё работает так же, не вытаскивая вас к кампаниям, а пока ответ в пути, панель молчит вместо того, чтобы показать ноль, которого ещё не знает. Награды, которые у вас уже есть, отмечены галочкой и зачёркнуты по одной, а у значка, где ничего не осталось, исчезает требуемое время. То, что вы уже заработали, но не забрали, стоит отдельно, с 🎁 и без затемнения, потому что нужен только один клик, и предупреждение о закрытии их тоже считает. То, что скоро закроется, идёт первым: если у награды, которой у вас пока нет, время выходит меньше чем за 72 часа, её карточка говорит, сколько осталось и сколько вам ещё смотреть —красным, если меньше 24 часов— или что уже не успеть, и то же ⏳ появляется на карточке кампании на странице. Ключевые слова редактируются: клик по слову удаляет его, + добавляет, можно править их все сразу или вернуть исходные. Ключевое слово, начинающееся с «-», исключает: «-console» убирает кампанию, даже если её нашло другое слово, и забирает с собой подсветку, карточку и предупреждение. А четыре фильтра вида сокращают список открытых, не трогая больше ничего —что вам ещё осталось, что скоро закроется, что вы заработали и не забрали, и что берётся за час или меньше—: они складываются, запоминаются, и вкладка говорит, сколько карточек видно из сколького. Список открытых сортируется по тому, что закроется раньше, или по тому, что требует меньше времени — на выбор. И каждая открытая кампания несёт на своей карточке на странице время, которого вам не хватает, чтобы забрать всё оставшееся —её самая дорогая награда, потому что просмотр считается по кампании—, так что цена видна прямо при прокрутке. Если инвентарь не приходит —без него не понять, что у вас есть и сколько вы посмотрели—, панель об этом говорит, а не молчит с погашенными метками. В инвентаре можно посмотреть подробности дропа (прогресс и остаток времени), убрать записи через ✕ —«Обновить дропы» их вернёт— и поставить галочку, которая скрывает закрытое/выполненное и включает автоматический сбор. 🔗 на каждой открытой кампании копирует её название, её даты, каждую награду с её требованием и ссылку, открывающую её на Twitch: это текст, а не картинка, поэтому по нему можно искать, а ссылка остаётся нажимаемой. Кампании, изменившиеся с прошлого раза, помечаются 🔔 —в панели и на самой карточке— вместе со счётчиком непросмотренных, уведомлением на рабочем столе и кнопкой 👁️, которая ещё и переносит вас к кампании. 16 языков.",
                 scriptInfoAuthor: "Автор:", scriptInfoGitHub: "GitHub:",
-                readingApiDrops: "Reading drop changes from GQL/API...",
-                timeRemaining: "Time remaining",
-                progress: "Progress",
-                rewards: "Rewards",
-                minutesShort: "min",
-                dropDetails: "Drop details",
+                readingApiDrops: "Читаем изменения дропов из GQL/API...",
+                timeRemaining: "Осталось времени",
+                progress: "Прогресс",
+                rewards: "Награды",
+                minutesShort: "мин",
+                dropDetails: "Подробности дропа",
                 earnedUnclaimed: "получено, не забрано",
                 urgentUnclaimed: "не забрано",
                 filterPending: "Есть незавершённые",
@@ -456,36 +472,40 @@
                 claimedInventoryTitle: "Востребованные"
             },
             tr: {
+                scriptInfoPrivacyText: "Anahtar kelimelerin ve ayarların yalnızca tarayıcında kalır. Drop sorguları kendi oturumunla gql.twitch.tv adresine gider (token diske hiç yazılmaz); bu başarısız olursa herkese açık twitch-drops-api.sunkwi.com API’si kullanılır ve o yalnızca sana ait hiçbir veri içermeyen bir istek alır. Betiğin yazarına hiçbir şey gönderilmez.",
+                urgentMinimum: "en az",
+                remainingToFinish: "buradaki her şeyi almak için kalan süre",
+                scriptInfoPrivacy: "Gizlilik:",
                 addKeyword: "Anahtar Kelime Ekle",
                 deleteKeywordTooltip: "Silmek için tıklayın", deleteKeywordQuestion: "Anahtar kelimeyi sil ",
                 editKeywords: "Anahtar Kelimeleri Düzenle", resetKeywords: "Varsayılana Sıfırla",
                 confirmReset: "Anahtar kelimeleri varsayılana sıfırla?",
                 keywordsRestored: "Anahtar kelimeler geri yüklendi. Yeniden yükleniyor...",
-                keywordsModified: "Keywords modified. These are the current keywords: ",
+                keywordsModified: "Anahtar kelimeler değişti. Şu anki liste: ",
                 reloading: "Yeniden yükleniyor...", currentKeywords: "Mevcut anahtar kelimeler (silmek için tıklayın):",
                 noResults: "Anahtar kelimelerinize uygun drop bulunamadı.",
                 dropsActive: "Açık Drops", dropsExpired: "Kapalı Drops",
                 editPrompt: "Virgülle ayrılmış anahtar kelimeler:",
                 reload: "Dropları yeniden yükle",
-                hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
-                hideActive: "Hide active from inventory",
-                removeInventory: "Click to remove from inventory, to show again press the reload drops button",
-                changes_detected: "Changes detected", viewed: "Shown",
-                markAllAsViewed: "Mark all as viewed",
+                hideExpired: "Kapananları/tamamlananları envanterden gizle, dropları otomatik al",
+                hideActive: "Aktifleri envanterden gizle",
+                removeInventory: "Envanterden çıkarmak için tıkla; yeniden göstermek için dropları yenile",
+                changes_detected: "Değişiklik bulundu", viewed: "Göster",
+                markAllAsViewed: "Tümünü görüldü işaretle",
                 accept: "Kabul et", cancel: "İptal", yes: "Evet", no: "Hayır",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 shareCopy: "Paylaşmak için kopyala",
                 shareCopied: "Kopyalandı",
                 scriptInfoTitle: "Script Bilgisi", scriptInfoName: "Ad:",
                 scriptInfoVersion: "Sürüm:", scriptInfoDescription: "Açıklama:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. It fills from Twitch's own API, so it works the same in the inventory without pulling you over to campaigns, and while the answer is on its way it stays quiet instead of reporting a zero it does not know yet. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What you already earned but have not collected is flagged apart with 🎁 —not dimmed— because it only needs a click, and the closing warning counts those too. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. A keyword starting with \"-\" excludes: \"-console\" drops the campaign even if another keyword had found it, and takes the highlight, the card and the alert with it. And four view filters trim the open list without touching anything else —what you still have left, what closes soon, what you already earned and have not collected, and what takes an hour or less—: they add up, they are remembered, and the tab says how many cards are showing out of how many there are. The open list is sorted by whatever closes first or by whatever asks the least time, your choice. And every open campaign carries, on its own card on the page, the time you still need to take everything that is left —its most expensive reward, because the watch time is per campaign—, so the cost is visible while scrolling. If the inventory never arrives —without it there is no telling what you own or how much you have watched— the panel says so instead of going quiet with its marks switched off. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. A 🔗 on every open campaign copies its name, its dates, every reward with what it asks and a link that opens it on Twitch: text and not an image, so it stays searchable and the link stays clickable. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Anahtar kelimelerinle eşleşen drop kampanyalarını sayfanın kendisinde vurgular: açık olanlar mor, kapananlar kırmızı. Panel bunları açık ve kapanmış olarak ayrı listeler; tarih aralığıyla, onu bulan anahtar kelimeyle ve her ödülü istediği saatle birlikte. Twitch’in kendi API’sinden doldurulur, yani envanterde de aynı şekilde çalışır ve seni kampanyalara sürüklemez; cevap yoldayken de henüz bilmediği bir sıfırı söylemek yerine susar. Zaten sahip olduğun ödüller tek tek ✓ ile işaretlenip üstü çizilir, bekleyen hiçbir şeyi kalmayan rozet ise istediği süreyi bırakır. Kazandığın ama almadığın şeyler ayrı durur, 🎁 ile ve soluklaştırılmadan, çünkü tek bir tık kalmıştır; kapanış uyarısı da onları sayar. Kapanmak üzere olan öne geçer: henüz sahip olmadığın bir ödülün süresi 72 saatten az kaldığında kartı ne kadar kaldığını ve daha ne kadar izlemen gerektiğini söyler —24 saatin altında kırmızı— ya da artık yetmediğini, ve aynı ⏳ sayfadaki kampanya kartına da düşer. Anahtar kelimeler düzenlenebilir: silmek için birine tıkla, eklemek için +, hepsini birden düzenle ya da varsayılanları geri getir. «-» ile başlayan bir anahtar kelime dışlar: «-console», başka bir kelime bulmuş olsa bile kampanyayı dışarıda bırakır ve vurguyu, kartı ve uyarıyı da beraberinde götürür. Dört görünüm filtresi de başka hiçbir şeye dokunmadan açıklar listesini kısaltır —hâlâ eksiğin olan, yakında kapanan, kazandığın ama almadığın ve bir saat veya daha kısa sürede alınan—: birbirine eklenir, hatırlanır ve sekme kaç karttan kaçının göründüğünü söyler. Açıklar listesi, ilk kapanana göre ya da en az süre isteyene göre sıralanır, sen seç. Ve her açık kampanya, sayfadaki kendi kartında, kalan her şeyi almak için eksik olan süreyi taşır —en pahalı ödülü, çünkü izlenen süre kampanya başınadır—, böylece maliyet kaydırırken görünür. Envanter gelmezse —o olmadan neyin var ve ne kadar izlemiş olduğun bilinemez— panel bunu söyler, işaretleri sönmüş halde susmak yerine. Envanterde bir drop’un ayrıntısını görebilir (ilerleme ve kalan süre), kayıtları ✕ ile eleyebilir —«Dropları yenile» onları geri getirir— ve kapananları/tamamlananları gizleyip otomatik almayı açan bir kutuyu işaretleyebilirsin. Her açık kampanyadaki 🔗 adını, tarihlerini, her ödülü istediğiyle birlikte ve onu Twitch’te açan bir bağlantıyı kopyalar: resim değil metin, yani aranabilir kalır ve bağlantıya basılabilir. Son bakışından beri değişen kampanyaları 🔔 ile işaretler —panelde ve kartın kendisinde—, bekleyen sayısıyla, masaüstü bildirimiyle ve seni ayrıca kampanyaya götüren bir 👁️ düğmesiyle. 16 dil.",
                 scriptInfoAuthor: "Yazar:", scriptInfoGitHub: "GitHub:",
-                readingApiDrops: "Reading drop changes from GQL/API...",
-                timeRemaining: "Time remaining",
-                progress: "Progress",
-                rewards: "Rewards",
-                minutesShort: "min",
-                dropDetails: "Drop details",
+                readingApiDrops: "Drop değişiklikleri GQL/API’den okunuyor...",
+                timeRemaining: "Kalan süre",
+                progress: "İlerleme",
+                rewards: "Ödüller",
+                minutesShort: "dk",
+                dropDetails: "Drop ayrıntısı",
                 earnedUnclaimed: "kazanıldı, alınmadı",
                 urgentUnclaimed: "alınmadı",
                 filterPending: "Eksiği var",
@@ -507,36 +527,40 @@
                 claimedInventoryTitle: "Talep Edilenler"
             },
             ja: {
+                scriptInfoPrivacyText: "キーワードと設定はブラウザー内にのみ保存されます。ドロップの問い合わせはあなた自身のセッションで gql.twitch.tv に送られます (トークンがディスクに書き込まれることはありません)。それが失敗した場合は公開 API の twitch-drops-api.sunkwi.com を使いますが、そこにはあなたのデータを含まないリクエストだけが届きます。スクリプトの作者には何も送信されません。",
+                urgentMinimum: "最低",
+                remainingToFinish: "ここのすべてを受け取るのに足りない分",
+                scriptInfoPrivacy: "プライバシー:",
                 addKeyword: "キーワード追加",
                 deleteKeywordTooltip: "クリックで削除", deleteKeywordQuestion: "キーワードを削除 ",
                 editKeywords: "キーワード編集", resetKeywords: "デフォルトに戻す",
                 confirmReset: "キーワードをデフォルトに戻しますか？",
                 keywordsRestored: "キーワード復元。再読み込み中...",
-                keywordsModified: "Keywords modified. These are the current keywords: ",
+                keywordsModified: "キーワードを変更しました。現在のキーワード: ",
                 reloading: "再読み込み中...", currentKeywords: "現在のキーワード（クリックで削除）:",
                 noResults: "キーワードに一致するドロップはありません。",
                 dropsActive: "アクティブなドロップ", dropsExpired: "終了したドロップ",
                 editPrompt: "カンマ区切りのキーワード:",
                 reload: "ドロップを再読み込み",
-                hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
-                hideActive: "Hide active from inventory",
-                removeInventory: "Click to remove from inventory, to show again press the reload drops button",
-                changes_detected: "Changes detected", viewed: "Shown",
-                markAllAsViewed: "Mark all as viewed",
+                hideExpired: "終了・完了済みをインベントリから隠す、ドロップの自動受け取り",
+                hideActive: "進行中をインベントリから隠す",
+                removeInventory: "クリックでインベントリから削除。再表示するにはドロップを再読み込み",
+                changes_detected: "変更を検出", viewed: "表示",
+                markAllAsViewed: "すべて既読にする",
                 accept: "承認", cancel: "キャンセル", yes: "はい", no: "いいえ",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 shareCopy: "共有用にコピー",
                 shareCopied: "コピーしました",
                 scriptInfoTitle: "スクリプト情報", scriptInfoName: "名前:",
                 scriptInfoVersion: "バージョン:", scriptInfoDescription: "説明:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. It fills from Twitch's own API, so it works the same in the inventory without pulling you over to campaigns, and while the answer is on its way it stays quiet instead of reporting a zero it does not know yet. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What you already earned but have not collected is flagged apart with 🎁 —not dimmed— because it only needs a click, and the closing warning counts those too. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. A keyword starting with \"-\" excludes: \"-console\" drops the campaign even if another keyword had found it, and takes the highlight, the card and the alert with it. And four view filters trim the open list without touching anything else —what you still have left, what closes soon, what you already earned and have not collected, and what takes an hour or less—: they add up, they are remembered, and the tab says how many cards are showing out of how many there are. The open list is sorted by whatever closes first or by whatever asks the least time, your choice. And every open campaign carries, on its own card on the page, the time you still need to take everything that is left —its most expensive reward, because the watch time is per campaign—, so the cost is visible while scrolling. If the inventory never arrives —without it there is no telling what you own or how much you have watched— the panel says so instead of going quiet with its marks switched off. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. A 🔗 on every open campaign copies its name, its dates, every reward with what it asks and a link that opens it on Twitch: text and not an image, so it stays searchable and the link stays clickable. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "キーワードに一致したドロップキャンペーンをページ上で強調します。開催中は紫、終了済みは赤です。パネルは開催中と終了済みに分けて一覧にし、期間、見つけたキーワード、そして各報酬に必要な時間を並べます。Twitch 自身の API から取り込むので、インベントリでもキャンペーンに移動せずに同じように動き、応答が届くまではまだ知らないゼロを言わずに黙っています。すでに持っている報酬は一つずつ ✓ と取り消し線が付き、残りがないバッジからは必要時間が消えます。獲得済みで受け取っていないものは 🎁 を付けて薄くせずに別扱いにします。あと一クリックで済むからで、終了間近の警告もそれを数えます。終了が近いものが先に来ます。まだ持っていない報酬の期限が 72 時間以内なら、そのカードは残り時間とあと何時間見る必要があるかを示し —24 時間を切ると赤— あるいは間に合わないことを示し、同じ ⏳ がページのキャンペーンのカードにも付きます。キーワードは編集できます。クリックで削除、+ で追加、まとめて編集、初期状態に戻す。「-」で始まるキーワードは除外します。「-console」は他のキーワードが見つけていてもキャンペーンを外し、強調表示もカードも警告も一緒に消します。さらに 4 つの表示フィルターが、他に何も触らずに開催中の一覧を絞ります —まだ足りないもの、まもなく終わるもの、獲得済みで未受け取りのもの、1 時間以内で取れるもの—。フィルターは重ねられ、記憶され、タブには全体のうち何枚が表示されているかが出ます。開催中の一覧は、早く終わる順か、必要時間の少ない順か、好きな方で並べ替えられます。そして開催中の各キャンペーンは、ページ上の自分のカードに、残り全部を取るのに足りない時間を表示します —いちばん高い報酬の分です。視聴時間はキャンペーン単位だからです— ので、スクロールしながら費用が見えます。インベントリが届かないとき —それがないと何を持っているか、どれだけ見たかが分かりません— パネルは印を消して黙るのではなく、そのことを伝えます。インベントリではドロップの詳細 (進捗と残り時間) を見られ、✕ で項目を除け —「ドロップを再読み込み」で戻ります— 終了・完了済みを隠して自動受け取りを入れるチェックボックスも使えます。開催中の各キャンペーンの 🔗 は、名前、期間、必要時間付きの各報酬、そして Twitch で開くリンクをコピーします。画像ではなく文字なので検索でき、リンクも押せます。前回から変わったキャンペーンには 🔔 を付け —パネルとカードの両方に— 未確認の件数、デスクトップ通知、そしてキャンペーンまで連れて行く 👁️ ボタンも用意します。16 言語。",
                 scriptInfoAuthor: "作者:", scriptInfoGitHub: "GitHub:",
-                readingApiDrops: "Reading drop changes from GQL/API...",
-                timeRemaining: "Time remaining",
-                progress: "Progress",
-                rewards: "Rewards",
-                minutesShort: "min",
-                dropDetails: "Drop details",
+                readingApiDrops: "GQL/API からドロップの変更を読み込み中...",
+                timeRemaining: "残り時間",
+                progress: "進捗",
+                rewards: "報酬",
+                minutesShort: "分",
+                dropDetails: "ドロップの詳細",
                 earnedUnclaimed: "獲得済み、未受け取り",
                 urgentUnclaimed: "未受け取り",
                 filterPending: "未完了あり",
@@ -558,36 +582,40 @@
                 claimedInventoryTitle: "受け取り済み"
             },
             ko: {
+                scriptInfoPrivacyText: "키워드와 설정은 브라우저에만 저장됩니다. 드롭 조회는 사용자 본인의 세션으로 gql.twitch.tv에 갑니다(토큰은 디스크에 기록되지 않습니다). 실패하면 공개 API인 twitch-drops-api.sunkwi.com을 쓰는데, 그쪽에는 사용자 데이터가 없는 요청만 전달됩니다. 스크립트 작성자에게는 아무것도 전송되지 않습니다.",
+                urgentMinimum: "최소",
+                remainingToFinish: "여기 있는 전부를 받으려면 남은 시간",
+                scriptInfoPrivacy: "개인정보:",
                 addKeyword: "키워드 추가",
                 deleteKeywordTooltip: "클릭하여 삭제", deleteKeywordQuestion: "키워드 삭제 ",
                 editKeywords: "키워드 편집", resetKeywords: "기본값 복원",
                 confirmReset: "키워드를 기본값으로 복원하시겠습니까?",
                 keywordsRestored: "키워드 복원됨. 새로고침 중...",
-                keywordsModified: "Keywords modified. These are the current keywords: ",
+                keywordsModified: "키워드를 변경했습니다. 현재 키워드: ",
                 reloading: "새로고침 중...", currentKeywords: "현재 키워드 (클릭하여 삭제):",
                 noResults: "키워드와 일치하는 드롭이 없습니다.",
                 dropsActive: "활성 드롭", dropsExpired: "종료된 드롭",
                 editPrompt: "쉼표로 구분된 키워드:",
                 reload: "드롭 새로고침",
-                hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
-                hideActive: "Hide active from inventory",
-                removeInventory: "Click to remove from inventory, to show again press the reload drops button",
-                changes_detected: "Changes detected", viewed: "Shown",
-                markAllAsViewed: "Mark all as viewed",
+                hideExpired: "종료·완료된 항목을 인벤토리에서 숨기기, 드롭 자동 수령",
+                hideActive: "진행 중인 항목을 인벤토리에서 숨기기",
+                removeInventory: "클릭하면 인벤토리에서 제거됩니다. 다시 보려면 드롭을 새로 고치세요",
+                changes_detected: "변경 사항 감지", viewed: "표시",
+                markAllAsViewed: "모두 확인함으로 표시",
                 accept: "수락", cancel: "취소", yes: "예", no: "아니오",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 shareCopy: "공유용으로 복사",
                 shareCopied: "복사됨",
                 scriptInfoTitle: "스크립트 정보", scriptInfoName: "이름:",
                 scriptInfoVersion: "버전:", scriptInfoDescription: "설명:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. It fills from Twitch's own API, so it works the same in the inventory without pulling you over to campaigns, and while the answer is on its way it stays quiet instead of reporting a zero it does not know yet. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What you already earned but have not collected is flagged apart with 🎁 —not dimmed— because it only needs a click, and the closing warning counts those too. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. A keyword starting with \"-\" excludes: \"-console\" drops the campaign even if another keyword had found it, and takes the highlight, the card and the alert with it. And four view filters trim the open list without touching anything else —what you still have left, what closes soon, what you already earned and have not collected, and what takes an hour or less—: they add up, they are remembered, and the tab says how many cards are showing out of how many there are. The open list is sorted by whatever closes first or by whatever asks the least time, your choice. And every open campaign carries, on its own card on the page, the time you still need to take everything that is left —its most expensive reward, because the watch time is per campaign—, so the cost is visible while scrolling. If the inventory never arrives —without it there is no telling what you own or how much you have watched— the panel says so instead of going quiet with its marks switched off. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. A 🔗 on every open campaign copies its name, its dates, every reward with what it asks and a link that opens it on Twitch: text and not an image, so it stays searchable and the link stays clickable. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "키워드와 일치하는 드롭 캠페인을 페이지에서 바로 강조합니다. 진행 중은 보라색, 종료는 빨간색입니다. 패널은 진행 중과 종료로 나누어 목록을 만들고, 기간, 그것을 찾은 키워드, 그리고 각 보상과 필요한 시간을 함께 보여 줍니다. Twitch 자체 API에서 채우기 때문에 인벤토리에서도 캠페인으로 넘어가지 않고 똑같이 작동하며, 응답이 오는 동안에는 아직 모르는 0을 말하지 않고 조용히 있습니다. 이미 가진 보상은 하나씩 ✓ 표시와 취소선이 붙고, 남은 것이 없는 배지에서는 요구 시간이 사라집니다. 이미 얻었지만 받지 않은 것은 흐리게 하지 않고 🎁와 함께 따로 둡니다. 클릭 한 번만 남았기 때문이며, 종료 경고도 그것을 셉니다. 곧 닫히는 것이 먼저 옵니다. 아직 없는 보상의 시간이 72시간 안에 끝나면 그 카드는 얼마가 남았고 얼마나 더 봐야 하는지 알려 주고 —24시간 미만이면 빨간색— 또는 이제는 시간이 되지 않는다고 알려 주며, 같은 ⏳가 페이지의 캠페인 카드에도 붙습니다. 키워드는 편집할 수 있습니다. 하나를 클릭하면 삭제, +로 추가, 한꺼번에 편집하거나 기본값으로 되돌릴 수 있습니다. «-»로 시작하는 키워드는 제외합니다. «-console»은 다른 키워드가 찾았더라도 캠페인을 빼고, 강조와 카드와 알림까지 함께 가져갑니다. 그리고 네 가지 보기 필터가 다른 것은 건드리지 않고 진행 중 목록을 줄입니다 —아직 부족한 것, 곧 닫히는 것, 이미 얻고 받지 않은 것, 한 시간 이하로 얻는 것—. 필터는 서로 더해지고 기억되며, 탭에는 전체 중 몇 장이 보이는지 나옵니다. 진행 중 목록은 먼저 닫히는 순서나 시간이 가장 적게 드는 순서로, 원하는 대로 정렬됩니다. 그리고 진행 중인 각 캠페인은 페이지의 자기 카드에 남은 전부를 가져가는 데 부족한 시간을 담습니다 —가장 비싼 보상 기준입니다. 시청 시간은 캠페인 단위이기 때문입니다—. 그래서 스크롤하면서 비용이 보입니다. 인벤토리가 오지 않으면 —그것이 없으면 무엇을 가졌는지, 얼마나 봤는지 알 수 없습니다— 패널은 표시를 끈 채 침묵하지 않고 그 사실을 말합니다. 인벤토리에서는 드롭의 상세(진행도와 남은 시간)를 볼 수 있고, ✕로 항목을 치울 수 있으며 —«드롭 새로 고침»이 되돌립니다— 종료·완료된 항목을 숨기고 자동 수령을 켜는 확인란도 있습니다. 진행 중인 각 캠페인의 🔗은 이름, 기간, 요구 시간이 붙은 각 보상, 그리고 Twitch에서 여는 링크를 복사합니다. 이미지가 아니라 텍스트이므로 검색할 수 있고 링크도 누를 수 있습니다. 지난번 이후 바뀐 캠페인은 🔔으로 표시합니다 —패널과 카드 모두에— 대기 개수, 데스크톱 알림, 그리고 캠페인까지 데려가는 👁️ 버튼도 함께입니다. 16개 언어.",
                 scriptInfoAuthor: "작성자:", scriptInfoGitHub: "GitHub:",
-                readingApiDrops: "Reading drop changes from GQL/API...",
-                timeRemaining: "Time remaining",
-                progress: "Progress",
-                rewards: "Rewards",
-                minutesShort: "min",
-                dropDetails: "Drop details",
+                readingApiDrops: "GQL/API에서 드롭 변경 사항을 읽는 중...",
+                timeRemaining: "남은 시간",
+                progress: "진행도",
+                rewards: "보상",
+                minutesShort: "분",
+                dropDetails: "드롭 상세",
                 earnedUnclaimed: "획득함, 미수령",
                 urgentUnclaimed: "미수령",
                 filterPending: "남은 항목",
@@ -609,36 +637,40 @@
                 claimedInventoryTitle: "수령 완료"
             },
             pl: {
+                scriptInfoPrivacyText: "Twoje słowa kluczowe i ustawienia zostają tylko w przeglądarce. Zapytania o dropy idą do gql.twitch.tv z twoją własną sesją (token nigdy nie jest zapisywany na dysku); jeśli to się nie uda, używane jest publiczne API twitch-drops-api.sunkwi.com, które dostaje jedynie zapytanie bez żadnych twoich danych. Do autora skryptu nic nie jest wysyłane.",
+                urgentMinimum: "minimum",
+                remainingToFinish: "ile brakuje, żeby zabrać stąd wszystko",
+                scriptInfoPrivacy: "Prywatność:",
                 addKeyword: "Dodaj słowo kluczowe",
                 deleteKeywordTooltip: "Kliknij aby usunąć", deleteKeywordQuestion: "Usunąć słowo kluczowe ",
                 editKeywords: "Edytuj słowa kluczowe", resetKeywords: "Przywróć domyślne",
                 confirmReset: "Przywrócić domyślne słowa kluczowe?",
                 keywordsRestored: "Słowa kluczowe przywrócone. Przeładowywanie...",
-                keywordsModified: "Keywords modified. These are the current keywords: ",
+                keywordsModified: "Słowa kluczowe zmienione. Aktualne: ",
                 reloading: "Przeładowywanie...", currentKeywords: "Aktualne słowa kluczowe (kliknij aby usunąć):",
                 noResults: "Nie znaleziono dropów pasujących do słów kluczowych.",
                 dropsActive: "Otwarte dropy", dropsExpired: "Zamknięte dropy",
                 editPrompt: "Słowa kluczowe oddzielone przecinkami:",
                 reload: "Przeładuj dropy",
-                hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
-                hideActive: "Hide active from inventory",
-                removeInventory: "Click to remove from inventory, to show again press the reload drops button",
-                changes_detected: "Changes detected", viewed: "Shown",
-                markAllAsViewed: "Mark all as viewed",
+                hideExpired: "Ukryj zakończone/ukończone w ekwipunku, automatyczne odbieranie dropów",
+                hideActive: "Ukryj aktywne w ekwipunku",
+                removeInventory: "Kliknij, aby usunąć z ekwipunku; aby pokazać ponownie, odśwież dropy",
+                changes_detected: "Wykryto zmiany", viewed: "Pokaż",
+                markAllAsViewed: "Oznacz wszystkie jako przejrzane",
                 accept: "Akceptuj", cancel: "Anuluj", yes: "Tak", no: "Nie",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 shareCopy: "Kopiuj, aby udostępnić",
                 shareCopied: "Skopiowano",
                 scriptInfoTitle: "Informacje o skrypcie", scriptInfoName: "Nazwa:",
                 scriptInfoVersion: "Wersja:", scriptInfoDescription: "Opis:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. It fills from Twitch's own API, so it works the same in the inventory without pulling you over to campaigns, and while the answer is on its way it stays quiet instead of reporting a zero it does not know yet. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What you already earned but have not collected is flagged apart with 🎁 —not dimmed— because it only needs a click, and the closing warning counts those too. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. A keyword starting with \"-\" excludes: \"-console\" drops the campaign even if another keyword had found it, and takes the highlight, the card and the alert with it. And four view filters trim the open list without touching anything else —what you still have left, what closes soon, what you already earned and have not collected, and what takes an hour or less—: they add up, they are remembered, and the tab says how many cards are showing out of how many there are. The open list is sorted by whatever closes first or by whatever asks the least time, your choice. And every open campaign carries, on its own card on the page, the time you still need to take everything that is left —its most expensive reward, because the watch time is per campaign—, so the cost is visible while scrolling. If the inventory never arrives —without it there is no telling what you own or how much you have watched— the panel says so instead of going quiet with its marks switched off. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. A 🔗 on every open campaign copies its name, its dates, every reward with what it asks and a link that opens it on Twitch: text and not an image, so it stays searchable and the link stays clickable. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Podświetla na samej stronie kampanie dropów, które pasują do twoich słów kluczowych: fioletowe otwarte, czerwone zamknięte. Panel wypisuje je osobno na aktywne i zakończone, z okresem obowiązywania, słowem kluczowym, które je znalazło, i każdą nagrodą wraz z godzinami, których wymaga. Wypełnia się z własnego API Twitcha, więc w ekwipunku działa tak samo, nie wyciągając cię do kampanii, a póki odpowiedź jest w drodze, milczy, zamiast podawać zero, którego jeszcze nie zna. Nagrody, które już masz, są odhaczone i przekreślone jedna po drugiej, a odznaka, w której nie zostało nic, traci swój czas. To, co już zdobyłeś, a czego nie odebrałeś, stoi osobno, z 🎁 i bez przygaszenia, bo brakuje tylko kliknięcia, a ostrzeżenie o zamknięciu też to liczy. Najpierw idzie to, co zaraz się zamknie: gdy nagrodzie, której jeszcze nie masz, kończy się czas w mniej niż 72 godziny, jej karta mówi, ile zostało i ile jeszcze musisz oglądać —na czerwono poniżej 24 godzin— albo że już się nie zmieści, a to samo ⏳ ląduje na karcie kampanii na stronie. Słowa kluczowe są edytowalne: kliknij, aby usunąć, + aby dodać, edytuj wszystkie razem albo przywróć domyślne. Słowo kluczowe zaczynające się od «-» wyklucza: «-console» zostawia kampanię za drzwiami, nawet jeśli znalazło ją inne słowo, i zabiera z sobą podświetlenie, kartę i alert. A cztery filtry widoku skracają listę otwartych, nie ruszając niczego więcej —to, czego ci jeszcze brakuje, to, co zaraz się zamyka, to, co zdobyłeś i nie odebrałeś, i to, co bierze się w godzinę lub mniej—: dodają się do siebie, są pamiętane, a zakładka mówi, ile kart widać z ilu. Lista otwartych sortuje się po tym, co zamyka się najwcześniej, albo po tym, co wymaga najmniej czasu, jak wolisz. I każda otwarta kampania nosi na swojej własnej karcie na stronie czas, którego ci brakuje, by zabrać wszystko, co zostało —swoją najdroższą nagrodę, bo obejrzany czas liczy się na kampanię—, więc koszt widać przy przewijaniu. Jeśli ekwipunek nie dotrze —bez niego nie wiadomo, co masz ani ile obejrzałeś— panel to mówi, zamiast milczeć z pogaszonymi znacznikami. W ekwipunku możesz zobaczyć szczegóły dropu (postęp i pozostały czas), odrzucić wpisy przez ✕ —«Odśwież dropy» je przywraca— i zaznaczyć pole, które ukrywa zakończone/ukończone i włącza automatyczne odbieranie. 🔗 na każdej otwartej kampanii kopiuje jej nazwę, jej daty, każdą nagrodę z tym, czego wymaga, i link, który otwiera ją na Twitchu: tekst, a nie obrazek, więc da się w nim szukać, a link da się kliknąć. Kampanie, które zmieniły się od ostatniego razu, oznacza 🔔 —w panelu i na samej karcie— wraz z liczbą oczekujących, powiadomieniem na pulpicie i przyciskiem 👁️, który dodatkowo zabiera cię do kampanii. 16 języków.",
                 scriptInfoAuthor: "Autor:", scriptInfoGitHub: "GitHub:",
-                readingApiDrops: "Reading drop changes from GQL/API...",
-                timeRemaining: "Time remaining",
-                progress: "Progress",
-                rewards: "Rewards",
+                readingApiDrops: "Czytanie zmian dropów z GQL/API...",
+                timeRemaining: "Pozostały czas",
+                progress: "Postęp",
+                rewards: "Nagrody",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Szczegóły dropu",
                 earnedUnclaimed: "zdobyte, nieodebrane",
                 urgentUnclaimed: "nieodebrane",
                 filterPending: "Coś zostało",
@@ -660,36 +692,40 @@
                 claimedInventoryTitle: "Odebrane"
             },
             fi: {
+                scriptInfoPrivacyText: "Avainsanasi ja asetuksesi pysyvät vain selaimessasi. Drop-kyselyt menevät osoitteeseen gql.twitch.tv omalla istunnollasi (tunnistetta ei kirjoiteta koskaan levylle); jos se ei onnistu, käytetään julkista rajapintaa twitch-drops-api.sunkwi.com, joka saa vain pyynnön ilman mitään tietojasi. Skriptin tekijälle ei lähetetä mitään.",
+                urgentMinimum: "vähintään",
+                remainingToFinish: "paljonko puuttuu, jotta saat täältä kaiken",
+                scriptInfoPrivacy: "Tietosuoja:",
                 addKeyword: "Lisää avainsana",
                 deleteKeywordTooltip: "Klikkaa poistaaksesi", deleteKeywordQuestion: "Poista avainsana ",
                 editKeywords: "Muokkaa avainsanoja", resetKeywords: "Palauta oletukset",
                 confirmReset: "Palauta avainsanat oletuksiin?",
                 keywordsRestored: "Avainsanat palautettu. Ladataan uudelleen...",
-                keywordsModified: "Keywords modified. These are the current keywords: ",
+                keywordsModified: "Avainsanat muutettu. Nykyiset: ",
                 reloading: "Ladataan uudelleen...", currentKeywords: "Nykyiset avainsanat (klikkaa poistaaksesi):",
                 noResults: "Avainsanoihin sopivia droppeja ei löytynyt.",
                 dropsActive: "Avoimet dropit", dropsExpired: "Suljetut dropit",
                 editPrompt: "Avainsanat pilkulla eroteltuina:",
                 reload: "Lataa dropit uudelleen",
-                hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
-                hideActive: "Hide active from inventory",
-                removeInventory: "Click to remove from inventory, to show again press the reload drops button",
-                changes_detected: "Changes detected", viewed: "Shown",
-                markAllAsViewed: "Mark all as viewed",
+                hideExpired: "Piilota päättyneet/valmiit inventaariosta, dropien automaattinen lunastus",
+                hideActive: "Piilota käynnissä olevat inventaariosta",
+                removeInventory: "Napsauta poistaaksesi inventaariosta; näytä uudelleen päivittämällä dropit",
+                changes_detected: "Muutoksia havaittu", viewed: "Näytä",
+                markAllAsViewed: "Merkitse kaikki nähdyiksi",
                 accept: "Hyväksy", cancel: "Peruuta", yes: "Kyllä", no: "Ei",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 shareCopy: "Kopioi jaettavaksi",
                 shareCopied: "Kopioitu",
                 scriptInfoTitle: "Skriptin tiedot", scriptInfoName: "Nimi:",
                 scriptInfoVersion: "Versio:", scriptInfoDescription: "Kuvaus:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. It fills from Twitch's own API, so it works the same in the inventory without pulling you over to campaigns, and while the answer is on its way it stays quiet instead of reporting a zero it does not know yet. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What you already earned but have not collected is flagged apart with 🎁 —not dimmed— because it only needs a click, and the closing warning counts those too. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. A keyword starting with \"-\" excludes: \"-console\" drops the campaign even if another keyword had found it, and takes the highlight, the card and the alert with it. And four view filters trim the open list without touching anything else —what you still have left, what closes soon, what you already earned and have not collected, and what takes an hour or less—: they add up, they are remembered, and the tab says how many cards are showing out of how many there are. The open list is sorted by whatever closes first or by whatever asks the least time, your choice. And every open campaign carries, on its own card on the page, the time you still need to take everything that is left —its most expensive reward, because the watch time is per campaign—, so the cost is visible while scrolling. If the inventory never arrives —without it there is no telling what you own or how much you have watched— the panel says so instead of going quiet with its marks switched off. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. A 🔗 on every open campaign copies its name, its dates, every reward with what it asks and a link that opens it on Twitch: text and not an image, so it stays searchable and the link stays clickable. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Korostaa avainsanojasi vastaavat drop-kampanjat suoraan sivulla: violetilla käynnissä olevat, punaisella päättyneet. Paneeli listaa ne erikseen käynnissä oleviin ja päättyneisiin, päivämääräikkunan, sen löytäneen avainsanan ja jokaisen palkinnon vaatimien tuntien kanssa. Se täyttyy Twitchin omasta rajapinnasta, joten se toimii samalla tavalla inventaariossa viemättä sinua kampanjoihin, ja sillä välin kun vastaus on tulossa se on hiljaa sen sijaan että ilmoittaisi nollan, jota se ei vielä tiedä. Palkinnot, jotka sinulla jo on, on merkitty ✓:llä ja yliviivattu yksi kerrallaan, ja merkiltä, jolta ei ole enää mitään kesken, katoaa vaadittu aika. Se mitä olet jo ansainnut mutta et lunastanut, on erikseen, 🎁:llä eikä himmennettynä, koska siitä puuttuu vain yksi napsautus, ja sulkeutumisvaroitus laskee myös ne. Ensin tulee se, mikä on sulkeutumassa: kun palkinnolta, jota sinulla ei vielä ole, loppuu aika alle 72 tunnissa, sen kortti kertoo paljonko on jäljellä ja paljonko sinun on vielä katsottava —punaisella alle 24 tunnin— tai ettei se enää mahdu, ja sama ⏳ ilmestyy kampanjan korttiin sivulla. Avainsanoja voi muokata: napsauta yhtä poistaaksesi, + lisätäksesi, muokkaa ne kaikki kerralla tai palauta oletukset. Avainsana, joka alkaa «-»-merkillä, jättää pois: «-console» jättää kampanjan ulkopuolelle vaikka toinen avainsana olisi löytänyt sen, ja vie mukanaan korostuksen, kortin ja varoituksen. Ja neljä näkymäsuodatinta lyhentävät käynnissä olevien listaa koskematta mihinkään muuhun —mitä sinulta vielä puuttuu, mikä sulkeutuu pian, minkä olet ansainnut mutta et lunastanut, ja mikä irtoaa tunnissa tai vähemmässä—: ne summautuvat, ne muistetaan, ja välilehti kertoo montako korttia näkyy montako niitä on. Käynnissä olevien lista järjestyy sen mukaan mikä sulkeutuu ensin tai sen mukaan mikä vaatii vähiten aikaa, kumpi vain haluat. Ja joka käynnissä oleva kampanja kantaa omassa kortissaan sivulla ajan, joka sinulta puuttuu kaiken jäljellä olevan viemiseen —kalleimman palkintonsa, koska katsottu aika on kampanjaa kohti—, joten hinta näkyy jo selatessa. Jos inventaario ei tule —ilman sitä ei tiedä mitä sinulla on eikä paljonko olet katsonut— paneeli kertoo sen sen sijaan että vaikenisi merkkiensä sammuneina. Inventaariossa voit katsoa dropin tiedot (edistyminen ja aikaa jäljellä), hylätä kohtia ✕:llä —«Päivitä dropit» tuo ne takaisin— ja rastittaa ruudun, joka piilottaa päättyneet/valmiit ja kytkee automaattisen lunastuksen. 🔗 joka käynnissä olevassa kampanjassa kopioi sen nimen, sen päivät, jokaisen palkinnon vaatimuksineen ja linkin, joka avaa sen Twitchissä: tekstiä eikä kuvaa, joten siitä voi yhä etsiä ja linkkiä voi painaa. Se merkitsee 🔔:llä —paneelissa ja kortissa itsessään— kampanjat jotka ovat muuttuneet viime kerran jälkeen, avoimien lukumäärän, työpöytäilmoituksen ja 👁️-painikkeen kanssa, joka vielä vie sinut kampanjaan. 16 kieltä.",
                 scriptInfoAuthor: "Tekijä:", scriptInfoGitHub: "GitHub:",
-                readingApiDrops: "Reading drop changes from GQL/API...",
-                timeRemaining: "Time remaining",
-                progress: "Progress",
-                rewards: "Rewards",
+                readingApiDrops: "Luetaan dropien muutoksia GQL/API:sta...",
+                timeRemaining: "Aikaa jäljellä",
+                progress: "Edistyminen",
+                rewards: "Palkinnot",
                 minutesShort: "min",
-                dropDetails: "Drop details",
+                dropDetails: "Dropin tiedot",
                 earnedUnclaimed: "ansaittu, lunastamatta",
                 urgentUnclaimed: "lunastamatta",
                 filterPending: "Jotain kesken",
@@ -711,36 +747,40 @@
                 claimedInventoryTitle: "Lunastettu"
             },
             vi: {
+                scriptInfoPrivacyText: "Từ khóa và thiết lập của bạn chỉ nằm trong trình duyệt. Truy vấn drop đi tới gql.twitch.tv bằng phiên đăng nhập của chính bạn (token không bao giờ được ghi ra đĩa); nếu thất bại, script dùng API công khai twitch-drops-api.sunkwi.com, nơi chỉ nhận một yêu cầu không kèm dữ liệu nào của bạn. Không có gì được gửi cho tác giả script.",
+                urgentMinimum: "tối thiểu",
+                remainingToFinish: "còn thiếu bao nhiêu để lấy hết ở đây",
+                scriptInfoPrivacy: "Quyền riêng tư:",
                 addKeyword: "Thêm từ khóa",
                 deleteKeywordTooltip: "Nhấp để xóa", deleteKeywordQuestion: "Xóa từ khóa ",
                 editKeywords: "Sửa từ khóa", resetKeywords: "Khôi phục mặc định",
                 confirmReset: "Khôi phục từ khóa mặc định?",
                 keywordsRestored: "Từ khóa đã khôi phục. Đang tải lại...",
-                keywordsModified: "Keywords modified. These are the current keywords: ",
+                keywordsModified: "Đã thay đổi từ khóa. Danh sách hiện tại: ",
                 reloading: "Đang tải lại...", currentKeywords: "Từ khóa hiện tại (nhấp để xóa):",
                 noResults: "Không tìm thấy drop nào khớp.",
                 dropsActive: "Drop đang mở", dropsExpired: "Drop đã đóng",
                 editPrompt: "Từ khóa phân cách bằng dấu phẩy:",
                 reload: "Tải lại drop",
-                hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
-                hideActive: "Hide active from inventory",
-                removeInventory: "Click to remove from inventory, to show again press the reload drops button",
-                changes_detected: "Changes detected", viewed: "Shown",
-                markAllAsViewed: "Mark all as viewed",
+                hideExpired: "Ẩn mục đã kết thúc/hoàn thành khỏi kho, tự động nhận drop",
+                hideActive: "Ẩn mục đang mở khỏi kho",
+                removeInventory: "Nhấp để xóa khỏi kho; để hiện lại, hãy tải lại drop",
+                changes_detected: "Đã phát hiện thay đổi", viewed: "Hiện",
+                markAllAsViewed: "Đánh dấu tất cả đã xem",
                 accept: "Chấp nhận", cancel: "Hủy", yes: "Có", no: "Không",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 shareCopy: "Sao chép để chia sẻ",
                 shareCopied: "Đã sao chép",
                 scriptInfoTitle: "Thông tin script", scriptInfoName: "Tên:",
                 scriptInfoVersion: "Phiên bản:", scriptInfoDescription: "Mô tả:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. It fills from Twitch's own API, so it works the same in the inventory without pulling you over to campaigns, and while the answer is on its way it stays quiet instead of reporting a zero it does not know yet. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What you already earned but have not collected is flagged apart with 🎁 —not dimmed— because it only needs a click, and the closing warning counts those too. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. A keyword starting with \"-\" excludes: \"-console\" drops the campaign even if another keyword had found it, and takes the highlight, the card and the alert with it. And four view filters trim the open list without touching anything else —what you still have left, what closes soon, what you already earned and have not collected, and what takes an hour or less—: they add up, they are remembered, and the tab says how many cards are showing out of how many there are. The open list is sorted by whatever closes first or by whatever asks the least time, your choice. And every open campaign carries, on its own card on the page, the time you still need to take everything that is left —its most expensive reward, because the watch time is per campaign—, so the cost is visible while scrolling. If the inventory never arrives —without it there is no telling what you own or how much you have watched— the panel says so instead of going quiet with its marks switched off. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. A 🔗 on every open campaign copies its name, its dates, every reward with what it asks and a link that opens it on Twitch: text and not an image, so it stays searchable and the link stays clickable. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Làm nổi bật ngay trên trang những chiến dịch drop khớp với từ khóa của bạn: tím cho đang mở, đỏ cho đã đóng. Bảng liệt kê chúng tách riêng thành đang mở và đã đóng, kèm khoảng ngày, từ khóa đã tìm ra nó và từng phần thưởng với số giờ nó đòi. Bảng lấy dữ liệu từ chính API của Twitch, nên trong kho cũng hoạt động y như vậy mà không kéo bạn sang trang chiến dịch, và trong lúc phản hồi đang trên đường thì nó im lặng thay vì báo một con số không mà nó còn chưa biết. Những phần thưởng bạn đã có được đánh ✓ và gạch ngang từng cái một, còn huy hiệu không còn gì dở dang thì mất luôn phần thời gian nó đòi. Thứ bạn đã kiếm được mà chưa nhận thì để riêng, kèm 🎁 và không làm mờ, bởi nó chỉ còn thiếu một cú nhấp, và cảnh báo sắp đóng cũng đếm chúng. Thứ sắp đóng đi trước: khi một phần thưởng bạn chưa có mà hết thời gian trong vòng 72 giờ, thẻ của nó nói còn bao lâu và bạn còn phải xem bao nhiêu —đỏ khi dưới 24 giờ— hoặc là không còn kịp, và cùng cái ⏳ đó rơi xuống thẻ chiến dịch trên trang. Từ khóa có thể sửa: nhấp vào một từ để xóa, + để thêm, sửa cả loạt hoặc trả về mặc định. Từ khóa bắt đầu bằng «-» sẽ loại bỏ: «-console» gạt chiến dịch ra ngoài dù một từ khóa khác đã tìm thấy nó, và mang theo cả phần nổi bật, thẻ và cảnh báo. Và bốn bộ lọc hiển thị rút ngắn danh sách đang mở mà không động tới thứ gì khác —thứ bạn còn thiếu, thứ sắp đóng, thứ bạn đã kiếm mà chưa nhận, và thứ lấy được trong một giờ hoặc ít hơn—: chúng cộng dồn với nhau, được ghi nhớ, và thẻ tab cho biết đang thấy bao nhiêu thẻ trên tổng bao nhiêu. Danh sách đang mở được sắp theo thứ đóng sớm nhất hoặc theo thứ đòi ít thời gian nhất, tùy bạn chọn. Và mỗi chiến dịch đang mở đều mang trên thẻ riêng của nó trên trang khoảng thời gian bạn còn thiếu để lấy hết những gì còn lại —phần thưởng đắt nhất của nó, vì thời gian xem tính theo chiến dịch—, nên chi phí thấy được ngay khi cuộn trang. Nếu kho không về —không có nó thì không biết bạn đang có gì và đã xem bao nhiêu— bảng sẽ nói ra thay vì im lặng với các dấu bị tắt. Trong kho bạn có thể xem chi tiết một drop (tiến độ và thời gian còn lại), gạt bỏ mục bằng ✕ —«Tải lại drop» đưa chúng trở về— và tích một ô để ẩn những mục đã đóng/hoàn thành và bật nhận tự động. Cái 🔗 trên mỗi chiến dịch đang mở sẽ chép tên, các ngày, từng phần thưởng kèm yêu cầu của nó và một liên kết mở nó trên Twitch: là chữ chứ không phải ảnh, nên vẫn tìm kiếm được và liên kết vẫn nhấp được. Nó đánh dấu 🔔 —trên bảng và trên chính thẻ— cho những chiến dịch đã thay đổi từ lần bạn xem trước, kèm số lượng còn chờ, thông báo trên máy tính và một nút 👁️ còn đưa bạn tới thẳng chiến dịch. 16 ngôn ngữ.",
                 scriptInfoAuthor: "Tác giả:", scriptInfoGitHub: "GitHub:",
-                readingApiDrops: "Reading drop changes from GQL/API...",
-                timeRemaining: "Time remaining",
-                progress: "Progress",
-                rewards: "Rewards",
-                minutesShort: "min",
-                dropDetails: "Drop details",
+                readingApiDrops: "Đang đọc thay đổi drop từ GQL/API...",
+                timeRemaining: "Thời gian còn lại",
+                progress: "Tiến độ",
+                rewards: "Phần thưởng",
+                minutesShort: "phút",
+                dropDetails: "Chi tiết drop",
                 earnedUnclaimed: "đã đạt, chưa nhận",
                 urgentUnclaimed: "chưa nhận",
                 filterPending: "Còn dang dở",
@@ -762,36 +802,40 @@
                 claimedInventoryTitle: "Đã nhận"
             },
             zh: {
+                scriptInfoPrivacyText: "你的关键词和设置只保存在你的浏览器里。掉宝查询会用你自己的会话发往 gql.twitch.tv（令牌从不写入磁盘）；若失败，则改用公开 API twitch-drops-api.sunkwi.com，那边只会收到一个不含你任何数据的请求。不会向脚本作者发送任何内容。",
+                urgentMinimum: "最少",
+                remainingToFinish: "还差多少才能拿走这里的全部",
+                scriptInfoPrivacy: "隐私：",
                 addKeyword: "添加关键词",
                 deleteKeywordTooltip: "点击删除", deleteKeywordQuestion: "删除关键词 ",
                 editKeywords: "编辑关键词", resetKeywords: "恢复默认",
                 confirmReset: "恢复默认关键词？",
                 keywordsRestored: "关键词已恢复。重新加载...",
-                keywordsModified: "Keywords modified. These are the current keywords: ",
+                keywordsModified: "关键词已修改。当前关键词：",
                 reloading: "重新加载...", currentKeywords: "当前关键词（点击删除）：",
                 noResults: "没有找到匹配的掉宝。",
                 dropsActive: "活跃掉宝", dropsExpired: "已关闭掉宝",
                 editPrompt: "逗号分隔的关键词：",
                 reload: "重新加载掉宝",
-                hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
-                hideActive: "Hide active from inventory",
-                removeInventory: "Click to remove from inventory, to show again press the reload drops button",
-                changes_detected: "Changes detected", viewed: "Shown",
-                markAllAsViewed: "Mark all as viewed",
+                hideExpired: "在库存中隐藏已结束/已完成，自动领取掉宝",
+                hideActive: "在库存中隐藏进行中",
+                removeInventory: "点击从库存中移除；要重新显示，请重新加载掉宝",
+                changes_detected: "检测到变更", viewed: "显示",
+                markAllAsViewed: "全部标记为已看",
                 accept: "接受", cancel: "取消", yes: "是", no: "否",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 shareCopy: "复制以分享",
                 shareCopied: "已复制",
                 scriptInfoTitle: "脚本信息", scriptInfoName: "名称：",
                 scriptInfoVersion: "版本：", scriptInfoDescription: "描述：",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. It fills from Twitch's own API, so it works the same in the inventory without pulling you over to campaigns, and while the answer is on its way it stays quiet instead of reporting a zero it does not know yet. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What you already earned but have not collected is flagged apart with 🎁 —not dimmed— because it only needs a click, and the closing warning counts those too. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. A keyword starting with \"-\" excludes: \"-console\" drops the campaign even if another keyword had found it, and takes the highlight, the card and the alert with it. And four view filters trim the open list without touching anything else —what you still have left, what closes soon, what you already earned and have not collected, and what takes an hour or less—: they add up, they are remembered, and the tab says how many cards are showing out of how many there are. The open list is sorted by whatever closes first or by whatever asks the least time, your choice. And every open campaign carries, on its own card on the page, the time you still need to take everything that is left —its most expensive reward, because the watch time is per campaign—, so the cost is visible while scrolling. If the inventory never arrives —without it there is no telling what you own or how much you have watched— the panel says so instead of going quiet with its marks switched off. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. A 🔗 on every open campaign copies its name, its dates, every reward with what it asks and a link that opens it on Twitch: text and not an image, so it stays searchable and the link stays clickable. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "在页面上直接高亮与你的关键词匹配的掉宝活动：进行中为紫色，已结束为红色。面板把它们分成进行中和已结束两组列出，附上起止日期、找到它的关键词，以及每个奖励所需的小时数。数据取自 Twitch 自己的 API，所以在库存页也一样能用，不必把你带去活动页；而在响应还在路上时，它会保持安静，而不是报一个自己还不知道的零。你已经拥有的奖励会逐个打上 ✓ 并划掉，已经没有待办的徽章则不再显示它要求的时长。已经赚到但还没领取的会单独列出，带 🎁 且不做淡化，因为只差一次点击，结束提醒也会把它们算进去。快要结束的排在最前：当一个你还没拿到的奖励在 72 小时内到期，它的卡片会说还剩多久、你还需要看多久 —不足 24 小时时转红— 或者说已经来不及了，同一个 ⏳ 也会落在页面上那个活动的卡片上。关键词可以编辑：点一下删除，用 + 添加，整批编辑，或恢复默认。以「-」开头的关键词表示排除：「-console」会把该活动排除在外，即使另一个关键词本来找到了它，并且连高亮、卡片和提醒一起带走。另有四个视图筛选，可在不改动其他任何东西的前提下精简进行中列表 —你还差的、快要结束的、已赚到还没领的，以及一小时以内就能拿到的—：它们可以叠加、会被记住，标签页还会显示当前显示了多少张、总共多少张。进行中的列表可按最早结束排序，也可按所需时间最少排序，由你选择。而每个进行中的活动，都会在页面上自己的卡片里写着你还差多少时间才能把剩下的全部拿走 —按它最贵的那个奖励算，因为观看时长是按活动计的— 这样滚动页面时就能看到代价。如果库存一直没到 —没有它就无从得知你拥有什么、看了多久— 面板会明说，而不是标记全灭地闷着。在库存里你可以查看某个掉宝的详情（进度与剩余时间）、用 ✕ 撇开条目 —「重新加载掉宝」会把它们找回来— 还可以勾选一个复选框，隐藏已结束/已完成并开启自动领取。每个进行中活动上的 🔗 会复制它的名称、日期、每个奖励及其要求，以及一个在 Twitch 打开它的链接：是文字而不是图片，所以仍然可以搜索，链接也仍然可点。它会用 🔔 标出自上次查看以来有变化的活动 —面板里和卡片上都有— 还带待处理计数、桌面通知，以及一个 👁️ 按钮，顺便把你带到那个活动。16 种语言。",
                 scriptInfoAuthor: "作者：", scriptInfoGitHub: "GitHub：",
-                readingApiDrops: "Reading drop changes from GQL/API...",
-                timeRemaining: "Time remaining",
-                progress: "Progress",
-                rewards: "Rewards",
-                minutesShort: "min",
-                dropDetails: "Drop details",
+                readingApiDrops: "正在从 GQL/API 读取掉宝变更...",
+                timeRemaining: "剩余时间",
+                progress: "进度",
+                rewards: "奖励",
+                minutesShort: "分钟",
+                dropDetails: "掉宝详情",
                 earnedUnclaimed: "已达成，未领取",
                 urgentUnclaimed: "未领取",
                 filterPending: "还有未完成",
@@ -813,36 +857,40 @@
                 claimedInventoryTitle: "已领取"
             },
             ar: {
+                scriptInfoPrivacyText: "تبقى كلماتك المفتاحية وإعداداتك في متصفحك فقط. تذهب استعلامات الدروبس إلى gql.twitch.tv بجلستك الخاصة (ولا يُكتب الرمز على القرص أبدًا)؛ وإذا فشل ذلك تُستخدم الواجهة العامة twitch-drops-api.sunkwi.com، وهي لا تتلقى سوى طلب دون أي بيانات تخصك. ولا يُرسل أي شيء إلى مؤلف السكربت.",
+                urgentMinimum: "كحد أدنى",
+                remainingToFinish: "ما يتبقى لأخذ كل شيء من هنا",
+                scriptInfoPrivacy: "الخصوصية:",
                 addKeyword: "إضافة كلمة مفتاحية",
                 deleteKeywordTooltip: "انقر للحذف", deleteKeywordQuestion: "حذف الكلمة المفتاحية ",
                 editKeywords: "تعديل الكلمات المفتاحية", resetKeywords: "استعادة الافتراضية",
                 confirmReset: "استعادة الكلمات المفتاحية الافتراضية؟",
                 keywordsRestored: "تم استعادة الكلمات المفتاحية. إعادة التحميل...",
-                keywordsModified: "Keywords modified. These are the current keywords: ",
+                keywordsModified: "تم تعديل الكلمات المفتاحية. الحالية: ",
                 reloading: "إعادة التحميل...", currentKeywords: "الكلمات المفتاحية الحالية (انقر للحذف):",
                 noResults: "لم يتم العثور على نتائج.",
                 dropsActive: "دروبات نشطة", dropsExpired: "دروبات مغلقة",
                 editPrompt: "كلمات مفتاحية مفصولة بفواصل:",
                 reload: "إعادة تحميل الدروبات",
-                hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
-                hideActive: "Hide active from inventory",
-                removeInventory: "Click to remove from inventory, to show again press the reload drops button",
-                changes_detected: "Changes detected", viewed: "Shown",
-                markAllAsViewed: "Mark all as viewed",
+                hideExpired: "إخفاء المنتهية/المكتملة من المخزون، مطالبة تلقائية بالدروبس",
+                hideActive: "إخفاء النشطة من المخزون",
+                removeInventory: "انقر للإزالة من المخزون؛ ولإظهاره مرة أخرى أعد تحميل الدروبس",
+                changes_detected: "تم رصد تغييرات", viewed: "إظهار",
+                markAllAsViewed: "تعليم الكل كمقروء",
                 accept: "قبول", cancel: "إلغاء", yes: "نعم", no: "لا",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 shareCopy: "انسخ للمشاركة",
                 shareCopied: "تم النسخ",
                 scriptInfoTitle: "معلومات السكربت", scriptInfoName: "الاسم:",
                 scriptInfoVersion: "الإصدار:", scriptInfoDescription: "الوصف:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. It fills from Twitch's own API, so it works the same in the inventory without pulling you over to campaigns, and while the answer is on its way it stays quiet instead of reporting a zero it does not know yet. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What you already earned but have not collected is flagged apart with 🎁 —not dimmed— because it only needs a click, and the closing warning counts those too. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. A keyword starting with \"-\" excludes: \"-console\" drops the campaign even if another keyword had found it, and takes the highlight, the card and the alert with it. And four view filters trim the open list without touching anything else —what you still have left, what closes soon, what you already earned and have not collected, and what takes an hour or less—: they add up, they are remembered, and the tab says how many cards are showing out of how many there are. The open list is sorted by whatever closes first or by whatever asks the least time, your choice. And every open campaign carries, on its own card on the page, the time you still need to take everything that is left —its most expensive reward, because the watch time is per campaign—, so the cost is visible while scrolling. If the inventory never arrives —without it there is no telling what you own or how much you have watched— the panel says so instead of going quiet with its marks switched off. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. A 🔗 on every open campaign copies its name, its dates, every reward with what it asks and a link that opens it on Twitch: text and not an image, so it stays searchable and the link stays clickable. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "يُبرز في الصفحة نفسها حملات الدروبس المطابقة لكلماتك المفتاحية: البنفسجي للمفتوحة والأحمر للمغلقة. تسردها اللوحة مفصولةً إلى مفتوحة ومغلقة، مع نطاق التواريخ والكلمة المفتاحية التي وجدتها وكل مكافأة مع الساعات التي تطلبها. تتغذى من واجهة Twitch نفسها، فتعمل بالطريقة ذاتها في المخزون دون أن تنقلك إلى الحملات، وبينما يكون الجواب في الطريق تصمت بدل أن تُعلن صفرًا لا تعرفه بعد. المكافآت التي تملكها بالفعل تُعلَّم بـ ✓ ويُشطب عليها واحدة واحدة، والشارة التي لم يبقَ فيها شيء يزول عنها الوقت الذي كانت تطلبه. ما كسبتَه ولم تستلمه يوضع على حدة، مع 🎁 ودون تعتيم، لأنه لا ينقصه سوى نقرة واحدة، وتحذير الإغلاق يحسبه أيضًا. ما هو على وشك الإغلاق يأتي أولًا: عندما ينفد وقت مكافأة لا تملكها بعد في أقل من 72 ساعة، تقول بطاقتها كم بقي وكم يتبقى عليك من مشاهدة —بالأحمر تحت 24 ساعة— أو أن الوقت لم يعد يكفي، ويحل الـ ⏳ نفسه على بطاقة الحملة في الصفحة. الكلمات المفتاحية قابلة للتعديل: انقر واحدة لحذفها، و+ للإضافة، وعدّلها جميعًا مرة واحدة أو أعد الافتراضية. الكلمة المفتاحية التي تبدأ بـ «-» تستبعد: «-console» تُخرج الحملة حتى لو وجدتها كلمة أخرى، وتأخذ معها الإبراز والبطاقة والتنبيه. وأربعة مرشحات عرض تقصّر قائمة المفتوحة دون المساس بأي شيء آخر —ما ينقصك بعد، وما يغلق قريبًا، وما كسبتَه ولم تستلمه، وما يُنال في ساعة أو أقل—: تتراكم معًا، وتُحفظ، ويقول التبويب كم بطاقة تظهر من أصل كم. تُرتَّب قائمة المفتوحة بحسب الأقرب إغلاقًا أو بحسب الأقل طلبًا للوقت، كما تشاء. وكل حملة مفتوحة تحمل في بطاقتها الخاصة في الصفحة الوقت الذي ينقصك لأخذ كل ما بقي —أغلى مكافأة فيها، لأن وقت المشاهدة يُحسب لكل حملة— فتظهر التكلفة وأنت تتنقل في الصفحة. وإن لم يصل المخزون —وبدونه لا يُعرف ما تملكه ولا كم شاهدت— تقول اللوحة ذلك بدل أن تصمت وعلاماتها مطفأة. في المخزون يمكنك رؤية تفاصيل الدروب (التقدم والوقت المتبقي)، واستبعاد المدخلات بالـ ✕ —و«إعادة تحميل الدروبس» تعيدها— وتحديد مربع يخفي المغلقة/المكتملة ويشغّل المطالبة التلقائية. والـ 🔗 في كل حملة مفتوحة ينسخ اسمها وتواريخها وكل مكافأة مع ما تطلبه ورابطًا يفتحها على Twitch: نصٌّ لا صورة، فيبقى قابلًا للبحث ويبقى الرابط قابلًا للنقر. ويُعلّم بـ 🔔 —في اللوحة وعلى البطاقة نفسها— الحملات التي تغيّرت منذ آخر مرة، مع عدّ للمعلَّق وإشعار على سطح المكتب وزر 👁️ يأخذك كذلك إلى الحملة. 16 لغة.",
                 scriptInfoAuthor: "المؤلف:", scriptInfoGitHub: "GitHub:",
-                readingApiDrops: "Reading drop changes from GQL/API...",
-                timeRemaining: "Time remaining",
-                progress: "Progress",
-                rewards: "Rewards",
-                minutesShort: "min",
-                dropDetails: "Drop details",
+                readingApiDrops: "جارٍ قراءة تغييرات الدروبس من GQL/API...",
+                timeRemaining: "الوقت المتبقي",
+                progress: "التقدم",
+                rewards: "المكافآت",
+                minutesShort: "د",
+                dropDetails: "تفاصيل الدروب",
                 earnedUnclaimed: "تم كسبه ولم تتم المطالبة به",
                 urgentUnclaimed: "دون مطالبة",
                 filterPending: "متبقٍ شيء",
@@ -864,36 +912,40 @@
                 claimedInventoryTitle: "تم المطالبة"
             },
             hi: {
+                scriptInfoPrivacyText: "आपके कीवर्ड और सेटिंग्स सिर्फ़ आपके ब्राउज़र में रहते हैं। ड्रॉप की क्वेरी आपके ही सेशन से gql.twitch.tv पर जाती हैं (टोकन कभी डिस्क पर नहीं लिखा जाता); यह विफल हो तो सार्वजनिक API twitch-drops-api.sunkwi.com का उपयोग होता है, जिसे केवल एक अनुरोध मिलता है, आपका कोई डेटा नहीं। स्क्रिप्ट के लेखक को कुछ भी नहीं भेजा जाता।",
+                urgentMinimum: "कम से कम",
+                remainingToFinish: "यहाँ से सब कुछ लेने के लिए कितना बाकी है",
+                scriptInfoPrivacy: "गोपनीयता:",
                 addKeyword: "कीवर्ड जोड़ें",
                 deleteKeywordTooltip: "हटाने के लिए क्लिक करें", deleteKeywordQuestion: "कीवर्ड हटाएं ",
                 editKeywords: "कीवर्ड संपादित करें", resetKeywords: "डिफ़ॉल्ट पर रीसेट करें",
                 confirmReset: "कीवर्ड को डिफ़ॉल्ट पर रीसेट करें?",
                 keywordsRestored: "कीवर्ड बहाल। पुनः लोड हो रहा है...",
-                keywordsModified: "Keywords modified. These are the current keywords: ",
+                keywordsModified: "कीवर्ड बदल दिए गए। वर्तमान कीवर्ड: ",
                 reloading: "पुनः लोड हो रहा है...", currentKeywords: "वर्तमान कीवर्ड (हटाने के लिए क्लिक करें):",
                 noResults: "कोई ड्रॉप नहीं मिला।",
                 dropsActive: "सक्रिय ड्रॉप", dropsExpired: "बंद ड्रॉप",
                 editPrompt: "अल्पविराम से अलग कीवर्ड:",
                 reload: "ड्रॉप पुनः लोड करें",
-                hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
-                hideActive: "Hide active from inventory",
-                removeInventory: "Click to remove from inventory, to show again press the reload drops button",
-                changes_detected: "Changes detected", viewed: "Shown",
-                markAllAsViewed: "Mark all as viewed",
+                hideExpired: "समाप्त/पूर्ण को इन्वेंटरी से छिपाएँ, ड्रॉप्स स्वतः दावा",
+                hideActive: "सक्रिय को इन्वेंटरी से छिपाएँ",
+                removeInventory: "इन्वेंटरी से हटाने के लिए क्लिक करें; फिर दिखाने के लिए ड्रॉप्स पुनः लोड करें",
+                changes_detected: "बदलाव मिले", viewed: "दिखाएँ",
+                markAllAsViewed: "सभी को देखा हुआ चिह्नित करें",
                 accept: "स्वीकार करें", cancel: "रद्द करें", yes: "हां", no: "नहीं",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 shareCopy: "साझा करने के लिए कॉपी करें",
                 shareCopied: "कॉपी हो गया",
                 scriptInfoTitle: "स्क्रिप्ट जानकारी", scriptInfoName: "नाम:",
                 scriptInfoVersion: "संस्करण:", scriptInfoDescription: "विवरण:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. It fills from Twitch's own API, so it works the same in the inventory without pulling you over to campaigns, and while the answer is on its way it stays quiet instead of reporting a zero it does not know yet. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What you already earned but have not collected is flagged apart with 🎁 —not dimmed— because it only needs a click, and the closing warning counts those too. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. A keyword starting with \"-\" excludes: \"-console\" drops the campaign even if another keyword had found it, and takes the highlight, the card and the alert with it. And four view filters trim the open list without touching anything else —what you still have left, what closes soon, what you already earned and have not collected, and what takes an hour or less—: they add up, they are remembered, and the tab says how many cards are showing out of how many there are. The open list is sorted by whatever closes first or by whatever asks the least time, your choice. And every open campaign carries, on its own card on the page, the time you still need to take everything that is left —its most expensive reward, because the watch time is per campaign—, so the cost is visible while scrolling. If the inventory never arrives —without it there is no telling what you own or how much you have watched— the panel says so instead of going quiet with its marks switched off. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. A 🔗 on every open campaign copies its name, its dates, every reward with what it asks and a link that opens it on Twitch: text and not an image, so it stays searchable and the link stays clickable. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "आपके कीवर्ड से मेल खाने वाले ड्रॉप अभियानों को पेज पर ही हाइलाइट करता है: खुले बैंगनी, बंद लाल। पैनल उन्हें खुले और बंद में अलग-अलग सूचीबद्ध करता है, तारीखों की अवधि, जिस कीवर्ड ने उसे पाया, और हर इनाम के साथ उसे लगने वाले घंटे। यह Twitch के अपने API से भरता है, इसलिए इन्वेंटरी में भी वैसा ही चलता है और आपको अभियानों की तरफ खींचता नहीं; और जब जवाब रास्ते में हो तो वह अभी न जाने हुए शून्य को बोलने के बजाय चुप रहता है। जो इनाम आपके पास पहले से हैं वे एक-एक कर ✓ और काटे हुए दिखते हैं, और जिस बैज में कुछ बाकी नहीं उसका माँगा गया समय हट जाता है। जो आप कमा चुके हैं मगर उठाया नहीं, वह अलग रहता है, 🎁 के साथ और धुँधला किए बिना, क्योंकि उसमें बस एक क्लिक की कमी है, और बंद होने की चेतावनी उन्हें भी गिनती है। जो बंद होने वाला है वह पहले आता है: जब आपके पास न होने वाले किसी इनाम का समय 72 घंटे से कम में खत्म हो रहा हो, उसका कार्ड बताता है कि कितना बचा है और आपको कितना और देखना है —24 घंटे से नीचे लाल— या कि अब समय नहीं बचा, और वही ⏳ पेज पर अभियान के कार्ड पर भी आ जाता है। कीवर्ड बदले जा सकते हैं: मिटाने के लिए किसी पर क्लिक, जोड़ने के लिए +, सबको एक साथ संपादित करना या डिफ़ॉल्ट लौटाना। «-» से शुरू होने वाला कीवर्ड बाहर करता है: «-console» उस अभियान को बाहर कर देता है चाहे किसी दूसरे कीवर्ड ने उसे पा लिया हो, और अपने साथ हाइलाइट, कार्ड और चेतावनी भी ले जाता है। और चार व्यू फ़िल्टर बाकी कुछ छेड़े बिना खुले वालों की सूची छोटी करते हैं —जो आपको अभी चाहिए, जो जल्दी बंद हो रहा है, जो कमाया मगर उठाया नहीं, और जो एक घंटे या उससे कम में मिल जाता है—: ये आपस में जुड़ते हैं, याद रखे जाते हैं, और टैब बताता है कि कुल में से कितने कार्ड दिख रहे हैं। खुले वालों की सूची पहले बंद होने वाले के हिसाब से या सबसे कम समय माँगने वाले के हिसाब से, आपकी पसंद से क्रमबद्ध होती है। और हर खुला अभियान पेज पर अपने कार्ड में वह समय दिखाता है जो बाकी सब उठाने के लिए आपको चाहिए —उसका सबसे महँगा इनाम, क्योंकि देखा गया समय प्रति अभियान होता है— ताकि स्क्रॉल करते-करते लागत दिख जाए। अगर इन्वेंटरी न आए —उसके बिना पता नहीं चलता कि आपके पास क्या है और आपने कितना देखा है— तो पैनल यह कह देता है, बुझे निशानों के साथ चुप रहने के बजाय। इन्वेंटरी में आप किसी ड्रॉप का विवरण देख सकते हैं (प्रगति और शेष समय), ✕ से प्रविष्टियाँ हटा सकते हैं —«ड्रॉप्स पुनः लोड» उन्हें लौटा देता है— और एक चेकबॉक्स लगा सकते हैं जो बंद/पूर्ण को छिपाता है और स्वतः दावा चालू करता है। हर खुले अभियान पर मौजूद 🔗 उसका नाम, उसकी तारीखें, हर इनाम उसकी शर्त के साथ, और उसे Twitch पर खोलने वाला लिंक कॉपी करता है: तस्वीर नहीं, टेक्स्ट, इसलिए उसमें खोजा जा सकता है और लिंक दबाया जा सकता है। पिछली बार के बाद बदले हुए अभियानों को 🔔 से चिह्नित करता है —पैनल में और खुद कार्ड पर— साथ में बाकी की गिनती, डेस्कटॉप सूचना, और एक 👁️ बटन जो आपको अभियान तक भी ले जाता है। 16 भाषाएँ।",
                 scriptInfoAuthor: "लेखक:", scriptInfoGitHub: "GitHub:",
-                readingApiDrops: "Reading drop changes from GQL/API...",
-                timeRemaining: "Time remaining",
-                progress: "Progress",
-                rewards: "Rewards",
-                minutesShort: "min",
-                dropDetails: "Drop details",
+                readingApiDrops: "GQL/API से ड्रॉप बदलाव पढ़े जा रहे हैं...",
+                timeRemaining: "शेष समय",
+                progress: "प्रगति",
+                rewards: "इनाम",
+                minutesShort: "मि",
+                dropDetails: "ड्रॉप विवरण",
                 earnedUnclaimed: "अर्जित, दावा बाकी",
                 urgentUnclaimed: "दावा बाकी",
                 filterPending: "कुछ बाकी है",
@@ -915,36 +967,40 @@
                 claimedInventoryTitle: "दावा किया गया"
             },
             id: {
+                scriptInfoPrivacyText: "Kata kunci dan pengaturanmu hanya tersimpan di peramban. Kueri drop menuju gql.twitch.tv memakai sesimu sendiri (token tidak pernah ditulis ke disk); jika gagal, dipakai API publik twitch-drops-api.sunkwi.com, yang hanya menerima satu permintaan tanpa data apa pun tentangmu. Tidak ada apa pun yang dikirim ke penulis script.",
+                urgentMinimum: "minimal",
+                remainingToFinish: "yang masih kurang untuk mengambil semuanya di sini",
+                scriptInfoPrivacy: "Privasi:",
                 addKeyword: "Tambah Kata Kunci",
                 deleteKeywordTooltip: "Klik untuk menghapus", deleteKeywordQuestion: "Hapus kata kunci ",
                 editKeywords: "Edit Kata Kunci", resetKeywords: "Kembalikan Default",
                 confirmReset: "Kembalikan kata kunci default?",
                 keywordsRestored: "Kata kunci dikembalikan. Memuat ulang...",
-                keywordsModified: "Keywords modified. These are the current keywords: ",
+                keywordsModified: "Kata kunci diubah. Berikut yang sekarang: ",
                 reloading: "Memuat ulang...", currentKeywords: "Kata kunci saat ini (klik untuk menghapus):",
                 noResults: "Tidak ada drop yang cocok.",
                 dropsActive: "Drop Terbuka", dropsExpired: "Drop Tertutup",
                 editPrompt: "Kata kunci dipisahkan koma:",
                 reload: "Muat ulang drop",
-                hideExpired: "Hide expired/completed from inventory, automatic drops claiming",
-                hideActive: "Hide active from inventory",
-                removeInventory: "Click to remove from inventory, to show again press the reload drops button",
-                changes_detected: "Changes detected", viewed: "Shown",
-                markAllAsViewed: "Mark all as viewed",
+                hideExpired: "Sembunyikan yang berakhir/selesai dari inventaris, klaim drop otomatis",
+                hideActive: "Sembunyikan yang aktif dari inventaris",
+                removeInventory: "Klik untuk menghapus dari inventaris; untuk menampilkan lagi, muat ulang drop",
+                changes_detected: "Perubahan terdeteksi", viewed: "Tampilkan",
+                markAllAsViewed: "Tandai semua sudah dilihat",
                 accept: "Terima", cancel: "Batal", yes: "Ya", no: "Tidak",
                 addButton: "+", viewIcon: "👁️", changedIcon: "🔔", removeIcon: "❌",
                 shareCopy: "Salin untuk dibagikan",
                 shareCopied: "Disalin",
                 scriptInfoTitle: "Informasi Script", scriptInfoName: "Nama:",
                 scriptInfoVersion: "Versi:", scriptInfoDescription: "Deskripsi:",
-                scriptInfoDescriptionText: "Highlights the drop campaigns matching your keywords on the page itself: purple for open, red for closed. The panel lists them split into active and expired, with the date window, the keyword that matched and each reward with the hours it needs. It fills from Twitch's own API, so it works the same in the inventory without pulling you over to campaigns, and while the answer is on its way it stays quiet instead of reporting a zero it does not know yet. Rewards you already own are ticked and struck through one by one, and a badge with nothing left to earn drops the watch time it asked for. What you already earned but have not collected is flagged apart with 🎁 —not dimmed— because it only needs a click, and the closing warning counts those too. What is about to close comes first: when a reward you do not own yet runs out of time within 72 hours, its card says how long is left and how much watch time you still need —red under 24 hours— or that it no longer fits, and the same ⏳ lands on the campaign's card on the page. Keywords are editable: click one to delete it, + to add, edit them in bulk or reset to the defaults. A keyword starting with \"-\" excludes: \"-console\" drops the campaign even if another keyword had found it, and takes the highlight, the card and the alert with it. And four view filters trim the open list without touching anything else —what you still have left, what closes soon, what you already earned and have not collected, and what takes an hour or less—: they add up, they are remembered, and the tab says how many cards are showing out of how many there are. The open list is sorted by whatever closes first or by whatever asks the least time, your choice. And every open campaign carries, on its own card on the page, the time you still need to take everything that is left —its most expensive reward, because the watch time is per campaign—, so the cost is visible while scrolling. If the inventory never arrives —without it there is no telling what you own or how much you have watched— the panel says so instead of going quiet with its marks switched off. In the inventory you can see a drop's details (progress and time remaining), dismiss entries with the ✕ —\"Reload drops\" brings them back— and tick a checkbox that hides expired/completed and turns on automatic claiming. A 🔗 on every open campaign copies its name, its dates, every reward with what it asks and a link that opens it on Twitch: text and not an image, so it stays searchable and the link stays clickable. It flags campaigns that changed since you last looked with a 🔔 —in the panel and on the card itself— plus a pending count, a desktop notification and an 👁️ button that also takes you to the campaign. 16 languages.",
+                scriptInfoDescriptionText: "Menyorot langsung di halaman kampanye drop yang cocok dengan kata kuncimu: ungu untuk yang terbuka, merah untuk yang tertutup. Panel mendaftarnya terpisah menjadi terbuka dan tertutup, dengan rentang tanggal, kata kunci yang menemukannya, dan setiap hadiah beserta jam yang diminta. Panel terisi dari API milik Twitch sendiri, jadi bekerja sama saja di inventaris tanpa menarikmu ke halaman kampanye, dan selagi jawabannya masih di jalan panel diam saja alih-alih menyebut angka nol yang belum diketahuinya. Hadiah yang sudah kamu miliki diberi ✓ dan dicoret satu per satu, dan lencana yang tidak punya sisa apa pun kehilangan waktu yang tadinya diminta. Yang sudah kamu peroleh tetapi belum diambil diletakkan terpisah, dengan 🎁 dan tanpa diredupkan, karena hanya kurang satu klik, dan peringatan penutupan pun menghitungnya. Yang hampir tutup datang lebih dulu: ketika hadiah yang belum kamu miliki kehabisan waktu dalam kurang dari 72 jam, kartunya menyebut berapa yang tersisa dan berapa lagi yang harus kamu tonton —merah di bawah 24 jam— atau bahwa waktunya sudah tidak cukup, dan ⏳ yang sama muncul di kartu kampanye pada halaman. Kata kunci bisa disunting: klik satu untuk menghapus, + untuk menambah, sunting semuanya sekaligus atau pulihkan yang bawaan. Kata kunci yang dimulai dengan «-» menyisihkan: «-console» mengeluarkan kampanye itu walaupun kata kunci lain sudah menemukannya, dan membawa serta sorotan, kartu, dan peringatannya. Lalu empat filter tampilan memangkas daftar yang terbuka tanpa menyentuh apa pun yang lain —yang masih kurang, yang segera tutup, yang sudah kamu peroleh tetapi belum diambil, dan yang bisa diambil dalam satu jam atau kurang—: filter itu saling menjumlah, diingat, dan tab menyebut berapa kartu yang tampil dari berapa yang ada. Daftar yang terbuka diurutkan menurut yang paling cepat tutup atau menurut yang paling sedikit meminta waktu, pilihanmu. Dan setiap kampanye yang terbuka membawa, di kartunya sendiri pada halaman, waktu yang masih kamu perlukan untuk mengambil semua yang tersisa —hadiah termahalnya, karena waktu tonton dihitung per kampanye—, sehingga biayanya terlihat sambil menggulir. Jika inventaris tak pernah datang —tanpa itu tidak bisa diketahui apa yang kamu miliki atau berapa yang sudah kamu tonton— panel mengatakannya alih-alih diam dengan tanda-tandanya mati. Di inventaris kamu bisa melihat detail sebuah drop (kemajuan dan waktu tersisa), menyisihkan entri dengan ✕ —«Muat ulang drop» mengembalikannya— dan menandai kotak yang menyembunyikan yang tertutup/selesai serta menyalakan klaim otomatis. Sebuah 🔗 di setiap kampanye terbuka menyalin namanya, tanggalnya, setiap hadiah beserta syaratnya, dan tautan yang membukanya di Twitch: teks dan bukan gambar, jadi tetap bisa dicari dan tautannya tetap bisa diklik. Kampanye yang berubah sejak terakhir kamu lihat ditandai 🔔 —di panel dan di kartunya sendiri— berikut hitungan yang tertunda, notifikasi desktop, dan tombol 👁️ yang sekalian membawamu ke kampanye itu. 16 bahasa.",
                 scriptInfoAuthor: "Penulis:", scriptInfoGitHub: "GitHub:",
-                readingApiDrops: "Reading drop changes from GQL/API...",
-                timeRemaining: "Time remaining",
-                progress: "Progress",
-                rewards: "Rewards",
-                minutesShort: "min",
-                dropDetails: "Drop details",
+                readingApiDrops: "Membaca perubahan drop dari GQL/API...",
+                timeRemaining: "Waktu tersisa",
+                progress: "Kemajuan",
+                rewards: "Hadiah",
+                minutesShort: "mnt",
+                dropDetails: "Detail drop",
                 earnedUnclaimed: "didapat, belum diklaim",
                 urgentUnclaimed: "belum diklaim",
                 filterPending: "Masih ada sisa",
@@ -3674,71 +3730,155 @@
             return container;
         }
 
+        /**
+         * Parte un texto largo en frases. Sin lookbehind en la regex —Safari viejo la
+         * rechaza al parsear y eso no se lleva la funcion, se lleva el script entero— y
+         * contando los cierres de CJK e indico, que no llevan espacio detras.
+         */
+        function _splitSentences(text) {
+            const out = [];
+            let buf = '';
+            for (let i = 0; i < text.length; i++) {
+                const c = text[i];
+                buf += c;
+                const cjkEnd = c === '。' || c === '！' || c === '？';
+                const plainEnd = (c === '.' || c === '!' || c === '?' || c === '।') &&
+                    (i + 1 >= text.length || /\s/.test(text[i + 1]));
+                if (cjkEnd || plainEnd) { out.push(buf.trim()); buf = ''; }
+            }
+            if (buf.trim()) out.push(buf.trim());
+            return out;
+        }
+
+        /** Agrupa las frases en parrafos de `perPara`, para que la prosa respire. */
+        function _infoParagraphs(text, perPara) {
+            const src = String(text || '');
+            const sentences = _splitSentences(src);
+            // Japones y chino no separan frases con espacio: unirlas con uno metaria
+            // un hueco que el original no tiene.
+            const joiner = (lang === 'ja' || lang === 'zh') ? '' : ' ';
+            const out = [];
+            for (let i = 0; i < sentences.length; i += perPara) {
+                out.push(sentences.slice(i, i + perPara).join(joiner));
+            }
+            return out.length ? out : [src];
+        }
+
         function showInfoModal() {
+            // En este script `t` es i18n[lang] || i18n.en, sin merge, asi que una clave
+            // que le falte a un idioma sale como undefined en pantalla en vez de caer al
+            // ingles. Todas las de este modal estan traducidas en los 16, pero se
+            // resuelven por aqui para que anadir una nueva no pueda romper la vista.
+            const tx = (key) => t[key] || i18n.en[key];
             const { overlay, box } = createModalContainer();
             // Este modal es el unico con contenido de largo imprevisible (la descripcion
-            // es un parrafo entero), asi que en vez de dejar que scrollee la caja entera
-            // —lo que se llevaria el titulo y obligaria a bajar hasta el final para
-            // encontrar el boton de cerrar— scrollea solo el cuerpo.
+            // pasa de 2700 caracteres), asi que en vez de dejar que scrollee la caja
+            // entera —lo que se llevaria el titulo y obligaria a bajar hasta el final
+            // para encontrar el boton de cerrar— scrollea solo el cuerpo.
             Object.assign(box.style, {
-                display: 'flex', flexDirection: 'column', overflowY: 'hidden'
+                display: 'flex', flexDirection: 'column', overflowY: 'hidden',
+                maxWidth: '560px', lineHeight: '1.55'
             });
-            const body = document.createElement('div');
-            Object.assign(body.style, {
-                overflowY: 'auto', minHeight: '0', paddingRight: '4px'
-            });
-            const lines = [
-                { label: t.scriptInfoName, value: "Twitch Drops Highlighter + Keywords (Full + i18n)" },
-                { label: t.scriptInfoVersion, value: SCRIPT_VERSION },
-                { label: t.scriptInfoDescription, value: t.scriptInfoDescriptionText },
-                { label: t.scriptInfoAuthor, value: "g31w0fw0rld" },
-                { label: t.scriptInfoGitHub, value: "github.com/g31w0fw0rld/twitch-drops-highlighter", isLink: true },
-                // Solo es/en tienen texto propio de privacidad; el resto cae al ingles.
-                {
-                    label: t.scriptInfoPrivacy || i18n.en.scriptInfoPrivacy,
-                    value: t.scriptInfoPrivacyText || i18n.en.scriptInfoPrivacyText
-                },
-                { label: "☕ Ko-fi:", value: "ko-fi.com/g31w0fw0rld", isLink: true }
-            ];
+            // El arabe se lee al reves: sin esto las etiquetas de la ficha quedan con
+            // los dos puntos del lado que no toca.
+            if (lang === 'ar') box.dir = 'rtl';
+
+            const hairline = () => {
+                const hr = document.createElement('div');
+                Object.assign(hr.style, {
+                    height: '1px', backgroundColor: colors.border,
+                    margin: '14px 0', flexShrink: '0'
+                });
+                return hr;
+            };
+
+            // --- Cabecera fija: titulo y ficha ---
+            const head = document.createElement('div');
+            head.style.flexShrink = '0';
+
             const titleEl = document.createElement('div');
-            titleEl.textContent = t.scriptInfoTitle;
-            titleEl.style.fontWeight = 'bold';
-            titleEl.style.fontSize = '16px';
-            titleEl.style.marginBottom = '14px';
-            titleEl.style.color = colors.purpleLight;
-            titleEl.style.flexShrink = '0';
-            box.appendChild(titleEl);
-            lines.forEach(l => {
-                const row = document.createElement('div');
-                row.style.marginBottom = '8px';
-                row.style.lineHeight = '1.5';
-                const label = document.createElement('span');
-                label.textContent = l.label + " ";
-                label.style.fontWeight = 'bold';
-                row.appendChild(label);
-                if (l.isLink) {
+            titleEl.textContent = tx('scriptInfoTitle');
+            Object.assign(titleEl.style, {
+                fontWeight: 'bold', fontSize: '17px', marginBottom: '12px',
+                color: colors.purpleLight
+            });
+            head.appendChild(titleEl);
+
+            // Ficha en dos columnas. Antes cada dato era "etiqueta en negrita + valor"
+            // en la misma linea, asi que el ancho de la etiqueta empujaba al valor y
+            // los cinco valores salian escalonados; en una rejilla quedan alineados.
+            const meta = document.createElement('div');
+            Object.assign(meta.style, {
+                display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr)',
+                columnGap: '10px', rowGap: '5px', fontSize: '13px'
+            });
+            [
+                { label: tx('scriptInfoName'), value: "Twitch Drops Highlighter + Keywords (Full + i18n)" },
+                { label: tx('scriptInfoVersion'), value: SCRIPT_VERSION },
+                { label: tx('scriptInfoAuthor'), value: "g31w0fw0rld" },
+                { label: tx('scriptInfoGitHub'), value: "github.com/g31w0fw0rld/twitch-drops-highlighter", isLink: true },
+                { label: "☕ Ko-fi:", value: "ko-fi.com/g31w0fw0rld", isLink: true }
+            ].forEach(r => {
+                const label = document.createElement('div');
+                label.textContent = r.label;
+                Object.assign(label.style, {
+                    fontWeight: '600', color: colors.gray, whiteSpace: 'nowrap'
+                });
+                meta.appendChild(label);
+                const val = document.createElement('div');
+                // Sin esto la URL no parte y estira la caja mas alla de su maxWidth.
+                Object.assign(val.style, { minWidth: '0', overflowWrap: 'anywhere' });
+                if (r.isLink) {
                     const a = document.createElement('a');
-                    a.href = "https://" + l.value;
-                    a.textContent = l.value;
+                    a.href = "https://" + r.value;
+                    a.textContent = r.value;
                     a.target = "_blank";
                     a.rel = "noopener noreferrer";
                     a.style.color = colors.purpleLight;
                     a.style.textDecoration = "underline";
-                    row.appendChild(a);
+                    val.appendChild(a);
                 } else {
-                    const val = document.createElement('span');
-                    val.textContent = l.value;
-                    row.appendChild(val);
+                    val.textContent = r.value;
                 }
-                body.appendChild(row);
+                meta.appendChild(val);
+            });
+            head.appendChild(meta);
+            head.appendChild(hairline());
+            box.appendChild(head);
+
+            // --- Cuerpo scrollable: los dos bloques de prosa ---
+            const body = document.createElement('div');
+            Object.assign(body.style, {
+                overflowY: 'auto', minHeight: '0', paddingRight: '4px', fontSize: '13px'
+            });
+            [
+                { title: tx('scriptInfoDescription'), text: tx('scriptInfoDescriptionText') },
+                { title: tx('scriptInfoPrivacy'), text: tx('scriptInfoPrivacyText') }
+            ].forEach((s, i) => {
+                const h = document.createElement('div');
+                // La misma etiqueta de antes, sin los dos puntos: ya no encabeza una
+                // linea, encabeza un bloque. Se quitan tambien los de ancho completo
+                // del chino y el espacio previo del frances.
+                h.textContent = String(s.title || '').replace(/\s*[:：]\s*$/, '');
+                Object.assign(h.style, {
+                    fontWeight: 'bold', color: colors.purpleLight,
+                    marginTop: i ? '16px' : '0', marginBottom: '6px'
+                });
+                body.appendChild(h);
+                _infoParagraphs(s.text, 2).forEach(p => {
+                    const para = document.createElement('div');
+                    para.textContent = p;
+                    para.style.marginBottom = '8px';
+                    body.appendChild(para);
+                });
             });
             box.appendChild(body);
+            box.appendChild(hairline());
             const detach = attachDismissHandlers(overlay, () => { closeOverlayAnimated(overlay); });
-            const closeBtn = createButton(t.accept, colors.purple, () => {
+            const closeBtn = createButton(tx('accept'), colors.purple, () => {
                 detach();
                 return closeOverlayAnimated(overlay);
             });
-            closeBtn.style.marginTop = '14px';
             closeBtn.style.flexShrink = '0';
             // Centrado y a su ancho, como los botones de los demas modales —que lo
             // consiguen con su fila de acciones—. Hace falta decirlo porque `box` es

@@ -76,7 +76,7 @@ Tampermonkey userscript that classifies and highlights drops/campaigns on Twitch
 - **A campaign that is finished stops alerting.** Twitch's own API is the source, so once a campaign has no active drops left —because you claimed them or because it ended— it no longer raises change notifications.
 - It also raises a **desktop notification** with the pending count, asking for permission the first time, and falls back to the userscript manager's own notification if the browser API is unavailable.
 
-**Language:** 16 languages — Spanish, English, German, French, Portuguese, Russian, Turkish, Japanese, Korean, Polish, Finnish, Vietnamese, Chinese, Arabic, Hindi and Indonesian — following the language Twitch serves the page in, falling back to English.
+**Language:** 16 languages — Spanish, English, German, French, Portuguese, Russian, Turkish, Japanese, Korean, Polish, Finnish, Vietnamese, Chinese, Arabic, Hindi and Indonesian — read from `<html lang>`, which is the language Twitch serves the page in, then from your browser if the page did not say, falling back to English. Regional variants collapse to their base language, so `pt-BR` reads as Portuguese.
 
 **Install:**
 1. Install [Tampermonkey](https://www.tampermonkey.net/).
@@ -133,7 +133,7 @@ Tampermonkey userscript that classifies and highlights drops/campaigns on Twitch
 - **Una campaña terminada deja de avisar.** La fuente es la propia API de Twitch, así que cuando una campaña ya no tiene drops activos —porque los reclamaste o porque acabó— deja de generar avisos de cambio.
 - También levanta una **notificación de escritorio** con la cuenta de pendientes, pidiendo permiso la primera vez, y cae al sistema de avisos del propio gestor de userscripts si la API del navegador no está disponible.
 
-**Idioma:** 16 idiomas —español, inglés, alemán, francés, portugués, ruso, turco, japonés, coreano, polaco, finés, vietnamita, chino, árabe, hindi e indonesio—, siguiendo el idioma con el que Twitch sirve la página, con inglés como respaldo.
+**Idioma:** 16 idiomas —español, inglés, alemán, francés, portugués, ruso, turco, japonés, coreano, polaco, finés, vietnamita, chino, árabe, hindi e indonesio—, leídos del `<html lang>`, que es el idioma con el que Twitch sirve la página, y luego del navegador si la página no lo dijera, con inglés como respaldo. Las variantes regionales caen a su idioma base, así que `pt-BR` se lee como portugués.
 
 **Instalación:**
 1. Instala [Tampermonkey](https://www.tampermonkey.net/).
