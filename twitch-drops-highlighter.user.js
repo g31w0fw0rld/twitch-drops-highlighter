@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.0
+// @version      1.3.1
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. 16 languages, read-only GraphQL queries.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
@@ -17,7 +17,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.0";
+    const SCRIPT_VERSION = "1.3.1";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -3409,6 +3409,34 @@
             return detach;
         }
 
+        // EL ANCHO DEL MODAL EN PANTALLAS ESTRECHAS
+        // ==========================================
+        // El ancho de la caja lo decide su CONTENIDO, acotado entre el minWidth y los
+        // 520px de abajo. Con textos cortos —el detalle de un drop lo es: dos lineas y
+        // un boton— se queda pegada al minimo. En un movil de verdad eso llena la
+        // pantalla y se ve bien; en una ventana de tamaño medio se ve como una tarjeta
+        // pequeña en medio de mucho hueco. No es que falle nada: es que 340px son
+        // muchos en un visor de 400 y pocos en uno de 900.
+        //
+        // Asi que por debajo de 1024px se le da un ancho de verdad en vez de dejarla
+        // encogerse: el 96% del visor hasta el MISMO tope de 520px que ya tenia. Por
+        // encima de 1024 no cambia absolutamente nada.
+        //
+        // Va como regla CSS y no como estilo inline a proposito: asi responde a girar
+        // el movil o a redimensionar la ventana sin tener que cerrar y volver a abrir.
+        // Y se aplica a TODOS los modales del script —detalle, informacion, entrada de
+        // texto— porque los tres salen de esta misma caja y uno solo comportandose
+        // distinto se leeria como un fallo.
+        const MODAL_CLASS = 'twitch-drops-modal';
+        function _ensureModalStyle() {
+            if (document.getElementById('twitch-drops-modal-css')) return;
+            const st = document.createElement('style');
+            st.id = 'twitch-drops-modal-css';
+            st.textContent = '@media (max-width: 1024px) { .' + MODAL_CLASS +
+                ' { width: min(96vw, 520px); } }';
+            (document.head || document.documentElement).appendChild(st);
+        }
+
         function createModalContainer() {
             const overlay = document.createElement('div');
             Object.assign(overlay.style, {
@@ -3439,6 +3467,8 @@
                 transition: 'transform 180ms ease, opacity 180ms ease',
                 transform: 'translateY(8px) scale(0.98)', opacity: '0'
             });
+            box.className = MODAL_CLASS;
+            _ensureModalStyle();
             overlay.appendChild(box);
             return { overlay, box };
         }
