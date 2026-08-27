@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.1
-// @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. 16 languages, read-only GraphQL queries.
+// @version      1.3.2
+// @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. Reads badge campaigns too. 16 languages, read-only GraphQL queries.
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
 // @license      MIT
@@ -17,7 +17,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.1";
+    const SCRIPT_VERSION = "1.3.2";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -1815,6 +1815,50 @@
         // a per-tier card. Combines hours+minutes when both appear (the previous version
         // broke after the first match and read "1 hora 30 minutos" as 60 instead of 90).
         function _parseProgressFromCard(card) {
+            // FORMATO DIRECTO: «6/20m (Day 1)». Lo estrenaron las campañas por dias
+            // —la de Pokemon del 2026-08-26— y no lleva porcentaje ni la palabra
+            // «minutos», asi que el barrido de abajo no encontraba nada, devolvia null
+            // y con el se caian LAS DOS COSAS a la vez: sin progreso no se escribe el
+            // `title` (no hay tooltip) y _openDropModal se sale por su primera linea
+            // (no hay modal). El ❌ si salia, que va por otro camino, y eso hacia
+            // parecer que la tarjeta estaba enganchada.
+            //
+            // Va PRIMERO porque es mejor dato que el otro: ahi los minutos vistos se
+            // reconstruyen multiplicando el total por un porcentaje ya redondeado, y
+            // aqui vienen contados.
+            //
+            // Y NO se usa la barra en este formato, aunque la tarjeta la tenga. Son
+            // dos cuentas distintas: en el volcado la barra marca 10 —el 6 sobre los
+            // 60 minutos de los TRES dias, que es lo que dicen sus dos marcadores al
+            // 33% y al 66%— mientras el texto habla de los 20 de hoy. Se dice lo que
+            // dice la tarjeta: lo que te falta HOY, que ademas es lo accionable.
+            //
+            // La `h` no esta vista en ninguna tarjeta; entra porque el dia que aparezca
+            // «1/3h» leerlo como 3 minutos seria peor que no leerlo.
+            for (const p of card.querySelectorAll('p')) {
+                const m = (p.textContent || '').match(/(\d+)\s*\/\s*(\d+)\s*(min|m|h)\b\s*(?:\(([^)]+)\))?/i);
+                if (!m) continue;
+                const factor = m[3].toLowerCase() === 'h' ? 60 : 1;
+                const required = parseInt(m[2], 10) * factor;
+                if (!required) continue;
+                const first = card.querySelector('p');
+                return {
+                    current: parseInt(m[1], 10) * factor,
+                    required,
+                    // LA ETIQUETA DEL DIA, tal cual la escribe Twitch: «Day 1». Venia en
+                    // el mismo texto y se tiraba, y sin ella el modal AFIRMABA algo falso:
+                    // con 20/20 decia «100%», que se lee como «ya esta» cuando es el
+                    // primero de tres dias. La tarjeta no miente —pone «20/20m (Day 1)»—,
+                    // mentia el modal al quedarse con la mitad.
+                    //
+                    // Se copia literal y no se traduce: es texto de Twitch, no nuestro, y
+                    // en una UI en español tambien viene en ingles. Traducirlo seria
+                    // inventarse un dato con aspecto de dato.
+                    dayLabel: (m[4] || '').trim(),
+                    dropName: (first && first !== p) ? first.textContent.trim() : ''
+                };
+            }
+
             const bar = card.querySelector('[role="progressbar"]');
             const pct = bar ? parseInt(bar.getAttribute('aria-valuenow') || '', 10) : NaN;
             if (!Number.isFinite(pct)) return null;
@@ -2071,6 +2115,7 @@
                 return {
                     current: fromDom.current,
                     required: fromDom.required,
+                    dayLabel: fromDom.dayLabel || '',
                     dropName: fromDom.dropName || (fromApi && fromApi.dropName) || '',
                     rewards: (fromApi && fromApi.rewards) || [],
                     imageUrl: (fromApi && fromApi.imageUrl) || ''
@@ -2120,7 +2165,12 @@
 
             const lineProgress = document.createElement('div');
             lineProgress.style.marginBottom = '6px';
-            lineProgress.innerHTML = `<span style="color:${colors.gray}">${t.progress}:</span> <span style="font-weight:600">${progress.current} / ${progress.required} ${t.minutesShort} · ${pct}%</span>`;
+            // El dia se pega al porcentaje y no en una linea aparte, porque es lo que lo
+            // acota: «100% · Day 1» ya no se lee como «se acabo». Va sin traducir y sin
+            // clave i18n nueva —es la cadena de Twitch— y cuando la tarjeta no trae dia
+            // (el formato de siempre, «10 % de 1 hora») no se escribe nada.
+            const dia = progress.dayLabel ? ` · ${progress.dayLabel}` : '';
+            lineProgress.innerHTML = `<span style="color:${colors.gray}">${t.progress}:</span> <span style="font-weight:600">${progress.current} / ${progress.required} ${t.minutesShort} · ${pct}%${dia}</span>`;
             box.appendChild(lineProgress);
 
             const lineRemaining = document.createElement('div');
@@ -2397,28 +2447,66 @@
                 // _apiItemsFor. Por eso este filtro se queda fuera; no lo reactives.
                 const campaignName = rc.name || '';
                 const gameName = rc.game?.displayName || '';
-                const searchText = (campaignName + ' ' + gameName).toLowerCase();
+                // LA MARCA, que es la palabra por la que la gente busca esto. En las
+                // campañas sitewide `game` viene a NULL —las cuatro que devolvia
+                // `rewardCampaignsAvailableToUser` el 2026-08-26 lo traian asi—
+                // y el unico sitio donde aparece "Pokemon" es `brand`. Sin meterlo aqui,
+                // el texto filtrado de la campaña de Pokemon era "first partners
+                // collection" a secas: no casaba con la keyword `pokemon` y la campaña se
+                // descartaba ENTERA antes de mirar sus premios, asi que su tarjeta salia
+                // en el panel —la trae el DOM— pero sin una sola recompensa.
+                const brand = rc.brand || '';
+                const searchText = (campaignName + ' ' + gameName + ' ' + brand).toLowerCase();
                 if (!_matchesKeywords(searchText)) continue;
 
-                const minutes = rc.unlockRequirements?.minuteWatchedGoal || 0;
-                const rewards = (rc.rewards || []).map(r => ({
-                    name: r.name || '',
-                    rewards: [r.name].filter(Boolean),
-                    minutes,
-                    id: r.id || '',
-                    benefitIds: [],
-                    // Vacio y no `rc.id`: sin benefits no hay nada que acotar, y poner un
-                    // id que no aparece en el historial solo invitaria a creer que si.
-                    campaignId: '',
-                    // Las reward campaigns son otro sistema y no traen benefits, asi que
-                    // aqui no hay tipo que mirar. Se pone para que las tres formas del
-                    // tramo sean una sola y nadie tenga que acordarse de cual es cual.
-                    autoGranted: false
-                })).filter(r => r.name);
+                // LOS ESCALONES ESTAN EN `rewardGroups`, y `rewards` es solo el primero.
+                // Verificado el 2026-08-26 con «Dungeon Crawler Carl Badges»: `rewards`
+                // trae EnchantedBigBoiBoxers y punto, mientras los grupos traen ademas
+                // «2 subs -> PrincessDonutPink + PrincessDonutBrown», que se perdia
+                // entero. Cada grupo lleva su propio `unlockRequirements`, asi que el
+                // coste va POR GRUPO y no uno para toda la campaña.
+                //
+                // La caida a `rewards` no es decorativa: es lo unico que hay si Twitch
+                // sirve una campaña sin grupos, y asi esta rama sigue dando lo mismo que
+                // daba antes en vez de vaciarse.
+                const grupos = (rc.rewardGroups && rc.rewardGroups.length)
+                    ? rc.rewardGroups
+                    : [{ unlockRequirements: rc.unlockRequirements, rewards: rc.rewards || [] }];
+                const rewards = [];
+                for (const g of grupos) {
+                    // Un tramo de 0 minutos no se filtra: hay campañas enteras que se
+                    // desbloquean SOLO con subs (la de Audible son 1 y 2 subs), y
+                    // quitarlas las borraria del panel. El pintado ya lo contempla —sin
+                    // minutos no escribe coste, no escribe "0 min"—, asi que la fila
+                    // sigue diciendo lo unico cierto: que esa recompensa existe.
+                    const minutes = g.unlockRequirements?.minuteWatchedGoal || 0;
+                    for (const r of (g.rewards || [])) {
+                        if (!r || !r.name) continue;
+                        rewards.push({
+                            name: r.name,
+                            rewards: [r.name],
+                            minutes,
+                            id: r.id || '',
+                            benefitIds: [],
+                            // Vacio y no `rc.id`: sin benefits no hay nada que acotar, y poner un
+                            // id que no aparece en el historial solo invitaria a creer que si.
+                            campaignId: '',
+                            // Las reward campaigns son otro sistema y no traen benefits, asi que
+                            // aqui no hay tipo que mirar. Se pone para que las tres formas del
+                            // tramo sean una sola y nadie tenga que acordarse de cual es cual.
+                            autoGranted: false
+                        });
+                    }
+                }
 
                 if (rewards.length > 0) {
-                    // Key by "campaignName - gameName" for precise matching against card titles
-                    const key = gameName ? `${campaignName} - ${gameName}` : campaignName;
+                    // Key by "campaignName - gameName" for precise matching against card titles.
+                    // Con `game` a null se usa la MARCA como segunda mitad: sin ella la
+                    // clave quedaba en «First Partners Collection» pelada, que no se
+                    // parece a lo que la pagina escribe en la fila («Pokémon - Pokemon»)
+                    // por ningun lado.
+                    const key = gameName ? `${campaignName} - ${gameName}`
+                        : brand ? `${campaignName} - ${brand}` : campaignName;
                     // Aqui el titulo YA lleva las dos mitades del texto filtrado, asi
                     // que searchText es coherente por si solo. Se guarda igual para que
                     // las cuatro entradas tengan la misma forma y nadie tenga que
@@ -2443,7 +2531,21 @@
                     //     no las trata como algo navegable.
                     // Asi que el 🔗 copia la pagina de campañas a secas, que es la
                     // verdad: mejor un enlace generico que uno con un uuid inerte.
-                    _apiDropNames[key] = { drops: rewards, startAt: rc.startsAt || '', endAt: rc.endsAt || '', displayTitle: key, imgSrc: _apiImage(rc), searchText, gameId: _gameIdOf(rc), perCampaign: true };
+                    //
+                    // Y se ACUMULA, no se asigna. Una marca reparte varias campañas con
+                    // el MISMO nombre —«First Partners Collection» son tres ids: la
+                    // Poké Ball por tiempo, las tres Great Ball por tiempo y las Great
+                    // Ball por subs— y la pagina las junta en un solo acordeon. Con la
+                    // asignacion de antes ganaba la ultima y las otras dos desaparecian
+                    // sin dejar rastro; ahora sus tramos entran en la misma entrada, que
+                    // es lo que ya se hace con las campañas de drops que comparten juego.
+                    if (!_apiDropNames[key]) {
+                        _apiDropNames[key] = { drops: [], startAt: rc.startsAt || '', endAt: rc.endsAt || '', displayTitle: key, imgSrc: _apiImage(rc), searchText, gameId: _gameIdOf(rc), brand, perCampaign: true };
+                    } else {
+                        _mergeSearchText(_apiDropNames[key], searchText);
+                    }
+                    _apiDropNames[key].drops.push(...rewards);
+                    if (!_apiDropNames[key].imgSrc) _apiDropNames[key].imgSrc = _apiImage(rc);
                 }
             }
 
@@ -2631,6 +2733,18 @@
             return 0;
         }
 
+        // La MARCA de una reward campaign, contra el titulo de la fila. Se exige que sea
+        // una de las dos mitades ENTERA y no una subcadena, que es lo que hace el resto
+        // de _titleScore: las marcas son cortas —«EA», «Audible»— y con `includes` una
+        // de dos letras casaria con media pagina. Puntua por su longitud para que, entre
+        // dos entradas que casen, gane la marca mas especifica.
+        function _brandScore(ct, brand) {
+            if (!brand) return 0;
+            const b = String(brand).toLowerCase().trim();
+            if (!b) return 0;
+            return ct.split(' - ').some(part => part.trim() === b) ? b.length : 0;
+        }
+
         function _findEntryForTitle(cardTitle) {
             if (!cardTitle) return null;
             const ct = cardTitle.toLowerCase();
@@ -2642,9 +2756,15 @@
                 // Se puntua contra la clave de la API Y contra el nombre que la pagina
                 // le da al mismo juego: si no, una tarjeta que dice "Eventos especiales"
                 // no encuentra nunca la entrada "Special Events" y se queda sin chips.
+                //
+                // Y contra la MARCA, que es la unica pasarela cuando `game` viene a null:
+                // la fila de la pagina se titula «Pokémon - Pokemon» y la entrada de la
+                // API «First Partners Collection - Pokemon». Por delante no se parecen en
+                // nada, asi que sin esto la tarjeta no encontraba sus recompensas nunca.
                 const score = Math.max(
                     _titleScore(ct, key.toLowerCase()),
-                    _titleScore(ct, _domAliasFor(entry))
+                    _titleScore(ct, _domAliasFor(entry)),
+                    _brandScore(ct, entry.brand)
                 );
 
                 if (score > bestScore) {
@@ -4821,6 +4941,13 @@
                 // añadia junto a la del DOM y la campaña salia dos veces.
                 const alias = _domAliasFor(entry);
                 if (alias && (seen.has(alias) || seen.has(alias.split(' - ')[0].trim()))) continue;
+                // Y por la MARCA, por lo mismo pero al reves que en _findEntryForTitle:
+                // ahi la fila busca su entrada, y aqui la entrada comprueba si la fila ya
+                // esta delante. Las dos mitades no se parecen —«Pokémon - Pokemon» contra
+                // «First Partners Collection - Pokemon»—, asi que sin esto la campaña
+                // salia DOS veces en el panel: la fila escaneada y su propia entrada.
+                const marca = String(entry.brand || '').toLowerCase().trim();
+                if (marca && [...seen].some(s => s.split(' - ').some(p => p.trim() === marca))) continue;
                 const n = notifs.find(x => x.title === title);
                 out.push({
                     title, studio: '', id: '', key: title + '|api', status,
@@ -5662,6 +5789,97 @@
 
         let _realDropHrefLogged = false;
 
+        // ESCONDER, NUNCA QUITAR. Estos nodos son de React, no nuestros, y sacarlos del
+        // arbol deja a Twitch con punteros a hijos que ya no cuelgan de su padre. Al
+        // siguiente repintado revienta con «NotFoundError: Failed to execute
+        // 'insertBefore' on 'Node'» dentro de su DropsInventoryPageLatencyTracking-
+        // ErrorBoundary — y ese error boundary no falla en silencio: **borra el
+        // inventario entero**. Reportado el 2026-08-26 escondiendo dos campañas con la ✕
+        // y dejando sola la de Pokemon: al recargar, la pagina salia en blanco.
+        //
+        // Es la misma leccion que ya costo la rejilla de Kick (_hideKickClaimedBlocks):
+        // display:none y se acabo.
+        //
+        // No hay pareja «devolver» porque no hay quien la llame: la unica forma de
+        // deshacer esto es «Recargar drops», que vacia la lista y ademas recarga la
+        // pagina (ver resetInventoryDeletedKeys). Escribirla sin usarla seria dejar
+        // codigo muerto prometiendo una funcion que no existe.
+        //
+        // Lo que si hay que vigilar en la pagina: React REUTILIZA nodos, asi que uno
+        // que escondamos podria volver con otro contenido dentro y quedarse invisible.
+        // Quitandolo no pasaba —React lo recreaba—. Es el mismo riesgo que se acepto en
+        // Kick con los bloques de reclamados, y no se ha visto ocurrir alli.
+        // El bloque de campaña al que pertenece una imagen de recompensa: nueve padres
+        // arriba. Estaba escrito dos veces dentro del bucle y ahora lo usa ademas
+        // _inventoryImages, asi que vive en un solo sitio: si esa cuenta cambia con un
+        // rediseño, tiene que cambiar en uno.
+        function _inventoryContainerOf(img) {
+            let el = img;
+            for (let i = 0; i < 9; i++) {
+                if (el.parentElement) el = el.parentElement;
+                else return null;
+            }
+            return el;
+        }
+
+        // LAS IMAGENES POR LAS QUE ARRANCA EL BARRIDO DEL INVENTARIO.
+        //
+        // Era `img.inventory-opacity-2` a secas, y esa clase Twitch solo se la pone a
+        // algunas: en el volcado del 2026-08-26 —`tests/fixture-inventario-pokemon.html`,
+        // que es la entrada del test— hay 26 imagenes de recompensa y solo 5 la llevan. No
+        // se notaba mientras CADA campaña aportara al menos una, porque el bucle sube al
+        // bloque entero y desde ahi alcanza a las demas: en ese mismo volcado, una campaña
+        // aporta 1 imagen y gobierna 21.
+        //
+        // La de Pokemon rompe esa suposicion: trae UNA imagen y sin la clase, asi que por
+        // ella no entraba nadie. De ahi los tres sintomas a la vez —no se podia descartar
+        // con la ✕, la casilla no la ocultaba y no abria el modal—, que eran uno solo.
+        //
+        // Se añade UNA imagen por cada bloque que no aportara ninguna, y ni un nodo mas.
+        // Ampliar el selector a `img.inventory-drop-image` a secas habria metido en el
+        // bucle las otras veinte, cada una decidiendo por su cuenta si esconder el bloque
+        // que comparten: la clase que falta es la excepcion, no la regla.
+        function _inventoryImages() {
+            const base = Array.from(document.querySelectorAll('img.inventory-opacity-2'));
+            const cubiertos = new Set();
+            for (const img of base) {
+                const c = _inventoryContainerOf(img);
+                if (c) cubiertos.add(c);
+            }
+            for (const img of document.querySelectorAll('img.inventory-drop-image')) {
+                const c = _inventoryContainerOf(img);
+                if (!c || cubiertos.has(c)) continue;
+                // Con una sola basta: el bucle llega al bloque por cualquiera de ellas.
+                if (c.querySelector('img.inventory-opacity-2')) continue;
+                cubiertos.add(c);
+                base.push(img);
+            }
+            return base;
+        }
+
+        // Y se esconde con una REGLA CSS, no con un `style.display` inline. React
+        // repinta el inventario mientras la API sigue llegando, y en ese repintado
+        // vuelve a escribir el `style` del nodo: el escondido se perdia y este barrido
+        // ya no estaba para rehacerlo —dura 10 vueltas de medio segundo—. Con la marca
+        // en un atributo que React no conoce (y por tanto no toca) y el `display` en una
+        // hoja de estilo con `!important`, lo escondido sigue escondido pase lo que pase
+        // con el atributo `style`. Reportado el 2026-08-26: dos campañas descartadas con
+        // la ✕ reaparecian al recargar, y encima sin su ✕ —porque para el script SI
+        // estaban descartadas—.
+        const HIDDEN_ATTR = 'data-twitch-drops-hidden';
+        function _ensureHiddenStyle() {
+            if (document.getElementById('twitch-drops-hidden-css')) return;
+            const st = document.createElement('style');
+            st.id = 'twitch-drops-hidden-css';
+            st.textContent = '[' + HIDDEN_ATTR + '="1"] { display: none !important; }';
+            (document.head || document.documentElement).appendChild(st);
+        }
+        function _hideInventoryNode(el) {
+            if (!el || el.getAttribute(HIDDEN_ATTR) === '1') return;
+            _ensureHiddenStyle();
+            el.setAttribute(HIDDEN_ATTR, '1');
+        }
+
         function cleanInventory(type = "expired") {
             let attempts = 0;
             const maxAttempts = 10;
@@ -5790,7 +6008,7 @@
 
             const checker = setInterval(() => {
                 attempts++;
-                const imgs = document.querySelectorAll("img.inventory-opacity-2");
+                const imgs = _inventoryImages();
                 if (imgs.length > 0) {
                     const toRemove = [];
                     imgs.forEach(function (img) {
@@ -5801,11 +6019,7 @@
                         const hasP = secondParentDiv.querySelector("p") !== null;
 
                         if ((type === "expired" && hasP) || (type === "active" && !hasP)) {
-                            let container = img;
-                            for (let i = 0; i < 9; i++) {
-                                if (container.parentElement) container = container.parentElement;
-                                else { container = null; break; }
-                            }
+                            const container = _inventoryContainerOf(img);
                             if (container) {
                                 const notificationPath = container.querySelector(`path[d="${NOTIFICATION_SVG_PATH}"]`);
                                 if (!notificationPath) {
@@ -5813,11 +6027,7 @@
                                 }
                             }
                         } else {
-                            let container = img;
-                            for (let i = 0; i < 9; i++) {
-                                if (container.parentElement) container = container.parentElement;
-                                else { container = null; break; }
-                            }
+                            const container = _inventoryContainerOf(img);
                             if (container) {
                                 const linkElement = container.querySelector('a.tw-link[href*="dropID="]');
                                 if (linkElement) {
@@ -5838,7 +6048,7 @@
                                         if (!aToRemoveAdded.includes(dropID)) {
                                             aToRemoveAdded.push(dropID);
                                             if (deletedInventoryDrops.includes(dropID)) {
-                                                container.parentElement.removeChild(container);
+                                                _hideInventoryNode(container);
                                             } else {
                                                 const newLink = document.createElement('a');
                                                 newLink.textContent = t.removeIcon || '❌';
@@ -5849,7 +6059,7 @@
                                                 newLink.dataset.dropOwnTip = '1';
                                                 newLink.onclick = (e) => {
                                                     e.preventDefault();
-                                                    container.parentElement.removeChild(container);
+                                                    _hideInventoryNode(container);
                                                     deletedInventoryDrops.push(dropID);
                                                     setInventoryDeletedKeys(deletedInventoryDrops);
                                                 };
@@ -5881,6 +6091,26 @@
                                         if (imgToRemove.parentElement) imgToRemove = imgToRemove.parentElement;
                                         else { imgToRemove = null; break; }
                                     }
+                                    // Y LA QUE TIENE BARRA NO SE ESCONDE, tenga la clase o no.
+                                    //
+                                    // Este barrido daba por cobrada toda imagen sin
+                                    // `inventory-opacity-2`, que es la misma suposicion que ya
+                                    // rompio la campaña de Pokemon un poco mas arriba: su Poké
+                                    // Ball esta EN CURSO y no lleva esa clase, asi que en cuanto
+                                    // el bucle empezo a alcanzar ese bloque, la casilla de
+                                    // «ocultar completados» se llevaba por delante la unica
+                                    // recompensa que quedaba por ganar.
+                                    //
+                                    // La barra es prueba POSITIVA de que algo sigue en curso, y
+                                    // por eso se usa en ese sentido y no en el contrario: en el
+                                    // volcado del 2026-08-26, de las 21 imagenes que este
+                                    // barrido escondia, 20 son cobradas —llevan su «hace N
+                                    // dias»— y ninguna tiene barra; la unica que la tiene es la
+                                    // Poké Ball. Al reves —«sin barra = cobrada»— es justo el
+                                    // error que se paga aqui, y el mismo que costo un rato en
+                                    // Kick. Añadir la condicion solo puede esconder MENOS, nunca
+                                    // mas, asi que no puede estrenar un falso escondido.
+                                    if (imgToRemove && imgToRemove.querySelector('[role="progressbar"]')) return;
                                     if (imgToRemove && type === "expired") {
                                         const notificationPath = imgToRemove.querySelector(`path[d="${NOTIFICATION_SVG_PATH}"]`);
                                         if (!notificationPath) {
@@ -5911,7 +6141,7 @@
                         }
                     });
                     toRemove.forEach(function (el) {
-                        if (el.parentElement) el.parentElement.removeChild(el);
+                        _hideInventoryNode(el);
                     });
                 }
                 if (attempts >= maxAttempts) clearInterval(checker);
