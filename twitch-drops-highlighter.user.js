@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.2
+// @version      1.3.3
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. Reads badge campaigns too. 16 languages, read-only GraphQL queries.
+// @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
 // @author       g31w0fw0rld
 // @license      MIT
@@ -17,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.2";
+    const SCRIPT_VERSION = "1.3.3";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -1264,13 +1265,55 @@
             return { positive, negative };
         }
 
+        // ---------------------------------------------
+        // Comparacion sin acentos
+        // ---------------------------------------------
+        // El mismo nombre se escribe con tilde y sin ella segun quien lo teclee: la
+        // fila de la pagina dice «Pokémon» y la entrada de la API «Pokemon». Con la
+        // keyword `pokemon` eso marcaba unas campañas y no otras, sin nada visible
+        // que lo explicara. Se compara sin diacriticos por el mismo motivo por el que
+        // se compara en minusculas: la tilde es ortografia del titulo, no parte de lo
+        // que el usuario quiso filtrar.
+        //
+        // Y no solo el filtro: el MISMO criterio rige el cruce entre la pagina y la API
+        // —titulos, alias, marcas, encabezados de seccion, nombres de recompensa—, que
+        // es donde una tilde de diferencia no deja de marcar una campaña sino que la
+        // pierde: la tarjeta no encuentra su entrada, la deduplicacion no la reconoce y
+        // la misma campaña sale dos veces, o el aviso no encuentra su campaña. Un cruce
+        // que compare con mas rigor que el filtro es un cruce que falla justo donde el
+        // filtro acerto.
+        //
+        // Solo TILDES DE VOCALES. La ñ no se toca: 'ñ' y 'n' son letras distintas y
+        // verlas casar seria raro, mientras que «Pokemon»/«Pokémon» son la misma palabra
+        // mal copiada. Se consigue borrando la marca solo cuando cuelga de una vocal.
+        //
+        // NFD separa cada letra de su tilde y el rango U+0300-U+036F son las tildes ya
+        // sueltas, asi que 'é' queda en 'e'. Y se RECOMPONE al salir (NFC) para que lo
+        // devuelto sea la cadena de entrada menos las tildes de vocales y nada mas: la ñ
+        // vuelve a ser un solo caracter y el hangul y el CJK salen intactos. Sin ese
+        // segundo paso el texto seguia descompuesto y CRECIA —'한' pasa a tres jamo—, lo
+        // que le daba ventaja a un titulo coreano en la puntuacion por longitud de
+        // _titleScore. De paso, una cadena que llegue ya descompuesta casa con la misma
+        // cadena compuesta, que antes no casaba.
+        //
+        // Se aplica SOLO al comparar, nunca al guardar ni al enseñar: la keyword se
+        // sigue almacenando tal como se escribio, el chip de la tarjeta la devuelve con
+        // su tilde y los titulos se pintan como los escribe cada fuente. Los datos que
+        // se PERSISTEN quedan fuera a proposito (buildDataSnapshot, _domTitleByGameId):
+        // doblarlos cambiaria cadenas ya guardadas y el primer arranque tras actualizar
+        // veria «cambios» donde no hay ninguno.
+        function _fold(s) {
+            return String(s == null ? '' : s).normalize('NFD').replace(/([aeiouAEIOU])[\u0300-\u036f]+/g, '$1').normalize('NFC');
+        }
+
         // Casa si toca al menos una positiva Y ninguna negativa. La negativa manda
         // sobre la positiva a proposito: "minecraft" pero no "minecraft dungeons"
         // solo tiene sentido si lo segundo gana.
         function _matchesKeywords(searchText) {
             const { positive, negative } = _splitKeywords(keywords);
-            if (negative.some(k => searchText.includes(k))) return false;
-            return positive.some(k => searchText.includes(k));
+            const text = _fold(searchText);
+            if (negative.some(k => text.includes(_fold(k)))) return false;
+            return positive.some(k => text.includes(_fold(k)));
         }
 
         // La mitad negativa de _matchesKeywords, suelta. Hace falta aparte porque «no
@@ -1279,13 +1322,15 @@
         // _apiEntryForCard— o haber encontrado una negativa, que es una orden y no
         // admite segunda opinion.
         function _hasNegativeKeyword(searchText) {
-            return _splitKeywords(keywords).negative.some(k => searchText.includes(k));
+            const text = _fold(searchText);
+            return _splitKeywords(keywords).negative.some(k => text.includes(_fold(k)));
         }
 
         // Las que se enseñan en la tarjeta: solo positivas, porque son las que
         // explican POR QUE aparece la campaña.
         function _matchedPositiveKeywords(searchText) {
-            return _splitKeywords(keywords).positive.filter(k => searchText.includes(k));
+            const text = _fold(searchText);
+            return _splitKeywords(keywords).positive.filter(k => text.includes(_fold(k)));
         }
 
         // ---------------------------------------------
@@ -2721,6 +2766,11 @@
         // Find full API entry for a card title (best match wins) — returns {drops, startAt, endAt}
         function _titleScore(ct, k) {
             if (!k) return 0;
+            // Las dos mitades del cruce, sin tildes de vocales (ver _fold). Se dobla
+            // aqui dentro y no en quien llama para que ninguna via de puntuacion se
+            // quede fuera de la regla.
+            ct = _fold(ct);
+            k = _fold(k);
             if (ct === k) return 1000;              // exact match
             if (ct.includes(k)) return k.length;    // longer key = more specific
             if (k.includes(ct)) return ct.length;
@@ -2740,9 +2790,9 @@
         // dos entradas que casen, gane la marca mas especifica.
         function _brandScore(ct, brand) {
             if (!brand) return 0;
-            const b = String(brand).toLowerCase().trim();
+            const b = _fold(String(brand).toLowerCase().trim());
             if (!b) return 0;
-            return ct.split(' - ').some(part => part.trim() === b) ? b.length : 0;
+            return _fold(ct).split(' - ').some(part => part.trim() === b) ? b.length : 0;
         }
 
         function _findEntryForTitle(cardTitle) {
@@ -2793,7 +2843,7 @@
         // Se miran tambien las cerradas porque en el punto donde se llama todavia no se
         // sabe de que lado del separador cae la fila.
         function _apiEntryForCard(titleText, domGameId) {
-            const t = String(titleText || '').trim().toLowerCase();
+            const t = _fold(String(titleText || '').trim().toLowerCase());
             if (!t && !domGameId) return null;
             for (const src of [_apiDropNames, _apiClosedCampaigns]) {
                 for (const [key, entry] of Object.entries(src)) {
@@ -2801,7 +2851,7 @@
                     // comparten juego, asi que el id las casaria todas de golpe.
                     if (key === '__all' || !entry || entry.perCampaign) continue;
                     if (domGameId && entry.gameId && entry.gameId === domGameId) return entry;
-                    if (t && key.toLowerCase() === t) return entry;
+                    if (t && _fold(key.toLowerCase()) === t) return entry;
                 }
             }
             return null;
@@ -2844,7 +2894,7 @@
                 // una campaña descartada no puede colarse por la puerta de atras
                 // de la API y hacer sonar la alarma.
                 if (!_matchesKeywords(titleLower)) continue;
-                const exists = notifs.find(n => n.title === title || (n.title && n.title.toLowerCase() === titleLower));
+                const exists = notifs.find(n => n.title === title || (n.title && _fold(n.title.toLowerCase()) === _fold(titleLower)));
                 if (!exists) {
                     const dataSnapshot = buildDataSnapshot(title);
                     notifs.push({
@@ -3393,9 +3443,10 @@
 
         function deleteNotificationsByKeyword(keyword) {
             const notifs = getNotifications();
+            const kw = _fold(keyword);
             const filtered = [];
             for (const n of notifs) {
-                if (!n.title.toLowerCase().includes(keyword)) {
+                if (!_fold(n.title.toLowerCase()).includes(kw)) {
                     filtered.push(n);
                 }
             }
@@ -3413,9 +3464,9 @@
             const notifs = getNotifications();
             const filtered = [];
             for (const n of notifs) {
-                const title = (n.title || '').toLowerCase();
-                if (negative.some(kw => title.includes(kw))) continue;
-                if (positive.some(kw => title.includes(kw))) filtered.push(n);
+                const title = _fold((n.title || '').toLowerCase());
+                if (negative.some(kw => title.includes(_fold(kw)))) continue;
+                if (positive.some(kw => title.includes(_fold(kw)))) filtered.push(n);
             }
             saveNotifications(filtered);
             updateNotificationTitleAndSound();
@@ -4925,7 +4976,6 @@
                     if (Number.isFinite(end) && end <= now) continue;
                 }
                 const title = entry.displayTitle || key;
-                const titleLower = title.toLowerCase();
                 // Se mira el titulo entero Y el nombre del juego a secas, porque las
                 // dos fuentes lo componen por su cuenta: el DOM pega el estudio que
                 // imprime la pagina y la API el `owner.name` de la campaña, que no
@@ -4935,18 +4985,23 @@
                 // donde el DOM ya las trae todas. Sin riesgo de esconder de mas:
                 // _apiDropNames va indexado por juego, asi que por juego hay como
                 // mucho una entrada de la API a la que renunciar.
-                if (seen.has(titleLower) || seen.has(titleLower.split(' - ')[0].trim())) continue;
+                //
+                // `seen` llega ya doblado desde renderResults, asi que la entrada de la
+                // API se dobla tambien: si no, «Pokémon - Pokemon» escaneado y «Pokemon
+                // - …» de la API son dos cosas y la campaña sale dos veces.
+                const titleFold = _fold(title.toLowerCase());
+                if (seen.has(titleFold) || seen.has(titleFold.split(' - ')[0].trim())) continue;
                 // Y por el nombre que la pagina le da al mismo juego, que es el que hay
                 // en `seen` cuando Twitch lo traduce: sin esto la tarjeta de la API se
                 // añadia junto a la del DOM y la campaña salia dos veces.
-                const alias = _domAliasFor(entry);
+                const alias = _fold(_domAliasFor(entry));
                 if (alias && (seen.has(alias) || seen.has(alias.split(' - ')[0].trim()))) continue;
                 // Y por la MARCA, por lo mismo pero al reves que en _findEntryForTitle:
                 // ahi la fila busca su entrada, y aqui la entrada comprueba si la fila ya
                 // esta delante. Las dos mitades no se parecen —«Pokémon - Pokemon» contra
                 // «First Partners Collection - Pokemon»—, asi que sin esto la campaña
                 // salia DOS veces en el panel: la fila escaneada y su propia entrada.
-                const marca = String(entry.brand || '').toLowerCase().trim();
+                const marca = _fold(String(entry.brand || '').toLowerCase().trim());
                 if (marca && [...seen].some(s => s.split(' - ').some(p => p.trim() === marca))) continue;
                 const n = notifs.find(x => x.title === title);
                 out.push({
@@ -4988,7 +5043,7 @@
             // API tiene por cerrado saldria en las dos a la vez.
             const scanned = new Set();
             for (const i of [].concat(activeItems || [], expiredItems || [])) {
-                const titleLower = String(i.title || '').toLowerCase();
+                const titleLower = _fold(String(i.title || '').toLowerCase());
                 if (!titleLower) continue;
                 scanned.add(titleLower);
                 scanned.add(titleLower.split(' - ')[0].trim());
@@ -5365,7 +5420,7 @@
         function _expiredPageHeaders() {
             const all = Array.from(document.querySelectorAll('h4[class^="CoreText-sc"], div.accordion-header'));
             const closed = all.find(h => h.matches('h4[class^="CoreText-sc"]')
-                && CLOSED_HEADER_TEXTS.some(t => h.textContent.trim().toLowerCase() === t.toLowerCase()));
+                && CLOSED_HEADER_TEXTS.some(t => _fold(h.textContent.trim().toLowerCase()) === _fold(t.toLowerCase())));
             if (!closed) return null;
             const idx = all.indexOf(closed);
             const set = new Set();
@@ -5380,7 +5435,7 @@
         // —y tambien cuando la pagina no trae separador— para no dejar de enfocar por no
         // poder decidir; ahi vuelve a valer la primera, que es lo de antes.
         function _findPageHeaderByTitle(title, status) {
-            const wanted = String(title || '').toLowerCase().trim();
+            const wanted = _fold(String(title || '').toLowerCase().trim());
             if (!wanted) return null;
             const wantedGame = wanted.split(' - ')[0].trim();
             const cerradas = _expiredPageHeaders();
@@ -5395,8 +5450,8 @@
                     ? node.querySelectorAll('p[class^="CoreText-sc"]')
                     : node.querySelectorAll('p');
                 if (!ps.length) continue;
-                const juego = ps[0].textContent.trim().toLowerCase();
-                const estudio = ps.length >= 2 ? ps[1].textContent.trim().toLowerCase() : '';
+                const juego = _fold(ps[0].textContent.trim().toLowerCase());
+                const estudio = ps.length >= 2 ? _fold(ps[1].textContent.trim().toLowerCase()) : '';
                 const compuesto = estudio ? `${juego} - ${estudio}` : juego;
                 if (compuesto === wanted) return node;
                 // El titulo de la API y el del DOM se componen por separado, asi que
@@ -5496,7 +5551,7 @@
         function _focusPendingCampaign(items) {
             const target = _takeFocusTarget();
             if (!target) return;
-            const wanted = String(target.title).toLowerCase();
+            const wanted = _fold(String(target.title).toLowerCase());
             let intentos = 0;
             const reintento = setInterval(() => {
                 intentos++;
@@ -5506,7 +5561,7 @@
                 // en las dos solapas, y quedarse con el primero era llevarte al abierto
                 // habiendo pulsado el cerrado.
                 const found = (items || []).find(c =>
-                    c && c.element && String(c.title || '').toLowerCase() === wanted
+                    c && c.element && _fold(String(c.title || '').toLowerCase()) === wanted
                     && (!target.status || c.status === target.status));
                 if (_focusCampaignOnPage(found || { title: target.title, status: target.status })
                     || intentos >= 10) {
@@ -5530,7 +5585,7 @@
             document.querySelectorAll('.twitch-drop-page-mark').forEach(el => el.remove());
             // APPROACH 1: Find closed header using CLOSED_HEADER_TEXTS (28 locales)
             const closedHeader = Array.from(document.querySelectorAll('h4[class^="CoreText-sc"]'))
-                .find(h => CLOSED_HEADER_TEXTS.some(text => h.textContent.trim().toLowerCase() === text.toLowerCase()));
+                .find(h => CLOSED_HEADER_TEXTS.some(text => _fold(h.textContent.trim().toLowerCase()) === _fold(text.toLowerCase())));
 
             // APPROACH 2: Y-position based — find all relevant nodes
             const allNodes = Array.from(document.querySelectorAll('h4[class^="CoreText-sc"], div.accordion-header'));
@@ -5608,8 +5663,8 @@
                     isExpired = true;
                 } else if (closedIndex < 0) {
                     // Y-position fallback: check if node contains CLOSED_DROP_TEXTS
-                    const nodeText = (node.innerText || node.textContent || '').toLowerCase();
-                    if (CLOSED_DROP_TEXTS.some(ct => nodeText.includes(ct.toLowerCase()))) {
+                    const nodeText = _fold((node.innerText || node.textContent || '').toLowerCase());
+                    if (CLOSED_DROP_TEXTS.some(ct => nodeText.includes(_fold(ct.toLowerCase())))) {
                         isExpired = true;
                     }
                 }
