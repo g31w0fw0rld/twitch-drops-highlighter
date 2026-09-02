@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.3
+// @version      1.3.4
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. Reads badge campaigns too. 16 languages, read-only GraphQL queries.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.3";
+    const SCRIPT_VERSION = "1.3.4";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -1604,6 +1604,18 @@
         // pierde nada: en el volcado del 2026-08-11 sus 18 ids estaban TODOS tambien en
         // earnedDropRewards, que es el historial completo. Sigue en el plano por si acaso.
         let _claimedBenefitsByCampaign = new Set();
+        // LO CONCEDIDO, POR CAMPAÑA: campaignId -> [{ id, name }]. Es otra cosa que los
+        // conjuntos de arriba, que responden «¿tienes ESTE tramo?». Este responde «¿que
+        // te dio esta campaña?», y hace falta porque hay recompensas cuyo id NO se puede
+        // preguntar: las reward campaigns reparten CONTENEDORES —la Poké Ball de Pokemon—
+        // y el historial no apunta el contenedor, apunta lo que salio de el.
+        //
+        // Verificado el 2026-09-01 con «First Partners Collection»: la campaña
+        // `92f516f7-…` ofrece la recompensa `9a604770-…` («Poké Ball») y lo que consta
+        // concedido es `7e978af0-…` («Pichu», BADGE). Los dos ids no se parecen y el de
+        // la bola no aparece en el historial NUNCA. Lo unico que cruza es `campaign.id`,
+        // que si es el mismo espacio de ids que el `id` de la reward campaign.
+        let _earnedRewardsByCampaign = {};
         // Que los ids de campaña de earnedDropRewards son los MISMOS que los de las
         // campañas quedo comprobado el 2026-08-12 en la consola de este usuario (1 en
         // curso, 65 en el historial, casaron). Si no lo fueran, acotar no casaria nunca y
@@ -1660,11 +1672,23 @@
                 // confundir ediciones. Se indexa por las dos vias: plana para lo que no
                 // sabe de que campaña es —el respaldo publico—, y acotada para lo demas.
                 const campaignIdsEarned = new Set();
+                const earnedByCampaign = {};
                 for (const edge of (inv?.earnedDropRewards?.edges || [])) {
                     const n = edge?.node;
                     if (!n || n.status !== 'CLAIMED') continue;
                     const cid = n.campaign?.id || '';
                     if (cid) campaignIdsEarned.add(cid);
+                    // El nombre de lo concedido, guardado aparte y por campaña. Se
+                    // deduplica por id porque un mismo premio puede llegar por las dos
+                    // vias (`n.id` y `n.item.id` son el mismo valor en los volcados).
+                    const nombre = n.item?.name || '';
+                    const rid = n.item?.id || n.id || '';
+                    if (cid && nombre) {
+                        if (!earnedByCampaign[cid]) earnedByCampaign[cid] = [];
+                        if (!earnedByCampaign[cid].some(x => x.id === rid && x.name === nombre)) {
+                            earnedByCampaign[cid].push({ id: rid, name: nombre });
+                        }
+                    }
                     if (n.id) {
                         claimedBenefits.add(n.id);
                         if (cid) claimedByCampaign.add(cid + '|' + n.id);
@@ -1707,6 +1731,7 @@
                 _claimedDropIds = claimedDrops;
                 _claimedBenefitIds = claimedBenefits;
                 _claimedBenefitsByCampaign = claimedByCampaign;
+                _earnedRewardsByCampaign = earnedByCampaign;
                 _campaignScopeUsable = scopeUsable;
                 _claimedIndexReady = true;
                 _inventoryProgressReady = true;
@@ -2533,9 +2558,20 @@
                             minutes,
                             id: r.id || '',
                             benefitIds: [],
-                            // Vacio y no `rc.id`: sin benefits no hay nada que acotar, y poner un
-                            // id que no aparece en el historial solo invitaria a creer que si.
-                            campaignId: '',
+                            // La campaña SI se guarda. Estuvo vacia mientras «acotar» solo
+                            // significaba acotar el cruce por benefit —y sin benefits no hay
+                            // nada que acotar, que sigue siendo cierto: con `benefitIds` vacio
+                            // ese cruce se sale por su primera linea y esta recompensa no se
+                            // marca por ahi—. Lo que ha cambiado es que ahora hay una segunda
+                            // pregunta que responder con este id: QUE concedio esta campaña
+                            // (ver _earnedRewardsByCampaign), que es lo unico que se puede
+                            // saber de un contenedor cuyo propio id no consta en el historial.
+                            campaignId: rc.id || '',
+                            // Y que esto es una reward campaign, dicho a las claras. Las
+                            // campañas de drops tambien llevan `campaignId`, asi que sin esta
+                            // marca lo de abajo les añadiria un premio ya concedido que ellas
+                            // ya saben marcar tramo a tramo (self.isClaimed), y saldria dos veces.
+                            rewardCampaign: true,
                             // Las reward campaigns son otro sistema y no traen benefits, asi que
                             // aqui no hay tipo que mirar. Se pone para que las tres formas del
                             // tramo sean una sola y nadie tenga que acordarse de cual es cual.
@@ -2969,8 +3005,10 @@
                 if (grouped[key].some(x => x.name === name && x.claimed === claimed && x.earned === earned)) return;
                 grouped[key].push({ name, claimed, earned });
             });
-            Object.entries(grouped).forEach(([min, items]) => {
-                const minutes = parseInt(min);
+            // Un chip, sus recompensas dentro. Se saco del bucle porque hay un chip que
+            // NO sale de `grouped`: el de lo concedido (ver abajo), que no tiene tramo de
+            // visualizacion al que pertenecer y aun asi se pinta igual que los demas.
+            const pintarChip = (items, minutes) => {
                 const hours = minutes / 60;
                 // Con el tramo entero reclamado, el tiempo que pedia ya no le sirve a
                 // nadie: desaparece de la etiqueta, y quien lo dice es el tooltip, que
@@ -3023,7 +3061,37 @@
                     if (suffix) chip.appendChild(document.createTextNode(suffix));
                 }
                 container.appendChild(chip);
-            });
+            };
+
+            Object.entries(grouped).forEach(([min, items]) => pintarChip(items, parseInt(min)));
+
+            // LO QUE LA CAMPAÑA YA TE DIO, cuando lo que ofrece es un CONTENEDOR.
+            //
+            // Las reward campaigns reparten Poké Balls, y una Poké Ball no es una
+            // recompensa que se tenga: es una caja que se abre sola al cumplir el tiempo
+            // y suelta un emblema. El historial apunta el emblema —«Pichu»— y no la caja,
+            // asi que por el camino normal esta fila no puede marcarse NUNCA: su id no
+            // existe en el historial (verificado el 2026-09-01, ver _earnedRewardsByCampaign).
+            //
+            // Y tachar la bola porque la campaña concedio algo seria pasarse: la campaña
+            // sigue abierta y quedan tres emblemas por salir, asi que el ✓ diria «ya esta»
+            // sobre algo que no esta. Se pinta entonces lo unico que consta y sin
+            // interpretarlo: QUE te dio, con su ✓, en su propio chip y al lado de la bola.
+            // La bola se queda como esta —sin marcas— porque sobre ella no hay dato.
+            const concedidos = [];
+            const campañasVistas = new Set();
+            for (const d of drops) {
+                if (!d || !d.rewardCampaign || !d.campaignId) continue;
+                if (campañasVistas.has(d.campaignId)) continue;
+                campañasVistas.add(d.campaignId);
+                for (const r of (_earnedRewardsByCampaign[d.campaignId] || [])) {
+                    if (!r || !r.name) continue;
+                    if (concedidos.some(x => x.name === r.name)) continue;
+                    concedidos.push({ name: r.name, claimed: true, earned: false });
+                }
+            }
+            if (concedidos.length > 0) pintarChip(concedidos, 0);
+
             card.appendChild(container);
         }
 

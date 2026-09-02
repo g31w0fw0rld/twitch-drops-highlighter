@@ -21,7 +21,12 @@ const DUMP = fs.readFileSync(
 // Arranca el script sobre el volcado y devuelve el DOM para inspeccionarlo. Se
 // comprueban EFECTOS OBSERVABLES —la ✕ pintada, lo que queda escondido— y no
 // funciones internas: son los que ve el usuario.
-function run({ borrados = [], waitMs = 8000, clicarX = null } = {}) {
+// `gql` sirve las respuestas de la API por operationName ({ ViewerDropsDashboard, Inventory }).
+// Sin el, fetch sigue sin resolver nunca y los tests que solo miran el DOM se comportan igual
+// que antes. Con el, el arnes ademas SIEMBRA `_gqlState`: el script no pregunta a la API hasta
+// tener token e integridad, y esos los roba del trafico de la propia pagina, asi que aqui hay
+// que fingir una peticion de Twitch antes de que sus consultas puedan salir.
+function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null } = {}) {
   return new Promise(resolve => {
     const vc = new VirtualConsole();
     vc.on('jsdomError', () => {});
@@ -39,10 +44,36 @@ function run({ borrados = [], waitMs = 8000, clicarX = null } = {}) {
     w.GM_setValue = (k, v) => store.set(k, v);
     w.GM_deleteValue = k => store.delete(k);
     w.unsafeWindow = w;
-    w.fetch = () => new Promise(() => {});
+    const pedidas = [];
+    w.fetch = (u, opts) => {
+      let op = '';
+      try { op = JSON.parse(opts && opts.body)[0].operationName || ''; } catch (e) { /* la de siembra */ }
+      if (op) pedidas.push(op);
+      const payload = gql && op && gql[op];
+      // Sin payload se devuelve una promesa que no resuelve NUNCA, que es lo que habia
+      // antes: una respuesta vacia no es lo mismo que no contestar, y el script distingue
+      // los dos casos (el aviso de «sin inventario» sale solo en el segundo).
+      if (!payload) return new Promise(() => {});
+      return Promise.resolve({ ok: true, status: 200, json: async () => payload });
+    };
     w.eval(SCRIPT);
     w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
     w.dispatchEvent(new w.Event('load'));
+
+    // La siembra. Va DESPUES del eval a proposito: el interceptor del script envuelve
+    // `unsafeWindow.fetch` al arrancar, asi que esta llamada pasa por el y le deja el
+    // token y la integridad. Antes del eval no habria nadie escuchando.
+    if (gql) {
+      w.fetch('https://gql.twitch.tv/gql', {
+        method: 'POST',
+        headers: {
+          'authorization': 'OAuth token-de-prueba',
+          'client-integrity': 'integridad-de-prueba',
+          'client-session-id': 'sesion', 'client-version': 'version', 'x-device-id': 'dispositivo'
+        },
+        body: JSON.stringify([{ operationName: 'SiembraDeCabeceras' }])
+      });
+    }
 
     const informe = () => {
       const doc = w.document;
@@ -64,7 +95,22 @@ function run({ borrados = [], waitMs = 8000, clicarX = null } = {}) {
           marcado: !!(cont && cont.getAttribute('data-twitch-drops-hidden') === '1')
         };
       });
-      resolve({ camps, totalX: xs.length, w, dom });
+      // Los chips de recompensa de cada tarjeta del panel, con su estado. El ✓ y el
+      // tachado son dos marcas distintas del mismo hecho y se leen las dos: el ✓ va en su
+      // propio span, asi que un chip con ✓ delante pero sin tachar seria un fallo que el
+      // texto por si solo no distingue.
+      const chips = Array.from(doc.querySelectorAll('#twitch-drops-active-pane [data-notif-title]'))
+        .map(card => ({
+          titulo: card.getAttribute('data-notif-title'),
+          badges: Array.from(card.querySelectorAll('.drop-api-names > span')).map(chip => ({
+            texto: (chip.textContent || '').replace(/\s+/g, ' ').trim(),
+            premios: Array.from(chip.querySelectorAll('span')).map(sp => ({
+              texto: (sp.textContent || '').trim(),
+              tachado: sp.style.textDecoration === 'line-through'
+            }))
+          }))
+        }));
+      resolve({ camps, totalX: xs.length, chips, pedidas, w, dom });
     };
 
     if (clicarX !== null) {
