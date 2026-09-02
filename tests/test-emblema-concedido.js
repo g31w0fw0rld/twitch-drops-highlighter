@@ -80,6 +80,28 @@ const CASOS = [
         nombre: 'sin conceder nada todavia',
         edges: [],
         esperaPichu: false
+    },
+    {
+        // El control negativo de verdad, y es un caso REAL: una segunda cuenta (2026-09-01)
+        // con 137 recompensas en el historial y ninguna de estas campañas. Un historial
+        // VACIO no prueba el acotado —sin nada que pegar, no pegar es gratis—; este si,
+        // porque trae premios del mismo tipo (un BADGE y un EMOTE, que son los dos que
+        // Twitch concede solo) y lo unico que los separa de «Pichu» es de que campaña
+        // vienen. Si el acotado por campaign.id se cayera, «Football Fest 2026» acabaria
+        // colgado de la tarjeta de Pokemon.
+        //
+        // Las tres reward campaigns llegan con LOS MISMOS ids en las dos cuentas —son
+        // sitewide, el id es de la campaña y no del usuario—, que es justo lo que hace
+        // fiable la clave que usa el arreglo.
+        nombre: 'historial lleno, pero de otras campañas',
+        edges: [
+            nodoConcedido('23130927-642a-11f1-ba9c-0a58a9feac02', 'Football Fest 2026',
+                          '649d6e57-25f0-477e-ab51-313a2eee318d'),
+            nodoConcedido('f7c2b951-5f8d-11f1-b5a9-0a58a9feac02', 'FootballHype Emote',
+                          '8e0db5de-2518-4991-a0bb-9fe187ab4999')
+        ],
+        esperaPichu: false,
+        ajenos: ['Football Fest 2026', 'FootballHype Emote']
     }
 ];
 
@@ -107,6 +129,12 @@ const comprobar = (ok, msg) => { console.log((ok ? '  ok   ' : '  FALLA') + ' ' 
                 '«Pichu» lleva su ✓');
         } else {
             comprobar(!pichu, 'NO sale «Pichu» cuando el historial no lo trae');
+            for (const ajeno of (c.ajenos || [])) {
+                comprobar(!premios.some(pr => pr.texto === ajeno),
+                    'no se cuela «' + ajeno + '», que es de otra campaña');
+            }
+            comprobar(!tarjeta.badges.some(b => /✓/.test(b.texto)),
+                'la tarjeta no lleva ningun ✓');
         }
 
         comprobar(!!bola, 'la fila de la «Poké Ball» sigue en la tarjeta');
