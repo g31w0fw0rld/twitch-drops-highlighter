@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.5
+// @version      1.3.6
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. Reads badge campaigns too. 16 languages, read-only GraphQL queries.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.5";
+    const SCRIPT_VERSION = "1.3.6";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -6019,6 +6019,25 @@
         // arriba. Estaba escrito dos veces dentro del bucle y ahora lo usa ademas
         // _inventoryImages, asi que vive en un solo sitio: si esa cuenta cambia con un
         // rediseño, tiene que cambiar en uno.
+        // Y SE COMPRUEBA QUE LO SEA, en vez de dar por bueno lo que haya nueve padres
+        // arriba. Contar a ciegas da por supuesto que toda imagen de recompensa vive
+        // dentro de un bloque de campaña, y eso es FALSO en un inventario donde no queda
+        // nada en curso: ahi la seccion «Reclamada» es una rejilla plana de baldosas, sin
+        // un solo bloque de campaña, asi que los nueve padres se pasan de largo y aterrizan
+        // en el envoltorio de la SECCION —el que lleva su cabecera y su parrafo—.
+        //
+        // Esconder eso borraba la pagina entera, cabeceras incluidas. Reportado el
+        // 2026-09-04 con la casilla de «ocultar cerrados/completados» marcada, y medido
+        // sobre el volcado (docs/dom-inventory-no-progress-2026-09.html): cero apariciones
+        // de `dropID=` y cero de `inventory-campaign-info`, o sea ninguna campaña; el nodo
+        // que se ocultaba contenia las 12 baldosas Y el texto de la cabecera.
+        //
+        // La marca de que algo ES un bloque de campaña es la que ya usa el resto del
+        // archivo: el enlace `?dropID=` de la campaña, o su bloque de informacion. Sin
+        // ninguna de las dos no se devuelve nada, y entonces solo se esconden las baldosas
+        // una a una —que es lo que se pidio— sin tocar el andamio de la pagina. Es la
+        // direccion segura: esconder de menos deja cosas a la vista, esconder de mas borra
+        // el inventario.
         function _inventoryContainerOf(img) {
             let el = img;
             for (let i = 0; i < 9; i++) {
@@ -6026,6 +6045,51 @@
                 else return null;
             }
             return el;
+        }
+
+        // ¿ES el nodo un bloque de campaña? Se pregunta SOLO antes de esconderlo, nunca
+        // para usarlo como ambito: el nodo de nueve padres arriba sirve igual de bien para
+        // buscar dentro las baldosas y los botones —eso nunca estuvo mal— y anularlo
+        // desactivaba de paso el ocultado de baldosas, que vive dentro de ese `if`.
+        //
+        // La marca es la que ya usa el resto del archivo: el enlace `?dropID=` de la
+        // campaña o su bloque de informacion. Un nodo sin ninguna de las dos no es una
+        // campaña sino el envoltorio de una SECCION, y esconderlo se lleva su cabecera y
+        // todo lo que cuelgue de ella.
+        function _esBloqueDeCampaña(el) {
+            if (!el || !el.querySelector) return false;
+            return !!(el.querySelector('a.tw-link[href*="dropID="]')
+                || el.querySelector('.inventory-campaign-info'));
+        }
+
+        // LA BALDOSA a la que pertenece una imagen de recompensa.
+        //
+        // Se busca por una PROPIEDAD y no contando padres: la baldosa es el nodo mas
+        // grande que contiene ESA imagen y ninguna otra. Contar —seis arriba— da por
+        // hecho una profundidad fija, y eso es falso entre los dos inventarios que
+        // existen: medido sobre los dos volcados, en el anidado los dos criterios dan el
+        // MISMO nodo en 4 de 4, y en la rejilla plana de «Reclamada» difieren en 12 de
+        // 12, porque ahi los seis padres se pasan de largo hasta el `tw-tower` —con las
+        // doce imagenes dentro— mientras el criterio de una sola imagen acierta la
+        // baldosa.
+        //
+        // Es la misma forma de preguntar que ya usa _findPerCardWrapper, que sube hasta
+        // el nodo con exactamente UNA barra de progreso en vez de contar niveles.
+        //
+        // Ahi el efecto visible coincidia —las doce estaban cobradas, se iban todas— asi
+        // que no se notaba; pero es la misma suposicion que dejo la pagina en blanco un
+        // nivel mas arriba, y con otra forma de inventario volveria a pasarse de largo.
+        function _inventoryTileOf(img) {
+            if (!img) return null;
+            let baldosa = null;
+            for (let n = img.parentElement; n && n !== document.body; n = n.parentElement) {
+                if (!n.querySelectorAll) break;
+                // En cuanto el nodo abarca mas de una recompensa ya no es la baldosa: se
+                // devuelve el ultimo que abarcaba solo esta.
+                if (n.querySelectorAll('img.inventory-drop-image').length > 1) break;
+                baldosa = n;
+            }
+            return baldosa;
         }
 
         // LAS IMAGENES POR LAS QUE ARRANCA EL BARRIDO DEL INVENTARIO.
@@ -6228,7 +6292,7 @@
                             const container = _inventoryContainerOf(img);
                             if (container) {
                                 const notificationPath = container.querySelector(`path[d="${NOTIFICATION_SVG_PATH}"]`);
-                                if (!notificationPath) {
+                                if (!notificationPath && _esBloqueDeCampaña(container)) {
                                     toRemove.push(container);
                                 }
                             }
@@ -6289,14 +6353,37 @@
                                         attachDropTooltipAndModal(cardWrapper, cardDropID);
                                     }
                                 }
-                                const images = container.querySelectorAll("img.inventory-drop-image");
+                                // LA REJILLA DE RECLAMADOS NO SE TOCA.
+                                //
+                                // Lo que la casilla promete es despejar el inventario de lo que ya
+                                // esta hecho, y eso son las CAMPAÑAS terminadas. La seccion
+                                // «Reclamada» es otra cosa: es el escaparate de lo que tienes, o
+                                // sea justo a lo que vas cuando entras aqui. Vaciarla no despeja
+                                // nada —deja la cabecera, su parrafo y un «Cargar mas» sobre un
+                                // hueco— y encima se lee como si hubieras perdido el inventario.
+                                // Reportado el 2026-09-04.
+                                //
+                                // No es un cambio de criterio a ojo: se distingue midiendo. La
+                                // marca de que un bloque es una campaña es su enlace `?dropID=` o
+                                // su `.inventory-campaign-info`, y contando esas marcas en el
+                                // contenedor de cada recompensa sobre los tres volcados sale
+                                //     con «En progreso»  4 img  -> contenedor con 2 marcas
+                                //     Pokemon            6 img  -> 2 marcas   /  20 img -> 6 marcas
+                                //     sin «En progreso»  12 img -> 0 marcas
+                                // O sea que el contenedor de la rejilla plana no tiene NINGUNA, y
+                                // el de una campaña tiene dos o mas. La misma prueba que ya decide
+                                // si se puede esconder el contenedor decide si se pueden esconder
+                                // sus baldosas, que es lo coherente: si ahi no hay campaña, no hay
+                                // nada «completado» que ocultar.
+                                //
+                                // Y equivocarse en esta direccion no borra nada: deja cosas a la
+                                // vista, que es el error que se puede ver y deshacer.
+                                const images = _esBloqueDeCampaña(container)
+                                    ? container.querySelectorAll("img.inventory-drop-image")
+                                    : [];
                                 images.forEach((im) => {
                                     if (im.classList.contains('inventory-opacity-2')) return;
-                                    let imgToRemove = im;
-                                    for (let i = 0; i < 6; i++) {
-                                        if (imgToRemove.parentElement) imgToRemove = imgToRemove.parentElement;
-                                        else { imgToRemove = null; break; }
-                                    }
+                                    const imgToRemove = _inventoryTileOf(im);
                                     // Y LA QUE TIENE UNA BARRA A MEDIAS NO SE ESCONDE, tenga la clase o no.
                                     //
                                     // Este barrido daba por cobrada toda imagen sin
@@ -6344,14 +6431,26 @@
                                 // es el caso de la campaña a medias.
                                 if (type === "expired") {
                                     const todas = Array.from(container.querySelectorAll("img.inventory-drop-image"));
+                                    // El recorrido se para EN el contenedor y no sigue hasta el
+                                    // body. Mirando mas arriba, este bloque se alimentaba a si
+                                    // mismo: el propio contenedor es antepasado de todas sus
+                                    // imagenes, asi que en cuanto cualquier nodo por encima
+                                    // entraba en `toRemove`, todas las imagenes de todas las
+                                    // campañas se declaraban «ya fuera» y cada contenedor se
+                                    // añadia. Cuanto mas escondia, mas creia poder esconder.
                                     const fuera = (im) => {
-                                        for (let n = im; n && n !== document.body; n = n.parentElement) {
+                                        for (let n = im; n && n !== container; n = n.parentElement) {
                                             if (n.getAttribute && n.getAttribute(HIDDEN_ATTR) === '1') return true;
                                             if (toRemove.includes(n)) return true;
                                         }
                                         return false;
                                     };
-                                    if (todas.length > 0 && todas.every(fuera)) toRemove.push(container);
+                                    // Y jamas un contenedor con algo EN CURSO dentro, que es la
+                                    // misma prueba positiva que usa el barrido de baldosas.
+                                    if (todas.length > 0 && todas.every(fuera)
+                                        && !_algoEnCurso(container) && _esBloqueDeCampaña(container)) {
+                                        toRemove.push(container);
+                                    }
                                 }
                                 const buttons = Array.from(container.querySelectorAll("button")).filter((btn) => {
                                     const label = btn.querySelector('[data-a-target="tw-core-button-label-text"]');
