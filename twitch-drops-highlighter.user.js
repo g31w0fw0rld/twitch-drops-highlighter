@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.4
+// @version      1.3.5
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. Reads badge campaigns too. 16 languages, read-only GraphQL queries.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.4";
+    const SCRIPT_VERSION = "1.3.5";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -2300,6 +2300,33 @@
         // Returns the FIRST (smallest) ancestor with exactly 1 progressbar so the
         // tooltip/click area stays tight on the actual card and not the full row
         // or campaign block.
+        // ¿HAY ALGO EN CURSO AQUI DENTRO? Se pregunta por la barra, pero mirando su
+        // CIFRA y no su existencia.
+        //
+        // «Tiene barra = sigue en curso» fue verdad mientras las barras que se veian
+        // estaban a medias (la Poké Ball al 10 % en el volcado del 2026-08-26). Deja de
+        // serlo con una al 100 %, y ahi el error cambia de signo: una barra llena es
+        // prueba de lo CONTRARIO, de que ese tramo ya esta hecho.
+        //
+        // Donde se nota es en las campañas de emblemas y emotes, porque son las unicas
+        // que se quedan quietas: Twitch las concede solas al cumplir el tiempo, no hay
+        // boton que pulsar, y por eso la campaña NUNCA sale de «En progreso» por su
+        // cuenta. Visto el 2026-09-02 en «Ironmouse Subathon 2026»: el emblema
+        // «Mouseathon», al 100 % de 15 min y con su nodo CLAIMED en el historial, seguia
+        // en la pagina con la casilla de ocultar completados puesta, mientras el otro
+        // tramo de la misma campaña iba por el 56 %.
+        //
+        // Sin cifra fiable se presume EN CURSO y no se esconde: es la direccion en la que
+        // un fallo no borra nada de la vista.
+        function _algoEnCurso(el) {
+            if (!el) return false;
+            for (const barra of el.querySelectorAll('[role="progressbar"]')) {
+                const v = Number(barra.getAttribute('aria-valuenow'));
+                if (!Number.isFinite(v) || v < 100) return true;
+            }
+            return false;
+        }
+
         function _findPerCardWrapper(img) {
             let el = img.parentElement;
             while (el && el !== document.body) {
@@ -2425,6 +2452,17 @@
         // Precio a pagar, y se asume: la caratula es del JUEGO, asi que dos campañas
         // del mismo juego se ven iguales. Ya pasaba con las de drops —ese mapa va
         // indexado por juego— y el titulo es quien las distingue.
+        // La carátula TAL Y COMO LA DA LA API, y solo ella. Se separa de _apiImage
+        // —que cae a la imagen propia de la campaña y al avatar del dueño— porque en la
+        // tarjeta hay que poder distinguir «esta URL me la dio Twitch» de «esta URL me
+        // la he inventado yo con el id»: la primera se prueba antes que ninguna
+        // suposicion, y la segunda no se puede comprobar (ver _boxArtCandidates).
+        function _boxArtUrlOf(c) {
+            const raw = _imageUrlOf(c && c.game && c.game.boxArtURL);
+            if (!raw) return '';
+            return String(raw).replace('{width}', '144').replace('{height}', '192');
+        }
+
         function _apiImage(c) {
             const raw = _imageUrlOf(c && c.game && c.game.boxArtURL)
                 || _imageUrlOf(c && c.imageURL)
@@ -2472,15 +2510,35 @@
             return id ? (_domTitleByGameId[id] || '') : '';
         }
 
-        // La caratula a partir del id del juego. `game` de la API trae el id pero NO
-        // siempre la URL, asi que hay que componerla — y tiene una trampa: unas van
-        // como `ttv-boxart/509663-...` y otras como `ttv-boxart/24241_IGDB-...`. En el
-        // volcado real de 100 juegos (2026-08-08) no habia una tercera forma, asi que
-        // se prueban las dos y quien decide es el navegador, con el onerror del <img>.
+        // La caratula a partir del id del juego. Es una SUPOSICION, y solo se usa
+        // cuando la API no da la URL (ver _boxArtUrlOf): `game` trae el id pero no
+        // siempre el `boxArtURL`. La trampa conocida es que unas van como
+        // `ttv-boxart/509663-...` y otras como `ttv-boxart/24241_IGDB-...`.
+        //
+        // Y LA QUE NO SE PUEDE COMPROBAR: aqui habia escrito que «se prueban las dos y
+        // quien decide es el navegador, con el onerror del <img>». Eso es falso, y por
+        // eso el orden importa. Twitch NO da 404 a una caratula que no existe: redirige
+        // a su propio placeholder, que carga bien. Medido el 2026-09-02:
+        //
+        //   509663_IGDB-144x192.jpg -> 302 -> ttv-static/404_boxart-144x192.jpg (200, JPEG)
+        //   509663-144x192.jpg      -> 200, el PNG de verdad
+        //   24241-144x192.jpg y 24241_IGDB-144x192.jpg -> las DOS 200 directo
+        //
+        // O sea que un candidato equivocado se CARGA, el `onerror` no salta y la cadena
+        // no avanza nunca: la tarjeta se queda con el marco gris de «sin caratula», que
+        // es justo lo que se veia en «Eventos especiales - Twitch Gaming» en el panel del
+        // inventario. Con `_IGDB` delante, cualquier juego cuya caratula sea de la forma
+        // plana perdia su imagen.
+        //
+        // El plano va primero porque es el que no falla en los dos casos medidos: en
+        // 24241 —que ES de los `_IGDB`— la forma plana responde 200 igual. `_IGDB` se
+        // queda detras por si algun dia hay un juego al reves, sabiendo que si el plano
+        // cayera en el placeholder tampoco lo sabriamos. Que es otro motivo para
+        // preferir SIEMPRE la URL que da la API antes que cualquiera de estas dos.
         function _boxArtCandidates(gameId) {
             if (!gameId) return [];
             const base = 'https://static-cdn.jtvnw.net/ttv-boxart/' + gameId;
-            return [base + '_IGDB-144x192.jpg', base + '-144x192.jpg'];
+            return [base + '-144x192.jpg', base + '_IGDB-144x192.jpg'];
         }
 
         // El MISMO texto contra el que se acaba de filtrar, guardado en la entrada. Se
@@ -2621,12 +2679,13 @@
                     // sin dejar rastro; ahora sus tramos entran en la misma entrada, que
                     // es lo que ya se hace con las campañas de drops que comparten juego.
                     if (!_apiDropNames[key]) {
-                        _apiDropNames[key] = { drops: [], startAt: rc.startsAt || '', endAt: rc.endsAt || '', displayTitle: key, imgSrc: _apiImage(rc), searchText, gameId: _gameIdOf(rc), brand, perCampaign: true };
+                        _apiDropNames[key] = { drops: [], startAt: rc.startsAt || '', endAt: rc.endsAt || '', displayTitle: key, imgSrc: _apiImage(rc), boxArt: _boxArtUrlOf(rc), searchText, gameId: _gameIdOf(rc), brand, perCampaign: true };
                     } else {
                         _mergeSearchText(_apiDropNames[key], searchText);
                     }
                     _apiDropNames[key].drops.push(...rewards);
                     if (!_apiDropNames[key].imgSrc) _apiDropNames[key].imgSrc = _apiImage(rc);
+                    if (!_apiDropNames[key].boxArt) _apiDropNames[key].boxArt = _boxArtUrlOf(rc);
                 }
             }
 
@@ -2654,6 +2713,7 @@
                         _apiClosedCampaigns[apiKey] = {
                             displayTitle, startAt: campaign.startAt || '',
                             endAt: campaign.endAt || '', imgSrc: _apiImage(campaign),
+                            boxArt: _boxArtUrlOf(campaign),
                             campaignId: campaign.id || '', searchText,
                             gameId: _gameIdOf(campaign)
                         };
@@ -2662,6 +2722,9 @@
                         // imagen: se toma la primera que la tenga.
                         if (!_apiClosedCampaigns[apiKey].imgSrc) {
                             _apiClosedCampaigns[apiKey].imgSrc = _apiImage(campaign);
+                        }
+                        if (!_apiClosedCampaigns[apiKey].boxArt) {
+                            _apiClosedCampaigns[apiKey].boxArt = _boxArtUrlOf(campaign);
                         }
                         if (!_apiClosedCampaigns[apiKey].gameId) {
                             _apiClosedCampaigns[apiKey].gameId = _gameIdOf(campaign);
@@ -2710,13 +2773,16 @@
                             // juego: la clave del mapa es el juego, asi que un juego con
                             // varias campañas las funde en una entrada y solo cabe un id.
                             // Es la misma limitacion que ya funde sus badges.
-                            _apiDropNames[apiKey] = { drops: [], startAt: campaign.startAt || '', endAt: campaign.endAt || '', displayTitle, imgSrc: _apiImage(campaign), campaignId: campaign.id || '', searchText, gameId: _gameIdOf(campaign) };
+                            _apiDropNames[apiKey] = { drops: [], startAt: campaign.startAt || '', endAt: campaign.endAt || '', displayTitle, imgSrc: _apiImage(campaign), boxArt: _boxArtUrlOf(campaign), campaignId: campaign.id || '', searchText, gameId: _gameIdOf(campaign) };
                         } else {
                             _mergeSearchText(_apiDropNames[apiKey], searchText);
                         }
                         _apiDropNames[apiKey].drops.push(...drops);
                         if (!_apiDropNames[apiKey].imgSrc) {
                             _apiDropNames[apiKey].imgSrc = _apiImage(campaign);
+                        }
+                        if (!_apiDropNames[apiKey].boxArt) {
+                            _apiDropNames[apiKey].boxArt = _boxArtUrlOf(campaign);
                         }
                         if (!_apiDropNames[apiKey].gameId) {
                             _apiDropNames[apiKey].gameId = _gameIdOf(campaign);
@@ -2793,7 +2859,11 @@
                         // Coherente por casualidad —filtra por gameName y el titulo ES
                         // gameName—, pero se guarda igual: la forma de la entrada tiene
                         // que ser una sola, no una por rama.
-                        _apiDropNames[gameName] = { drops, startAt: '', endAt: '', displayTitle: gameName, searchText, gameId: _gameIdFromBoxArt(game.gameBoxArtURL) };
+                        _apiDropNames[gameName] = { drops, startAt: '', endAt: '', displayTitle: gameName, searchText,
+                            // El espejo publico la llama `gameBoxArtURL` y la da entera:
+                            // es una URL de verdad, asi que se prefiere igual que la de GQL.
+                            boxArt: String(game.gameBoxArtURL || '').replace('{width}', '144').replace('{height}', '192'),
+                            gameId: _gameIdFromBoxArt(game.gameBoxArtURL) };
                     }
                 }
             } catch (e) { console.warn('[Public API] Fetch error:', e); }
@@ -4869,11 +4939,21 @@
             cardHeader.style.marginBottom = "6px";
 
             // La caratula primero y la imagen de la campaña de respaldo, para que la
-            // misma campaña se vea igual aqui y en /drops/campaigns. Se prueban por
-            // orden con el onerror: las dos formas de caratula y, si ninguna carga,
-            // lo que traiga la entrada. Sin candidatos no se pinta nada, como antes.
-            const _imgTries = _boxArtCandidates(campaign.gameId)
-                .concat(campaign.imgSrc ? [campaign.imgSrc] : []);
+            // misma campaña se vea igual aqui y en /drops/campaigns. Sin candidatos no se
+            // pinta nada, como antes.
+            //
+            // El orden NO es cosmetico: la que DA la API va delante de las dos que se
+            // componen con el id, porque un candidato compuesto que no exista no falla
+            // —Twitch redirige a su placeholder y el `onerror` no salta— asi que la
+            // cadena de respaldo no puede corregirse a si misma (ver _boxArtCandidates).
+            // Con la URL buena delante, en las campañas donde la API la trae ya no se
+            // adivina nada.
+            const _imgTries = [...new Set(
+                [campaign.boxArt]
+                    .concat(_boxArtCandidates(campaign.gameId))
+                    .concat([campaign.imgSrc])
+                    .filter(Boolean)
+            )];
             if (_imgTries.length > 0) {
                 const img = document.createElement("img");
                 let intento = 0;
@@ -5092,6 +5172,9 @@
                     // de campañas, y sin ella esta tarjeta saldria con la imagen propia
                     // de la campaña —otra distinta para lo mismo—.
                     gameId: entry.gameId || '',
+                    // Y la caratula que la API dio TAL CUAL, que se prueba antes que
+                    // cualquier suposicion sobre el id (ver _boxArtCandidates).
+                    boxArt: entry.boxArt || '',
                     // Marca que esta tarjeta no tiene nodo en esta pagina: al pulsarla
                     // se va a campañas, en vez de intentar un scroll a algo que no existe.
                     fromApi: true
@@ -6214,7 +6297,7 @@
                                         if (imgToRemove.parentElement) imgToRemove = imgToRemove.parentElement;
                                         else { imgToRemove = null; break; }
                                     }
-                                    // Y LA QUE TIENE BARRA NO SE ESCONDE, tenga la clase o no.
+                                    // Y LA QUE TIENE UNA BARRA A MEDIAS NO SE ESCONDE, tenga la clase o no.
                                     //
                                     // Este barrido daba por cobrada toda imagen sin
                                     // `inventory-opacity-2`, que es la misma suposicion que ya
@@ -6233,7 +6316,12 @@
                                     // error que se paga aqui, y el mismo que costo un rato en
                                     // Kick. Añadir la condicion solo puede esconder MENOS, nunca
                                     // mas, asi que no puede estrenar un falso escondido.
-                                    if (imgToRemove && imgToRemove.querySelector('[role="progressbar"]')) return;
+                                    //
+                                    // Lo que si hacia falta corregir es la LECTURA de la barra: se
+                                    // preguntaba si EXISTE, y hay que preguntar por su CIFRA (ver
+                                    // _algoEnCurso). Al 100 % la barra dice justo lo contrario de
+                                    // lo que se le estaba entendiendo.
+                                    if (imgToRemove && _algoEnCurso(imgToRemove)) return;
                                     if (imgToRemove && type === "expired") {
                                         const notificationPath = imgToRemove.querySelector(`path[d="${NOTIFICATION_SVG_PATH}"]`);
                                         if (!notificationPath) {
@@ -6241,6 +6329,30 @@
                                         }
                                     }
                                 });
+                                // Y SI NO QUEDA NADA A LA VISTA, SE VA EL BLOQUE ENTERO.
+                                //
+                                // Esconder las baldosas una a una deja el encabezado de la
+                                // campaña —su nombre, su fecha, su «Acerca de este Drop»— con la
+                                // rejilla vacia debajo, que es peor que no esconder nada: ocupa
+                                // lo mismo y ya no dice nada. Pasa justo en las campañas de
+                                // emblemas y emotes con todo cumplido, que son las que no se van
+                                // por su cuenta.
+                                //
+                                // Se decide contando, no suponiendo: si TODAS las imagenes de
+                                // recompensa del bloque estan escondidas o en la lista para
+                                // esconder, el bloque sobra. Con una sola visible se queda, que
+                                // es el caso de la campaña a medias.
+                                if (type === "expired") {
+                                    const todas = Array.from(container.querySelectorAll("img.inventory-drop-image"));
+                                    const fuera = (im) => {
+                                        for (let n = im; n && n !== document.body; n = n.parentElement) {
+                                            if (n.getAttribute && n.getAttribute(HIDDEN_ATTR) === '1') return true;
+                                            if (toRemove.includes(n)) return true;
+                                        }
+                                        return false;
+                                    };
+                                    if (todas.length > 0 && todas.every(fuera)) toRemove.push(container);
+                                }
                                 const buttons = Array.from(container.querySelectorAll("button")).filter((btn) => {
                                     const label = btn.querySelector('[data-a-target="tw-core-button-label-text"]');
                                     const text = (label ? label.textContent : btn.textContent || "").trim().toLowerCase();

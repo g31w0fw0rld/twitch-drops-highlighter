@@ -26,11 +26,17 @@ const DUMP = fs.readFileSync(
 // que antes. Con el, el arnes ademas SIEMBRA `_gqlState`: el script no pregunta a la API hasta
 // tener token e integridad, y esos los roba del trafico de la propia pagina, asi que aqui hay
 // que fingir una peticion de Twitch antes de que sus consultas puedan salir.
-function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null } = {}) {
+// `dump` permite pasar OTRO volcado en vez del inventario de Pokemon. El de Pokemon sigue
+// siendo el de por defecto para no tocar los tests que ya existen.
+// `keywords` sustituye la lista sembrada. Hace falta para los tests que traen su propio
+// volcado o su propio payload de API: con las de por defecto, una campaña que no sea de
+// Pokemon/Marvel/Rust no pasa el filtro y la tarjeta no llega a pintarse.
+function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = DUMP,
+               keywords = ['pokemon', 'marvel', 'squadra', 'sorcerer', 'rust'] } = {}) {
   return new Promise(resolve => {
     const vc = new VirtualConsole();
     vc.on('jsdomError', () => {});
-    const dom = new JSDOM(`<!DOCTYPE html><html lang="es"><body>${DUMP}</body></html>`, {
+    const dom = new JSDOM(`<!DOCTYPE html><html lang="es"><body>${dump}</body></html>`, {
       url: 'https://www.twitch.tv/drops/inventory',
       runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: vc
     });
@@ -38,7 +44,7 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null } = {}) 
     const store = new Map([
       ['twitch_show_hide_inventory_expired', true],
       ['twitch_inventory_deleted_drops', JSON.stringify(borrados)],
-      ['twitch_drop_keywords', JSON.stringify(['pokemon','marvel','squadra','sorcerer','rust'])]
+      ['twitch_drop_keywords', JSON.stringify(keywords)]
     ]);
     w.GM_getValue = (k, d) => store.has(k) ? store.get(k) : d;
     w.GM_setValue = (k, v) => store.set(k, v);
@@ -122,4 +128,8 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null } = {}) 
     setTimeout(informe, waitMs);
   });
 }
-module.exports = { run };
+// `readFixture` para los tests que traen su propio volcado. Se lee desde aqui para que la
+// ruta viva en un solo sitio.
+function readFixture(f) { return fs.readFileSync(path.join(__dirname, f), 'utf8'); }
+
+module.exports = { run, readFixture };
