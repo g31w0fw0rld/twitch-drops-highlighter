@@ -31,13 +31,23 @@ const DUMP = fs.readFileSync(
 // `keywords` sustituye la lista sembrada. Hace falta para los tests que traen su propio
 // volcado o su propio payload de API: con las de por defecto, una campaña que no sea de
 // Pokemon/Marvel/Rust no pasa el filtro y la tarjeta no llega a pintarse.
+// `url` cambia la pagina que el arnes finge servir. Hacia falta porque el escaneo que
+// MARCA campañas solo corre en /drops/campaigns: con la URL del inventario fija, un
+// volcado de campañas se cargaba pero nadie lo miraba, asi que no habia forma de probar
+// el marcado de la pagina. Sigue por defecto en el inventario para no tocar los que ya
+// existen.
+// `lateHtml` / `lateMs` inyectan DOM en el <body> cuando ya ha arrancado todo. Es lo que
+// hace React al montar la lista de campañas: el panel puede haberse llenado antes de que
+// las filas existan. Sin poder ponerlo en ese orden no hay forma de ejercitar esa carrera,
+// y un test sobre esto saldria verde con el fallo dentro.
 function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = DUMP,
+               url = 'https://www.twitch.tv/drops/inventory', lateHtml = null, lateMs = 5000,
                keywords = ['pokemon', 'marvel', 'squadra', 'sorcerer', 'rust'] } = {}) {
   return new Promise(resolve => {
     const vc = new VirtualConsole();
     vc.on('jsdomError', () => {});
     const dom = new JSDOM(`<!DOCTYPE html><html lang="es"><body>${dump}</body></html>`, {
-      url: 'https://www.twitch.tv/drops/inventory',
+      url,
       runScripts: 'outside-only', pretendToBeVisual: true, virtualConsole: vc
     });
     const w = dom.window;
@@ -116,8 +126,57 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = 
             }))
           }))
         }));
-      resolve({ camps, totalX: xs.length, chips, pedidas, w, dom });
+      // LAS FILAS MARCADAS EN LA PROPIA PAGINA. Se leen por el `id` que el escaneo
+      // reparte (`drop-match-N-<estado>`) y se devuelve ademas el borde, que es lo que
+      // el usuario ve: un id sin borde no es una fila marcada. El titulo sale del primer
+      // <p> del acordeon, que es lo que Twitch escribe ahi.
+      const marcados = Array.from(doc.querySelectorAll('[id^="drop-match-"]')).map(el => {
+        const p = el.querySelector('p[class^="CoreText-sc"]');
+        // El borde no lo lleva el nodo del id sino un antepasado, asi que se busca hacia
+        // arriba en vez de darlo por hecho en un nivel fijo.
+        let borde = '';
+        for (let n = el; n && n !== doc.body; n = n.parentElement) {
+          if (n.style && n.style.borderColor) { borde = n.style.borderColor; break; }
+        }
+        return {
+          titulo: p ? (p.textContent || '').trim() : '',
+          id: el.id,
+          borde,
+          // La marca de coste/urgencia que el escaneo cuelga al lado del titulo.
+          marcaPagina: !!el.querySelector('.twitch-drop-page-mark')
+        };
+      });
+      // LAS TARJETAS DEL PANEL, con su imagen. Es el mismo volcado que se hace a mano en
+      // la consola del navegador (titulo -> src del <img>), y se lee igual: una tarjeta
+      // sin <img> es la que se queda con el marco vacio.
+      const tarjetas = Array.from(doc.querySelectorAll('#twitch-drops-panel [data-notif-title]'))
+        .map(c => {
+          const i = c.querySelector('img');
+          return { titulo: c.getAttribute('data-notif-title'), img: i ? i.src : null };
+        });
+      resolve({ camps, totalX: xs.length, chips, marcados, tarjetas, marcasPuestas: escaneos, pedidas, w, dom });
     };
+
+    // CUANTAS VECES HA ESCANEADO. Cada pasada del escaneo borra y vuelve a poner las
+    // marcas de pagina, asi que contar sus inserciones es contar escaneos. Hace falta para
+    // descartar el fallo que ya costo un rato en Kick: un observer que se dispara con su
+    // propio trabajo y re-escanea en bucle. Un numero sano es «uno por cambio provocado»;
+    // una decena es el bucle.
+    let escaneos = 0;
+    new w.MutationObserver(muts => {
+      for (const m of muts) for (const nodo of m.addedNodes) {
+        if (nodo.nodeType === 1 && nodo.classList && nodo.classList.contains('twitch-drop-page-mark')) escaneos++;
+      }
+    }).observe(w.document.body, { childList: true, subtree: true });
+
+    if (lateHtml) {
+      setTimeout(() => {
+        // Se AÑADE, no se sustituye: montar la lista no borra lo que ya habia.
+        const cont = w.document.createElement('div');
+        cont.innerHTML = lateHtml;
+        while (cont.firstChild) w.document.body.appendChild(cont.firstChild);
+      }, lateMs);
+    }
 
     if (clicarX !== null) {
       setTimeout(() => {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.6
+// @version      1.3.7
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. Reads badge campaigns too. 16 languages, read-only GraphQL queries.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.6";
+    const SCRIPT_VERSION = "1.3.7";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -5777,16 +5777,44 @@
                 // hay, y si no el primer <p> suelto.
                 const titleEl = corePs[0] || node.querySelector('p') || null;
 
-                // Combine title + studio for keyword matching (match against both fields)
-                const searchText = (titleText + " " + studioText).toLowerCase();
-
-                // Display title includes studio when present
-                const displayTitle = studioText ? titleText + " - " + studioText : titleText;
-
-                // Extract image and extra info for card rendering
+                // LA CARATULA SE LEE ANTES QUE EL TEXTO, y no es un reordenamiento
+                // cosmetico: su `alt` es parte de lo que se compara con las keywords.
                 let imgSrc = '';
                 const imgEl = node.querySelector('img.partner-thumbnail, img.tw-image, img');
                 if (imgEl) imgSrc = imgEl.src;
+
+                // EL NOMBRE DEL JUEGO ENTRA POR EL `alt` DE LA CARATULA.
+                //
+                // Hasta aqui el texto que se comparaba era `titulo + estudio`, y eso da por
+                // supuesto que la fila dice de que juego es. NO SIEMPRE LO DICE: la cabecera
+                // del acordeon puede traer UN solo <p> en vez de dos, y entonces el estudio
+                // se queda vacio. Reportado el 2026-09-04 con «Treasure Hunt Drop»
+                // (Minecraft): salia en el panel como «Treasure Hunt Drop - Minecraft» —la
+                // API si sabe el juego— pero su fila no se marcaba, porque en
+                // `"treasure hunt drop "` la keyword `minecraft` no aparece por ningun lado
+                // y no puede aparecer nunca. Al lado, Pokemon SI se marcaba: su cabecera
+                // trae los dos <p> («Pokémon» y «Pokemon»).
+                //
+                // El `alt` de la caratula es el nombre del juego —«Minecraft»— y esta en la
+                // fila, asi que la fila pasa a delatarse sola. Se elige esto y no preguntarle
+                // a la API por dos razones:
+                //   · es señal LOCAL del DOM, asi que no depende de que las dos fuentes se
+                //     reconozcan entre si —que es precisamente lo que falla aqui: la clave de
+                //     una reward campaign es `campaña - juego` y la fila solo dice la campaña—;
+                //   · no puede casar varias campañas a la vez, que es el riesgo del cruce por
+                //     id del juego (ver _domAliasFor).
+                //
+                // Y entra en el MISMO texto que ya se usaba, no en un segundo criterio: asi
+                // las negativas siguen mandando —un `-minecraft` descarta esta fila igual— y
+                // la etiqueta de la tarjeta puede explicar por que aparece.
+                const artAlt = (imgEl && imgEl.alt ? imgEl.alt : '').trim();
+                const searchText = (titleText + " " + studioText + " " + artAlt).toLowerCase();
+
+                // El titulo que se ENSEÑA no cambia: el `alt` sirve para reconocer la fila,
+                // no para renombrarla. Metiendolo aqui, «Treasure Hunt Drop» pasaria a
+                // llamarse «Treasure Hunt Drop - Minecraft» en la pagina y dejaria de
+                // coincidir con lo que Twitch escribe al lado.
+                const displayTitle = studioText ? titleText + " - " + studioText : titleText;
 
                 // La caratula del acordeon lleva el id del juego, que es lo unico que
                 // no se traduce. Se apunta como el nombre que la PAGINA usa para ese
@@ -6532,7 +6560,68 @@
             _startDropsPolling();
         }
 
+        // =============================================
+        // LAS FILAS QUE SE MONTAN DESPUES DEL PRIMER ESCANEO
+        // =============================================
+        // `_startDropsPolling` sondea cada 500 ms hasta 10 veces y, en cuanto encuentra
+        // filas, escanea UNA vez y se para. Lo segundo esta bien —no hay que sondear para
+        // siempre— pero deja un agujero: una fila que React monte despues no la escanea
+        // nadie, porque no queda nada mirando. Y son 5 segundos de ventana.
+        //
+        // Reportado el 2026-09-04 y reproducido en el arnes (test-panel-antes-de-las-filas):
+        // con las filas llegando a los 6 s, el panel se queda con la tarjeta de la API
+        // —«Pokémon» a secas, sin imagen, en vez de «Pokémon - Pokemon» con la del DOM— y la
+        // fila NO se marca. Por eso el fallo era intermitente: dependia de si Twitch monto la
+        // lista antes o despues de que se acabara el sondeo.
+        //
+        // El observer se ancla en `div.accordion-header`, y eso lo hace inmune a su propio
+        // trabajo por construccion, que es el problema que costo un rato en Kick: lo que el
+        // marcado escribe son atributos (`id`, `style`) —que no se observan— y los <span> de
+        // la marca de pagina, que van DENTRO de la cabecera y por tanto ni son una cabecera
+        // ni contienen una. Asi que no hace falta filtrar nodos propios: no califican.
+        //
+        // Y de paso queda acotado a la pagina de campañas sin preguntar por la URL: en el
+        // inventario no hay ni una `accordion-header` (comprobado en los dos volcados), asi
+        // que ahi no puede disparar.
+        const ROWS_DEBOUNCE_MS = 400;
+        let _rowsObserver = null;
+        let _rowsTimer = null;
+
+        function _traeFila(n) {
+            if (!n || n.nodeType !== 1) return false;
+            return !!(n.matches && n.matches('div.accordion-header')) ||
+                   !!(n.querySelector && n.querySelector('div.accordion-header'));
+        }
+
+        function _startRowsObserver() {
+            if (_rowsObserver) return;
+            _rowsObserver = new MutationObserver((muts) => {
+                let filas = false;
+                for (const m of muts) {
+                    for (const n of m.addedNodes) if (_traeFila(n)) { filas = true; break; }
+                    if (!filas) for (const n of m.removedNodes) if (_traeFila(n)) { filas = true; break; }
+                    if (filas) break;
+                }
+                if (!filas) return;
+                if (_rowsTimer) clearTimeout(_rowsTimer);
+                _rowsTimer = setTimeout(() => {
+                    _rowsTimer = null;
+                    try {
+                        highlightAndLinkDrops();
+                        _updateAllCardsWithDropNames();
+                    } catch (e) {
+                        console.warn('[Twitch Drops] Fallo al re-escanear las filas nuevas', e);
+                    }
+                    // Lo que ese escaneo acabe de generar no cuenta como fila nueva. El
+                    // callback es asincrono, asi que sus mutaciones ya estan en la cola.
+                    if (_rowsObserver) _rowsObserver.takeRecords();
+                }, ROWS_DEBOUNCE_MS);
+            });
+            _rowsObserver.observe(document.body, { childList: true, subtree: true });
+        }
+
         function _startDropsPolling() {
+            _startRowsObserver();
             let attempts = 0;
             const maxAttempts = 10;
             let waitForDrops = setInterval(() => {
@@ -6542,7 +6631,23 @@
                 document.querySelectorAll("div.accordion-header").forEach((header) => {
                     const titleP = header.querySelector("p");
                     if (!titleP) return;
-                    const text = titleP.textContent.trim().toLowerCase();
+                    // EL SONDEO TIENE QUE MIRAR LO MISMO QUE EL ESCANEO, y miraba menos:
+                    // solo el PRIMER <p>. Eso lo hacia mas estrecho que el filtro de verdad,
+                    // y una pagina cuya unica coincidencia fuera una fila que no dice su
+                    // juego en el titulo —«Treasure Hunt Drop»— se quedaba en `found = 0`:
+                    // agotaba los 10 intentos y NO se escaneaba nada, ni esa fila ni las
+                    // demas. O sea que arreglar el filtro sin arreglar esto no se habria
+                    // notado en esa pagina.
+                    //
+                    // Se compone a proposito con TODOS los <p> y el `alt`, que es un
+                    // superconjunto de lo que compara el escaneo (titulo + estudio + alt):
+                    // aqui solo se decide si merece la pena escanear, y equivocarse hacia
+                    // «escanea» no marca nada de mas —lo que se marca lo decide el escaneo—,
+                    // mientras equivocarse hacia «no escanees» deja la pagina sin tocar.
+                    const artImg = header.querySelector('img.partner-thumbnail, img.tw-image, img');
+                    const text = (Array.from(header.querySelectorAll('p'))
+                        .map(p => p.textContent).join(' ') + ' ' +
+                        (artImg && artImg.alt ? artImg.alt : '')).trim().toLowerCase();
                     if (!_matchesKeywords(text)) return;
                     if (seenTitlesLocal.has(text)) return;
                     seenTitlesLocal.add(text);
