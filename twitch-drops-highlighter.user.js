@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.7
+// @version      1.3.8
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. Reads badge campaigns too. 16 languages, read-only GraphQL queries.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -1619,11 +1619,16 @@
         // Que los ids de campaña de earnedDropRewards son los MISMOS que los de las
         // campañas quedo comprobado el 2026-08-12 en la consola de este usuario (1 en
         // curso, 65 en el historial, casaron). Si no lo fueran, acotar no casaria nunca y
-        // todo saldria sin reclamar: un falso negativo constante a cambio de un falso
-        // positivo raro. Por eso se sigue vigilando, pero al reves de como estaba: se
-        // acota por defecto y solo se desactiva con PRUEBAS de que no casan. Al reves
-        // —exigir la prueba para activarlo— bastaba con no tener ninguna campaña en curso
-        // para que el arreglo se apagara solo y sin avisar.
+        // todo saldria sin reclamar. Por eso se sigue vigilando, pero se acota por
+        // defecto y solo se desactiva con PRUEBAS de que no casan.
+        //
+        // Y «prueba» quiere decir un caso que DEBERIA casar y no casa, no la falta de
+        // casos que casen: las dos veces que este interruptor ha fallado ha sido por
+        // confundir las dos cosas. Primero exigiendo la prueba para activarlo —bastaba
+        // no tener ninguna campaña en curso para que el arreglo se apagara solo—, y
+        // luego apagandolo porque ninguna campaña en curso constara en el historial, que
+        // es el estado normal de quien esta viendo campañas nuevas (2026-09-06, ver el
+        // centinela en fetchInventoryProgress).
         let _campaignScopeUsable = true;
         let _claimedIndexReady = false;
 
@@ -1635,6 +1640,12 @@
                 const claimedBenefits = new Set();
                 const claimedByCampaign = new Set();
                 const campaignIdsInProgress = new Set();
+                // Los tramos que Twitch MISMO da por reclamados, con su campaña. Es el
+                // unico control positivo que hay del acotado por campaña: un tramo
+                // reclamado tiene que constar en el historial bajo SU campaña, asi que
+                // si no consta, los dos lados hablan de espacios de id distintos. Ver
+                // el centinela, mas abajo.
+                const reclamadosEnCurso = [];
                 for (const c of campaigns) {
                     if (c?.id) campaignIdsInProgress.add(c.id);
                     for (const drop of (c.timeBasedDrops || [])) {
@@ -1647,7 +1658,11 @@
                             rewards: rewardEdges.map(b => b.benefit?.name).filter(Boolean),
                             imageUrl: rewardEdges[0]?.benefit?.imageAssetURL || ''
                         };
-                        if (drop.self?.isClaimed) claimedDrops.add(drop.id);
+                        if (drop.self?.isClaimed) {
+                            claimedDrops.add(drop.id);
+                            const ids = rewardEdges.map(b => b?.benefit?.id).filter(Boolean);
+                            if (c?.id && ids.length) reclamadosEnCurso.push({ cid: c.id, benefitIds: ids });
+                        }
                     }
                 }
                 for (const g of _gameEventDropsOf(inv)) {
@@ -1698,36 +1713,65 @@
                         if (cid) claimedByCampaign.add(cid + '|' + n.item.id);
                     }
                 }
-                // Las dos formas en que acotar dejaria de valer, y solo esas dos. No se
-                // exige demostrar que SI vale —eso se apagaba solo en cuanto no tuvieras
-                // ninguna campaña en curso, que es lo normal—, se exige demostrar que NO.
+                // Las dos formas en que acotar dejaria de valer, y solo esas dos. Las dos
+                // son PRUEBAS de que no casa, nunca la ausencia de prueba de que si: el
+                // modo plano marca de mas, y marcar de mas es tachar como tuyo un drop
+                // que aun puedes ganar, o sea perderlo.
+                //
+                // Cuanto cuesta equivocarse aqui, medido: el 2026-09-06 este centinela
+                // dejo el indice en plano —«ningun id de campaña en comun con las que
+                // estan en curso», 2 en curso, 65 en el historial, 149 pares— y los tres
+                // «RLCS 2025 Exotic/Import/Very Rare Drop» de la temporada nueva salieron
+                // tachados nada mas aparecer, que es exactamente el fallo que el acotado
+                // venia a arreglar en 1.2.18.
+                //
+                // Y lo hizo con el historial INTACTO: los 149 pares dicen que
+                // `campaign.id` llegaba y que acotar funcionaba. Lo que fallaba era la
+                // regla, que razonaba desde una ausencia: «campañas en curso + historial
+                // y ninguna en común» no es señal de nada, porque `dropCampaignsInProgress`
+                // son las campañas donde tienes PROGRESO y `earnedDropRewards` las que ya
+                // te CONCEDIERON algo. Ver dos campañas nuevas sin haber cobrado todavia
+                // ningun tramo da interseccion vacia por lo normal, no por incompatibilidad
+                // —y es el estado mas comun que hay—.
+                //
+                // Lo que si prueba el desajuste son los tramos que Twitch mismo marca
+                // `isClaimed` en una campaña en curso: esos TIENEN que constar en el
+                // historial bajo su campaña. Que uno conste en el historial pero no bajo
+                // la suya es un caso que deberia casar y no casa —prueba positiva—, y
+                // basta con que UNO case para dar el espacio de ids por bueno.
                 let scopeUsable = true;
                 let motivo = '';
+                let casan = 0;
+                let noCasan = 0;
+                for (const r of reclamadosEnCurso) {
+                    for (const bid of r.benefitIds) {
+                        if (claimedByCampaign.has(r.cid + '|' + bid)) casan++;
+                        // Solo cuenta en contra lo que SI esta en el historial: un tramo
+                        // recien reclamado que aun no ha llegado alli no dice nada, y
+                        // tomarlo por desajuste apagaria el acotado por pura latencia.
+                        else if (claimedBenefits.has(bid)) noCasan++;
+                    }
+                }
                 if (claimedBenefits.size > 0 && claimedByCampaign.size === 0) {
                     // El historial llego sin campaña por nodo: la consulta persistida
                     // habra cambiado de forma otra vez. Acotar dejaria todo sin marcar.
                     scopeUsable = false;
                     motivo = 'earnedDropRewards no trae campaign.id';
-                } else if (campaignIdsInProgress.size > 0 && campaignIdsEarned.size > 0) {
-                    let alguna = false;
-                    for (const cid of campaignIdsInProgress) {
-                        if (campaignIdsEarned.has(cid)) { alguna = true; break; }
-                    }
-                    // Con campañas en curso Y historial, que no coincida NINGUNA es la
-                    // señal de que los dos lados hablan de espacios de id distintos.
-                    if (!alguna) {
-                        scopeUsable = false;
-                        motivo = 'ningun id de campaña en comun con las que estan en curso';
-                    }
+                } else if (casan === 0 && noCasan > 0) {
+                    scopeUsable = false;
+                    motivo = noCasan + ' tramos ya reclamados constan en el historial, pero bajo otra campaña';
                 }
                 // Se dice SIEMPRE en que modo quedo y por que, porque desde fuera los dos
-                // modos se ven igual hasta que uno marca de mas o de menos.
+                // modos se ven igual hasta que uno marca de mas o de menos. Y se dice con
+                // que se decidio: sin los dos contadores del control positivo, un plano
+                // por latencia y uno por desajuste de verdad se leen igual.
                 console.log('[Twitch Drops] indice de reclamados:',
                     scopeUsable ? 'acotado por campaña' : 'plano (benefit a secas) <- ' + motivo,
                     '| campañas en curso', campaignIdsInProgress.size,
                     '| campañas en el historial', campaignIdsEarned.size,
                     '| benefits', claimedBenefits.size,
-                    '| pares campaña+benefit', claimedByCampaign.size);
+                    '| pares campaña+benefit', claimedByCampaign.size,
+                    '| tramos reclamados en curso: casan', casan, 'y no casan', noCasan);
                 _claimedDropIds = claimedDrops;
                 _claimedBenefitIds = claimedBenefits;
                 _claimedBenefitsByCampaign = claimedByCampaign;
