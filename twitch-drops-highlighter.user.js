@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.9
+// @version      1.3.10
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. Reads badge campaigns too. 16 languages, read-only GraphQL queries.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.9";
+    const SCRIPT_VERSION = "1.3.10";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -1853,6 +1853,38 @@
                 const required = p ? (Number(p.required) || 0) : 0;
                 if (p && required > 0 && (Number(p.current) || 0) >= required) return true;
             }
+            // CONTENEDORES: una reward campaign no reparte premios, reparte cajas —«Poké
+            // Ball», «Great Ball»— que se abren solas al cumplir el tiempo y sueltan un
+            // emblema. El historial apunta el EMBLEMA y nunca la caja (el `reward.id` de
+            // la bola no aparece en `earnedDropRewards` por construccion), asi que estos
+            // tramos llegan con `benefitIds: []` y por el camino de abajo no podrian
+            // marcarse jamas. Lo que si se puede es contar: cuantas cajas prometio la
+            // campaña contra cuantas concesiones lleva.
+            //
+            // Se compara POR CAMPAÑA y no recompensa a recompensa, y es deliberado. El
+            // historial dice de que campaña salio cada emblema, pero no de que caja, asi
+            // que repartir las concesiones entre varias recompensas de la misma campaña
+            // seria inventarselo. Comparando totales, esto solo puede dar `true` cuando
+            // TODOS los grupos han entregado —o sea cuando no queda ninguna caja por
+            // abrir—: mientras la campaña esta a medias marca de menos, que es el lado
+            // bueno del error y la regla de la casa.
+            //
+            // Ejemplo con lo que hay hoy (2026-09-08, «First Partners Collection»): la
+            // Poké Ball es 1 grupo y su campaña concedio «Pichu», asi que 1 >= 1 y la
+            // bola sale tachada; las dos campañas de Great Ball son 3 grupos cada una y
+            // van por 0, asi que no se tocan. Lo que hace generalizable esto es que
+            // ninguna de las dos cifras esta escrita aqui: las dos salen de la API.
+            //
+            // Y falla por defecto tambien si dos cajas dieran el MISMO emblema: el indice
+            // deduplica por (id + nombre), contaria una y no marcaria. Preferible a lo
+            // contrario.
+            if (drop.rewardCampaign) {
+                const gruposPrometidos = Number(drop.campaignGroups) || 0;
+                if (!drop.campaignId || gruposPrometidos <= 0) return false;
+                const concedidos = (_earnedRewardsByCampaign[drop.campaignId] || []).length;
+                return concedidos >= gruposPrometidos;
+            }
+
             // El cruce por benefit es un RECURSO, no la fuente buena, y solo vale
             // cuando no hay dato por tramo: si la campaña esta en el inventario, Twitch
             // ya dijo tramo a tramo lo que tienes (self.isClaimed, arriba) y esto solo
@@ -2669,6 +2701,13 @@
                             // (ver _earnedRewardsByCampaign), que es lo unico que se puede
                             // saber de un contenedor cuyo propio id no consta en el historial.
                             campaignId: rc.id || '',
+                            // CUANTAS cajas promete esta campaña. Es el numero de grupos,
+                            // y no es una lectura mia: coincide con el badge «x3» que la
+                            // propia pagina de campañas pinta sobre la Great Ball —tres
+                            // grupos— y con su ausencia en la Poké Ball, que tiene uno.
+                            // Verificado el 2026-09-08 con el volcado completo. Sin esto
+                            // no hay forma de saber cuando una reward campaign se agota.
+                            campaignGroups: grupos.length,
                             // Y que esto es una reward campaign, dicho a las claras. Las
                             // campañas de drops tambien llevan `campaignId`, asi que sin esta
                             // marca lo de abajo les añadiria un premio ya concedido que ellas
@@ -2702,18 +2741,35 @@
                     // deduplicado a TODAS de golpe. Tampoco les hace falta: su clave
                     // lleva el nombre de la campaña, que Twitch no traduce.
                     //
-                    // SIN campaignId tampoco, y esto no es una suposicion: NO EXISTE
-                    // enlace profundo a una reward campaign. Comprobado el 2026-08-08
-                    // por los dos lados con «FF14 Support a Streamer»:
-                    //   · se le paso su id a `?dropID=` —que si funciona con las
-                    //     campañas de drops, tambien verificado— y Twitch no lo
-                    //     reconoce: abre la lista y no enfoca nada;
-                    //   · volcando los enlaces de su tarjeta en la pagina, lo unico que
-                    //     hay es vincular cuenta (secure.square-enix.com), el directorio
-                    //     del juego (/directory/category/...) y /drops/inventory. Twitch
-                    //     no las trata como algo navegable.
-                    // Asi que el 🔗 copia la pagina de campañas a secas, que es la
-                    // verdad: mejor un enlace generico que uno con un uuid inerte.
+                    // CON campaignId, y esto CORRIGE lo que aqui decia antes. La nota
+                    // vieja afirmaba que NO existe enlace profundo a una reward campaign,
+                    // comprobado el 2026-08-08 con «FF14 Support a Streamer»: se le paso su
+                    // id a `?dropID=` y Twitch abrio la lista sin enfocar nada, asi que el
+                    // 🔗 caia al enlace generico. Era cierto de ESA campaña y se generalizo
+                    // de mas.
+                    //
+                    // Lo que lo tumba no es un razonamiento, es Twitch: el panel «Drops y
+                    // Mas» del canal escribe el enlace el mismo —«Visita la campaña First
+                    // Partners Collection» apunta a `?dropID=92f516f7-…`, que es el `rc.id`
+                    // de la Poké Ball—. Y abrirlo funciona: verificado el 2026-09-08 con
+                    // LOS TRES ids de la campaña de Pokemon (`92f516f7…`, `9bdb6607…`,
+                    // `19f00aac…`), que llevan a /drops/campaigns → «Campañas de
+                    // recompensas abiertas» y despliegan el acordeon de Pokémon.
+                    //
+                    // Los tres valen igual, asi que da lo mismo cual quede: la pagina las
+                    // junta en UN acordeon —el mismo que muestra «Great Ball x3» y «Poké
+                    // Ball» juntas— igual que este mapa las junta en una entrada. Se pone
+                    // en la creacion y no se sobreescribe: la primera que llegue gana, y
+                    // como el orden de la API no esta garantizado, esa arbitrariedad tiene
+                    // que ser inofensiva. Lo es porque los tres enfocan lo mismo; si algun
+                    // dia dejaran de hacerlo, esto es lo que habria que decidir a mano.
+                    //
+                    // Por que sigue sin haber garantia general: lo verificado es esta
+                    // campaña, no «toda reward campaign». Con FF14 el enlace era inerte, y
+                    // la hipotesis mas simple —sin comprobar— es que «Support a Streamer»
+                    // no sale en /drops/campaigns, asi que no habia nada que enfocar. Un id
+                    // que no enfoque degrada a abrir la lista, que es lo que hacia el
+                    // generico: el peor caso es el comportamiento viejo.
                     //
                     // Y se ACUMULA, no se asigna. Una marca reparte varias campañas con
                     // el MISMO nombre —«First Partners Collection» son tres ids: la
@@ -2723,7 +2779,7 @@
                     // sin dejar rastro; ahora sus tramos entran en la misma entrada, que
                     // es lo que ya se hace con las campañas de drops que comparten juego.
                     if (!_apiDropNames[key]) {
-                        _apiDropNames[key] = { drops: [], startAt: rc.startsAt || '', endAt: rc.endsAt || '', displayTitle: key, imgSrc: _apiImage(rc), boxArt: _boxArtUrlOf(rc), searchText, gameId: _gameIdOf(rc), brand, perCampaign: true };
+                        _apiDropNames[key] = { drops: [], startAt: rc.startsAt || '', endAt: rc.endsAt || '', displayTitle: key, imgSrc: _apiImage(rc), boxArt: _boxArtUrlOf(rc), searchText, gameId: _gameIdOf(rc), brand, perCampaign: true, campaignId: rc.id || '' };
                     } else {
                         _mergeSearchText(_apiDropNames[key], searchText);
                     }
@@ -3187,11 +3243,12 @@
             // asi que por el camino normal esta fila no puede marcarse NUNCA: su id no
             // existe en el historial (verificado el 2026-09-01, ver _earnedRewardsByCampaign).
             //
-            // Y tachar la bola porque la campaña concedio algo seria pasarse: la campaña
-            // sigue abierta y quedan tres emblemas por salir, asi que el ✓ diria «ya esta»
-            // sobre algo que no esta. Se pinta entonces lo unico que consta y sin
-            // interpretarlo: QUE te dio, con su ✓, en su propio chip y al lado de la bola.
-            // La bola se queda como esta —sin marcas— porque sobre ella no hay dato.
+            // Este chip dice QUE te dio, que es otra pregunta que si la bola esta hecha.
+            // Esa segunda la responde ahora _isDropClaimed contando grupos contra
+            // concesiones (2026-09-08), asi que la bola SI puede acabar tachada; lo que
+            // no cambia es que el nombre de lo concedido solo se sabe por aqui. Los dos
+            // se pintan: «✓ Poké Ball» dice que no queda ninguna por abrir y «✓ Pichu»
+            // dice lo que salio de ella.
             const concedidos = [];
             const campañasVistas = new Set();
             for (const d of drops) {
@@ -4861,10 +4918,13 @@
         // Y la ruta quedo COMPROBADA EN VIVO el 2026-08-08: abriendo el enlace copiado
         // por el 🔗, Twitch reconoce el id y despliega esa campaña.
         //
-        // Solo vale para campañas de DROPS. Las reward campaigns son otro sistema: se
-        // probo pasarles su propio id por aqui y Twitch no lo reconoce, asi que sus
-        // entradas se guardan sin `campaignId` y este enlace cae al generico (ver el
-        // comentario donde se construyen).
+        // Vale TAMBIEN para las reward campaigns, y esto cambio el 2026-09-08. Aqui se
+        // decia que Twitch no reconocia su id —cierto de «FF14 Support a Streamer» el
+        // 2026-08-08— y que por eso sus entradas iban sin `campaignId`. Ya no: el propio
+        // panel del canal enlaza `?dropID=<rc.id>` para la campaña de Pokemon, y los tres
+        // ids de esa campaña despliegan su acordeon en /drops/campaigns. El porque
+        // completo, con los ids y la parte que sigue sin garantizarse, esta en el
+        // comentario de la rama donde se construyen esas entradas.
         //
         // cleanInventory sigue volcando en consola el primer href real que encuentra:
         // ya no hace falta para comprobar la ruta, pero es lo que avisaria si Twitch
