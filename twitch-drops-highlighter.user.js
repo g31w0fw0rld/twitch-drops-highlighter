@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.10
+// @version      1.3.11
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. Reads badge campaigns too. 16 languages, read-only GraphQL queries.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.10";
+    const SCRIPT_VERSION = "1.3.11";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -180,7 +180,9 @@
                 urgentNeed: "te faltan",
                 urgentMinimum: "lo mínimo",
                 urgentNoTime: "no da tiempo",
-                claimedInventoryTitle: "Reclamados"
+                claimedInventoryTitle: "Reclamados",
+                subShort: "sub",
+                subsRequirement: "Se desbloquea con suscripciones, no viendo"
             },
             en: {
 
@@ -254,7 +256,9 @@
                 urgentNeed: "you still need",
                 urgentMinimum: "minimum",
                 urgentNoTime: "not enough time",
-                claimedInventoryTitle: "Claimed"
+                claimedInventoryTitle: "Claimed",
+                subShort: "sub",
+                subsRequirement: "Unlocked with subscriptions, not by watching"
             },
             de: {
                 scriptInfoPrivacyText: "Deine Schlüsselwörter und Einstellungen bleiben nur in deinem Browser. Drop-Abfragen gehen an gql.twitch.tv mit deiner eigenen Sitzung (das Token wird nie auf die Festplatte geschrieben); scheitert das, wird die öffentliche API twitch-drops-api.sunkwi.com genutzt, die nur eine Anfrage ohne jegliche Daten von dir erhält. An den Autor des Skripts wird nichts gesendet.",
@@ -311,7 +315,9 @@
                 urgentClosesIn: "endet in",
                 urgentNeed: "dir fehlen",
                 urgentNoTime: "Zeit reicht nicht",
-                claimedInventoryTitle: "Beansprucht"
+                claimedInventoryTitle: "Beansprucht",
+                subShort: "Abo",
+                subsRequirement: "Wird mit Abos freigeschaltet, nicht durch Zuschauen"
             },
             fr: {
                 scriptInfoPrivacyText: "Tes mots-clés et tes réglages restent uniquement dans ton navigateur. Les requêtes de drops vont à gql.twitch.tv avec ta propre session (le jeton n'est jamais écrit sur le disque) ; si cela échoue, l'API publique twitch-drops-api.sunkwi.com est utilisée, et elle ne reçoit qu'une requête sans aucune donnée te concernant. Rien n'est envoyé à l'auteur du script.",
@@ -368,7 +374,9 @@
                 urgentClosesIn: "se termine dans",
                 urgentNeed: "il te manque",
                 urgentNoTime: "pas assez de temps",
-                claimedInventoryTitle: "Réclamés"
+                claimedInventoryTitle: "Réclamés",
+                subShort: "sub",
+                subsRequirement: "Se débloque avec des abonnements, pas en regardant"
             },
             pt: {
                 scriptInfoPrivacyText: "As tuas palavras-chave e definições ficam apenas no teu navegador. As consultas de drops vão para gql.twitch.tv com a tua própria sessão (o token nunca é gravado no disco); se isso falhar, é usada a API pública twitch-drops-api.sunkwi.com, que apenas recebe um pedido sem quaisquer dados teus. Nada é enviado ao autor do script.",
@@ -425,7 +433,9 @@
                 urgentClosesIn: "fecha em",
                 urgentNeed: "faltam",
                 urgentNoTime: "não dá tempo",
-                claimedInventoryTitle: "Resgatados"
+                claimedInventoryTitle: "Resgatados",
+                subShort: "sub",
+                subsRequirement: "Desbloqueia-se com subscrições, não a ver"
             },
             ru: {
                 scriptInfoPrivacyText: "Ваши ключевые слова и настройки хранятся только в браузере. Запросы о дропах идут на gql.twitch.tv с вашей собственной сессией (токен никогда не записывается на диск); если это не удаётся, используется публичный API twitch-drops-api.sunkwi.com, который получает лишь запрос без каких-либо ваших данных. Автору скрипта ничего не отправляется.",
@@ -482,7 +492,9 @@
                 urgentClosesIn: "закроется через",
                 urgentNeed: "осталось",
                 urgentNoTime: "не успеешь",
-                claimedInventoryTitle: "Востребованные"
+                claimedInventoryTitle: "Востребованные",
+                subShort: "подписка",
+                subsRequirement: "Открывается подписками, а не просмотром"
             },
             tr: {
                 scriptInfoPrivacyText: "Anahtar kelimelerin ve ayarların yalnızca tarayıcında kalır. Drop sorguları kendi oturumunla gql.twitch.tv adresine gider (token diske hiç yazılmaz); bu başarısız olursa herkese açık twitch-drops-api.sunkwi.com API’si kullanılır ve o yalnızca sana ait hiçbir veri içermeyen bir istek alır. Betiğin yazarına hiçbir şey gönderilmez.",
@@ -539,7 +551,9 @@
                 urgentClosesIn: "kapanışa",
                 urgentNeed: "kalan",
                 urgentNoTime: "zaman yetmiyor",
-                claimedInventoryTitle: "Talep Edilenler"
+                claimedInventoryTitle: "Talep Edilenler",
+                subShort: "abone",
+                subsRequirement: "İzleyerek değil, abonelikle açılır"
             },
             ja: {
                 scriptInfoPrivacyText: "キーワードと設定はブラウザー内にのみ保存されます。ドロップの問い合わせはあなた自身のセッションで gql.twitch.tv に送られます (トークンがディスクに書き込まれることはありません)。それが失敗した場合は公開 API の twitch-drops-api.sunkwi.com を使いますが、そこにはあなたのデータを含まないリクエストだけが届きます。スクリプトの作者には何も送信されません。",
@@ -596,7 +610,9 @@
                 urgentClosesIn: "終了まで",
                 urgentNeed: "残り",
                 urgentNoTime: "時間が足りません",
-                claimedInventoryTitle: "受け取り済み"
+                claimedInventoryTitle: "受け取り済み",
+                subShort: "サブスク",
+                subsRequirement: "視聴ではなくサブスクで解除"
             },
             ko: {
                 scriptInfoPrivacyText: "키워드와 설정은 브라우저에만 저장됩니다. 드롭 조회는 사용자 본인의 세션으로 gql.twitch.tv에 갑니다(토큰은 디스크에 기록되지 않습니다). 실패하면 공개 API인 twitch-drops-api.sunkwi.com을 쓰는데, 그쪽에는 사용자 데이터가 없는 요청만 전달됩니다. 스크립트 작성자에게는 아무것도 전송되지 않습니다.",
@@ -653,7 +669,9 @@
                 urgentClosesIn: "종료까지",
                 urgentNeed: "남은 시간",
                 urgentNoTime: "시간이 부족",
-                claimedInventoryTitle: "수령 완료"
+                claimedInventoryTitle: "수령 완료",
+                subShort: "구독",
+                subsRequirement: "시청이 아니라 구독으로 해금"
             },
             pl: {
                 scriptInfoPrivacyText: "Twoje słowa kluczowe i ustawienia zostają tylko w przeglądarce. Zapytania o dropy idą do gql.twitch.tv z twoją własną sesją (token nigdy nie jest zapisywany na dysku); jeśli to się nie uda, używane jest publiczne API twitch-drops-api.sunkwi.com, które dostaje jedynie zapytanie bez żadnych twoich danych. Do autora skryptu nic nie jest wysyłane.",
@@ -710,7 +728,9 @@
                 urgentClosesIn: "kończy się za",
                 urgentNeed: "brakuje",
                 urgentNoTime: "za mało czasu",
-                claimedInventoryTitle: "Odebrane"
+                claimedInventoryTitle: "Odebrane",
+                subShort: "sub",
+                subsRequirement: "Odblokowuje się subskrypcjami, nie oglądaniem"
             },
             fi: {
                 scriptInfoPrivacyText: "Avainsanasi ja asetuksesi pysyvät vain selaimessasi. Drop-kyselyt menevät osoitteeseen gql.twitch.tv omalla istunnollasi (tunnistetta ei kirjoiteta koskaan levylle); jos se ei onnistu, käytetään julkista rajapintaa twitch-drops-api.sunkwi.com, joka saa vain pyynnön ilman mitään tietojasi. Skriptin tekijälle ei lähetetä mitään.",
@@ -767,7 +787,9 @@
                 urgentClosesIn: "päättyy",
                 urgentNeed: "jäljellä",
                 urgentNoTime: "aika ei riitä",
-                claimedInventoryTitle: "Lunastettu"
+                claimedInventoryTitle: "Lunastettu",
+                subShort: "tilaus",
+                subsRequirement: "Avautuu tilauksilla, ei katsomalla"
             },
             vi: {
                 scriptInfoPrivacyText: "Từ khóa và thiết lập của bạn chỉ nằm trong trình duyệt. Truy vấn drop đi tới gql.twitch.tv bằng phiên đăng nhập của chính bạn (token không bao giờ được ghi ra đĩa); nếu thất bại, script dùng API công khai twitch-drops-api.sunkwi.com, nơi chỉ nhận một yêu cầu không kèm dữ liệu nào của bạn. Không có gì được gửi cho tác giả script.",
@@ -824,7 +846,9 @@
                 urgentClosesIn: "kết thúc sau",
                 urgentNeed: "còn thiếu",
                 urgentNoTime: "không kịp",
-                claimedInventoryTitle: "Đã nhận"
+                claimedInventoryTitle: "Đã nhận",
+                subShort: "sub",
+                subsRequirement: "Mở khóa bằng gói đăng ký, không phải bằng xem"
             },
             zh: {
                 scriptInfoPrivacyText: "你的关键词和设置只保存在你的浏览器里。掉宝查询会用你自己的会话发往 gql.twitch.tv（令牌从不写入磁盘）；若失败，则改用公开 API twitch-drops-api.sunkwi.com，那边只会收到一个不含你任何数据的请求。不会向脚本作者发送任何内容。",
@@ -881,7 +905,9 @@
                 urgentClosesIn: "距结束",
                 urgentNeed: "还需",
                 urgentNoTime: "时间不够",
-                claimedInventoryTitle: "已领取"
+                claimedInventoryTitle: "已领取",
+                subShort: "订阅",
+                subsRequirement: "通过订阅解锁，而非观看"
             },
             ar: {
                 scriptInfoPrivacyText: "تبقى كلماتك المفتاحية وإعداداتك في متصفحك فقط. تذهب استعلامات الدروبس إلى gql.twitch.tv بجلستك الخاصة (ولا يُكتب الرمز على القرص أبدًا)؛ وإذا فشل ذلك تُستخدم الواجهة العامة twitch-drops-api.sunkwi.com، وهي لا تتلقى سوى طلب دون أي بيانات تخصك. ولا يُرسل أي شيء إلى مؤلف السكربت.",
@@ -938,7 +964,9 @@
                 urgentClosesIn: "ينتهي خلال",
                 urgentNeed: "يتبقى",
                 urgentNoTime: "الوقت لا يكفي",
-                claimedInventoryTitle: "تم المطالبة"
+                claimedInventoryTitle: "تم المطالبة",
+                subShort: "اشتراك",
+                subsRequirement: "يُفتح بالاشتراكات، لا بالمشاهدة"
             },
             hi: {
                 scriptInfoPrivacyText: "आपके कीवर्ड और सेटिंग्स सिर्फ़ आपके ब्राउज़र में रहते हैं। ड्रॉप की क्वेरी आपके ही सेशन से gql.twitch.tv पर जाती हैं (टोकन कभी डिस्क पर नहीं लिखा जाता); यह विफल हो तो सार्वजनिक API twitch-drops-api.sunkwi.com का उपयोग होता है, जिसे केवल एक अनुरोध मिलता है, आपका कोई डेटा नहीं। स्क्रिप्ट के लेखक को कुछ भी नहीं भेजा जाता।",
@@ -995,7 +1023,9 @@
                 urgentClosesIn: "समाप्त होने में",
                 urgentNeed: "बाकी",
                 urgentNoTime: "समय कम है",
-                claimedInventoryTitle: "दावा किया गया"
+                claimedInventoryTitle: "दावा किया गया",
+                subShort: "सब",
+                subsRequirement: "देखने से नहीं, सब्सक्रिप्शन से खुलता है"
             },
             id: {
                 scriptInfoPrivacyText: "Kata kunci dan pengaturanmu hanya tersimpan di peramban. Kueri drop menuju gql.twitch.tv memakai sesimu sendiri (token tidak pernah ditulis ke disk); jika gagal, dipakai API publik twitch-drops-api.sunkwi.com, yang hanya menerima satu permintaan tanpa data apa pun tentangmu. Tidak ada apa pun yang dikirim ke penulis script.",
@@ -1052,7 +1082,9 @@
                 urgentClosesIn: "berakhir dalam",
                 urgentNeed: "kurang",
                 urgentNoTime: "waktu tidak cukup",
-                claimedInventoryTitle: "Diklaim"
+                claimedInventoryTitle: "Diklaim",
+                subShort: "sub",
+                subsRequirement: "Dibuka dengan langganan, bukan dengan menonton"
             }
         };
         const t = i18n[lang] || i18n["en"];
@@ -2684,12 +2716,46 @@
                     // minutos no escribe coste, no escribe "0 min"—, asi que la fila
                     // sigue diciendo lo unico cierto: que esa recompensa existe.
                     const minutes = g.unlockRequirements?.minuteWatchedGoal || 0;
+                    // LO QUE PIDE EL TRAMO CUANDO NO PIDE TIEMPO. `unlockRequirements`
+                    // trae los dos numeros y hasta ahora solo se leia el de los minutos,
+                    // asi que un escalon de subs llegaba al panel como un 0: sin coste en
+                    // la etiqueta y con el tooltip vacio, o sea indistinguible de una
+                    // recompensa gratis.
+                    //
+                    // Verificado el 2026-09-11 leyendo lo que sirve `rewardCampaignsAvailableToUser`:
+                    // «First Partners Collection» son TRES campañas con el mismo nombre y
+                    // una recompensa cada una, y cada una pide una cosa distinta —
+                    //     92f516f7  Poké Ball   minuteWatchedGoal 20, subsGoal 0
+                    //     9bdb6607  Great Ball  minuteWatchedGoal  0, subsGoal 2
+                    //     19f00aac  Great Ball  minuteWatchedGoal 20, subsGoal 0
+                    // — asi que el «2 subs» que se pinta es el numero de Twitch, no una
+                    // cuenta de aqui. Ojo si se compara con la pagina: ella escribe «x3»
+                    // sobre la Great Ball, y ese 3 NO esta en ninguno de estos campos.
+                    //
+                    // Y dos detalles del mismo volcado que no son anecdota:
+                    //   · las DOS Great Ball son la misma recompensa, con el mismo
+                    //     `reward.id` (87989657-9661-11f1-9e11-0a58a9feac02). Son dos vias
+                    //     de conseguir lo mismo —una por subs y otra por tiempo—, no dos
+                    //     premios, asi que cualquier cuenta que las sume cuenta de mas.
+                    //   · y no caducan a la vez: la de subs acaba el 1 de octubre y la de
+                    //     tiempo el 1 de noviembre. Tratar la campaña como una sola fecha
+                    //     adelantaria un mes el cierre de la mitad que aun vive.
+                    //
+                    // Se lee el dato y no se deduce de que los minutos sean 0: un tramo
+                    // de una campaña de drops normal tambien puede llegar con 0 minutos
+                    // sin pedir ninguna sub —y cuando si la pide, lo dice en su propio
+                    // campo, `requiredSubs`, que es otro (ver la rama de drops)—. Los
+                    // otros dos goals (`turboSubsGoal`, `eventTriggerGoal`) no han
+                    // aparecido nunca en un volcado, asi que no se pintan: el dia que uno
+                    // llegue se vera aqui, no en una suposicion de hoy.
+                    const subs = g.unlockRequirements?.subsGoal || 0;
                     for (const r of (g.rewards || [])) {
                         if (!r || !r.name) continue;
                         rewards.push({
                             name: r.name,
                             rewards: [r.name],
                             minutes,
+                            subs,
                             id: r.id || '',
                             benefitIds: [],
                             // La campaña SI se guarda. Estuvo vacia mientras «acotar» solo
@@ -2701,12 +2767,31 @@
                             // (ver _earnedRewardsByCampaign), que es lo unico que se puede
                             // saber de un contenedor cuyo propio id no consta en el historial.
                             campaignId: rc.id || '',
-                            // CUANTAS cajas promete esta campaña. Es el numero de grupos,
-                            // y no es una lectura mia: coincide con el badge «x3» que la
-                            // propia pagina de campañas pinta sobre la Great Ball —tres
-                            // grupos— y con su ausencia en la Poké Ball, que tiene uno.
-                            // Verificado el 2026-09-08 con el volcado completo. Sin esto
-                            // no hay forma de saber cuando una reward campaign se agota.
+                            // CUANTAS cajas promete esta campaña, que es lo que decide si
+                            // se tacha (ver _isDropClaimed).
+                            //
+                            // OJO, ESTO YA NO DICE LO QUE DECIA. El 2026-09-08 el volcado
+                            // traia `rewardGroups` con tres entradas por campaña, y este
+                            // numero coincidia con el badge «x3» de la pagina.
+                            //
+                            // El 2026-09-11 el campo NO VIENE. Y la diferencia importa:
+                            // no es un array vacio, es que `rewardGroups` no aparece en la
+                            // respuesta —las tres campañas de Pokemon van de
+                            // `unlockRequirements` a `rewards` sin nivel intermedio—. O sea
+                            // que no es que Twitch se haya quedado sin grupos: es que esta
+                            // consulta ya no los pide. Y eso no se arregla leyendo mejor,
+                            // porque en una persisted query la seleccion de campos la
+                            // guarda el servidor y aqui solo viaja el hash.
+                            //
+                            // Consecuencia: `grupos` es siempre la caida al requisito de la
+                            // campaña entera y esto vale 1 SIEMPRE.
+                            //
+                            // Consecuencia viva: una Great Ball se tacharia en cuanto su
+                            // campaña conceda lo primero, aunque la pagina siga anunciando
+                            // tres. Marcar de mas es esconder algo que aun se puede ganar,
+                            // que es justo el error que este contador venia a evitar. Sin
+                            // `rewardGroups` no hay de donde sacar el 3: el «x3» solo esta
+                            // en el DOM de /drops/campaigns, no en la API.
                             campaignGroups: grupos.length,
                             // Y que esto es una reward campaign, dicho a las claras. Las
                             // campañas de drops tambien llevan `campaignId`, asi que sin esta
@@ -2849,6 +2934,21 @@
                             name: drop.name,
                             rewards: rewardNames,
                             minutes: drop.requiredMinutesWatched || 0,
+                            // UNA CAMPAÑA DE DROPS TAMBIEN PUEDE PEDIR SUSCRIPCION, y lo
+                            // dice en su propio campo: `requiredSubs`. No es el mismo
+                            // sistema que las reward campaigns —esas lo llevan en
+                            // `unlockRequirements.subsGoal`— y por eso el emblema de GTA V
+                            // salia mudo mientras la Great Ball de Pokemon si decia su
+                            // coste: son dos consultas distintas con dos formas distintas.
+                            //
+                            // Verificado el 2026-09-11 en `DropCampaignDetails`: SEIS
+                            // tramos llegaron con `requiredSubs: 1` y `requiredMinutesWatched: 0`
+                            // —«nopixel V Launch» (GTA V), «Onimusha Armament», «Harley
+                            // Mayhem», «Sorcerer Rogier», «WARDOGS Beta & Launch» y
+                            // «Dawnwalker Launch»—, los seis con un unico benefit de
+                            // `distributionType: BADGE`. O sea que no es un caso raro: es
+                            // como Twitch reparte hoy los emblemas de suscriptor.
+                            subs: drop.requiredSubs || 0,
                             // Identidad del drop, para cruzarlo con el inventario y
                             // saber si ya esta reclamado. Se guardan las dos claves
                             // posibles porque el reclamado se puede mirar por tramo
@@ -2944,6 +3044,7 @@
                                 name: drop.name,
                                 rewards: rewardNames,
                                 minutes: drop.requiredMinutesWatched || 0,
+                                subs: drop.requiredSubs || 0,
                                 id: drop.id || '',
                                 benefitIds: (drop.benefitEdges || [])
                                     .map(b => b.benefit?.id).filter(Boolean),
@@ -3148,6 +3249,39 @@
             }
         }
 
+        // LO QUE PIDE UN TRAMO QUE NO PIDE TIEMPO.
+        //
+        // Hay reward campaigns que se desbloquean con SUSCRIPCIONES y no viendo el
+        // directo: su `minuteWatchedGoal` es 0 y el requisito de verdad esta en
+        // `subsGoal`. Como el panel solo sabia de minutos, esas recompensas salian con la
+        // etiqueta pelada y el tooltip vacio —el unico caso en el que una etiqueta no
+        // dice nada al pasar el raton—, que se lee como "esto es gratis" cuando es lo
+        // contrario: es lo unico que cuesta dinero.
+        //
+        // SE DICE QUE HACE FALTA UNA SUSCRIPCION, NO CUANTAS. El numero llega —es
+        // `subsGoal`— y se pinto durante un dia, pero no describe lo que pide la campaña:
+        //
+        //   «First Partners Collection» de Pokemon reparte TRES emblemas, y cada Great
+        //   Ball se consigue con UNA suscripcion, propia o regalada: hacen falta tres. La
+        //   API declara `subsGoal: 2` en la unica de sus tres campañas que pide subs
+        //   (volcado del 2026-09-11, detallado mas arriba), y el 3 no aparece en ningun
+        //   campo de la respuesta.
+        //
+        // O sea que la cifra ni coincide con la pagina ni se puede deducir de aqui, y
+        // pintarla es dar por cierto un numero que la propia campaña desmiente. Se dice
+        // el TIPO de requisito, que es lo que si consta y es lo que cambia la decision
+        // —esto no se saca mirando, se saca pagando—; el cuanto lo explica la pagina de
+        // la campaña, que es la unica fuente que lo tiene bien.
+        //
+        // Por eso la unidad va SIEMPRE en singular, y con ella se fue `subsShort` (el
+        // plural) de los 16 idiomas: sin cifra delante no hay nada que concordar.
+        //
+        // Escrito en un solo sitio porque lo usan la etiqueta del panel, su tooltip y el
+        // texto que copia el 🔗, y son tres sitios que tienen que decir lo mismo.
+        function _subsCost(subs) {
+            return (Number(subs) || 0) > 0 ? (t.subShort || i18n.en.subShort) : '';
+        }
+
         function _appendDropNamesTo(card, drops) {
             const container = document.createElement("div");
             container.className = "drop-api-names";
@@ -3158,12 +3292,30 @@
             // un span POR DROP, no un texto unico. El drop es la unidad de reclamo
             // —un tramo entrega todas sus recompensas de golpe—, y una campaña puede
             // tener varios drops en el mismo tramo, cada uno con su propio estado.
-            const grouped = {};
+            //
+            // El tramo son sus DOS requisitos, minutos Y subs, y no solo los minutos:
+            // un tramo que pide suscripcion caia en el grupo 0 junto a los gratis, y alli
+            // el deduplicado por nombre lo fundia con ellos en una etiqueta sin coste.
+            //
+            // Pero las subs entran en la clave como SI/NO, no por su cifra. La etiqueta
+            // ya no escribe cuantas (ver _subsCost), asi que separar por ese numero
+            // partiria un premio en varias etiquetas de TEXTO IDENTICO —tres «Great Ball
+            // (sub)» seguidas, que no se leen como tres escalones sino como un fallo de
+            // pintado— y el deduplicado por nombre no podria juntarlas, porque viven en
+            // grupos distintos. Agrupar por lo que se muestra es lo unico que mantiene
+            // «una etiqueta, una cosa que decir».
+            const grouped = new Map();
             drops.forEach(d => {
-                const key = d.minutes || 0;
-                if (!grouped[key]) grouped[key] = [];
+                const minutes = Number(d.minutes) || 0;
+                const subs = (Number(d.subs) || 0) > 0 ? 1 : 0;
+                const key = minutes + '|' + subs;
                 const name = (d.rewards && d.rewards.length > 0) ? d.rewards.join(", ") : d.name;
+                // El grupo se crea DESPUES de saber que hay nombre que meter dentro: al
+                // reves, un tramo sin nombres dejaba un grupo vacio, y eso se pinta como
+                // una etiqueta con el coste y nada delante.
                 if (!name) return;
+                let g = grouped.get(key);
+                if (!g) { g = { minutes, subs, items: [] }; grouped.set(key, g); }
                 const claimed = _isDropClaimed(d);
                 // Ganado solo cuenta mientras no este reclamado: son estados
                 // sucesivos del mismo tramo, no dos marcas que se acumulen.
@@ -3172,22 +3324,40 @@
                 // homonimos en el mismo tramo se siguen viendo como uno mientras
                 // compartan estado, y se separan en cuanto uno esta reclamado y el
                 // otro no — que es justo lo que este badge viene a decir.
-                if (grouped[key].some(x => x.name === name && x.claimed === claimed && x.earned === earned)) return;
-                grouped[key].push({ name, claimed, earned });
+                if (g.items.some(x => x.name === name && x.claimed === claimed && x.earned === earned)) return;
+                g.items.push({ name, claimed, earned });
             });
             // Un chip, sus recompensas dentro. Se saco del bucle porque hay un chip que
             // NO sale de `grouped`: el de lo concedido (ver abajo), que no tiene tramo de
             // visualizacion al que pertenecer y aun asi se pinta igual que los demas.
-            const pintarChip = (items, minutes) => {
+            const pintarChip = (items, minutes, subs) => {
                 const hours = minutes / 60;
                 // Con el tramo entero reclamado, el tiempo que pedia ya no le sirve a
                 // nadie: desaparece de la etiqueta, y quien lo dice es el tooltip, que
                 // es donde vivia ese dato.
                 const allClaimed = items.length > 0 && items.every(x => x.claimed === true);
                 const chip = document.createElement("span");
+                // El tooltip escribe los minutos en minutos y la etiqueta los pasa a
+                // horas: son dos formatos a proposito y vienen de antes. Lo que si
+                // comparten es la parte de las subs, que se escribe en un solo sitio.
+                const subsTexto = _subsCost(subs);
+                // El tooltip NO repite la palabra: `subsRequirement` ya es una frase que
+                // dice que esto se desbloquea suscribiendose, asi que anteponerle el
+                // «sub» de la etiqueta daria «sub · Se desbloquea con suscripciones, no
+                // viendo», que es lo mismo dicho dos veces. Cuando la cifra estaba, ese
+                // prefijo si aportaba; sin ella, sobra.
+                //
+                // Los minutos siguen delante porque un tramo puede pedir las dos cosas y
+                // esa cifra no la dice nadie mas.
+                const minutosTexto = minutes ? `${minutes} min` : '';
                 chip.title = allClaimed
                     ? (t.claimedInventoryTitle || 'Claimed')
-                    : (minutes ? `${minutes} min` : '');
+                    // Sin minutos y sin subs el tooltip se queda vacio, como hasta ahora:
+                    // no hay nada cierto que decir de ese tramo.
+                    : (subsTexto
+                        ? [minutosTexto, t.subsRequirement || i18n.en.subsRequirement]
+                            .filter(Boolean).join(' · ')
+                        : minutosTexto);
                 Object.assign(chip.style, {
                     padding: "1px 6px",
                     backgroundColor: colors.text + "18",
@@ -3227,13 +3397,19 @@
                     chip.appendChild(nameEl);
                 });
                 if (!allClaimed) {
-                    const suffix = hours >= 1 ? ` (${hours} h)` : minutes > 0 ? ` (${minutes} min)` : '';
-                    if (suffix) chip.appendChild(document.createTextNode(suffix));
+                    const tiempo = hours >= 1 ? `${hours} h` : minutes > 0 ? `${minutes} min` : '';
+                    const coste = [tiempo, subsTexto].filter(Boolean).join(' + ');
+                    if (coste) chip.appendChild(document.createTextNode(` (${coste})`));
                 }
                 container.appendChild(chip);
             };
 
-            Object.entries(grouped).forEach(([min, items]) => pintarChip(items, parseInt(min)));
+            // Por lo que menos pide primero, igual que antes: hasta ahora el orden lo
+            // daba de gratis Object.entries con claves numericas, y con la clave
+            // compuesta ("20|0") ya no, asi que se ordena a mano para que no cambie.
+            Array.from(grouped.values())
+                .sort((a, b) => (a.minutes - b.minutes) || (a.subs - b.subs))
+                .forEach(g => pintarChip(g.items, g.minutes, g.subs));
 
             // LO QUE LA CAMPAÑA YA TE DIO, cuando lo que ofrece es un CONTENEDOR.
             //
@@ -3261,7 +3437,7 @@
                     concedidos.push({ name: r.name, claimed: true, earned: false });
                 }
             }
-            if (concedidos.length > 0) pintarChip(concedidos, 0);
+            if (concedidos.length > 0) pintarChip(concedidos, 0, 0);
 
             card.appendChild(container);
         }
@@ -4951,12 +5127,19 @@
                 const name = (d.rewards && d.rewards.length > 0) ? d.rewards.join(', ') : d.name;
                 if (!name) continue;
                 const minutes = Number(d.minutes) || 0;
-                const dedupe = name + '|' + minutes;
+                // Las subs entran en la clave y no solo los minutos —sin ellas, un
+                // tramo de suscripcion se copiaba como una linea sin coste—, pero entran
+                // como SI/NO igual que en las etiquetas: el texto ya no lleva la cifra,
+                // asi que separar por ella repetiria la MISMA linea tres veces en lo que
+                // se copia al portapapeles.
+                const subs = (Number(d.subs) || 0) > 0 ? 1 : 0;
+                const dedupe = name + '|' + minutes + '|' + subs;
                 if (seen.has(dedupe)) continue;
                 seen.add(dedupe);
                 const hours = minutes / 60;
-                const cost = hours >= 1 ? ` — ${hours} h` : minutes > 0 ? ` — ${minutes} min` : '';
-                lines.push(`· ${name}${cost}`);
+                const tiempo = hours >= 1 ? `${hours} h` : minutes > 0 ? `${minutes} min` : '';
+                const coste = [tiempo, _subsCost(subs)].filter(Boolean).join(' + ');
+                lines.push(`· ${name}${coste ? ` — ${coste}` : ''}`);
             }
             lines.push(_shareUrlFor(campaign, entry));
             return lines.join('\n');
@@ -5616,6 +5799,12 @@
         // benefitIds) y, sobre todo, NO puede entrar aqui nada que dependa del
         // usuario. Si el estado de reclamado formara parte del snapshot, reclamar un
         // drop marcaria su campaña como cambiada y levantaria un 🔔 falso cada vez.
+        //
+        // Las subs que pide un tramo (`drop.subs`) NO entran, y es a proposito: añadir un
+        // campo cambia el JSON de TODAS las campañas, incluidas las que no tienen subs, y
+        // el primer arranque con la version nueva levantaria un 🔔 falso en cada una. Lo
+        // que se perderia a cambio es avisar de que una campaña cambio su escalon de 2 a 3
+        // subs, que no se ha visto ocurrir; el dia que pase, este es el sitio.
         function _snapshotFieldsOf(drop) {
             return {
                 name: drop.name || '',

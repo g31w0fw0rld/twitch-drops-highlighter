@@ -120,6 +120,10 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = 
           titulo: card.getAttribute('data-notif-title'),
           badges: Array.from(card.querySelectorAll('.drop-api-names > span')).map(chip => ({
             texto: (chip.textContent || '').replace(/\s+/g, ' ').trim(),
+            // El tooltip del chip, que es donde vive el coste cuando no cabe en la
+            // etiqueta. Se devuelve tal cual —incluido el vacio— porque "sin tooltip"
+            // es un estado que se comprueba, no un dato que falte.
+            tooltip: chip.title || '',
             premios: Array.from(chip.querySelectorAll('span')).map(sp => ({
               texto: (sp.textContent || '').trim(),
               tachado: sp.style.textDecoration === 'line-through'
