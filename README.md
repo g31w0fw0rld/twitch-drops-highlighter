@@ -7,6 +7,12 @@ Userscript that classifies and highlights drops/campaigns on Twitch based on you
 >
 > **It also clears up after the claim / Además recoge lo que el reclamo deja detrás:** the same checkbox opens your Twitch notification centre and **permanently deletes the notifications that mention a drop** —that is Twitch's own delete button, so it cannot be undone and *Reload drops* does not bring them back— and it dismisses the «Drop claimed» banner. Only those two things are touched: notifications about anything else stay where they are. / la misma casilla abre tu centro de notificaciones de Twitch y **borra de forma permanente las notificaciones que mencionan un drop** —es el propio botón de borrar de Twitch, así que no se puede deshacer y *Recargar drops* no las devuelve— y descarta el banner «Drop reclamado». Solo toca esas dos cosas: las notificaciones de cualquier otro asunto se quedan donde están.
 
+**⚡ Quick install / Instalación rápida:** **[Install / Instalar](https://github.com/g31w0fw0rld/twitch-drops-highlighter/raw/main/twitch-drops-highlighter.user.js)** — also on / también en [GreasyFork](https://greasyfork.org/scripts/573570) · [OpenUserJS](https://openuserjs.org/scripts/g31w0fw0rldgmail.com/Twitch_Drops_Highlighter_+_Keywords_%28Full_+_i18n%29).
+
+> You need a userscript manager first: [Violentmonkey](https://violentmonkey.github.io/) (open source) or [Tampermonkey](https://www.tampermonkey.net/). On Chrome and Edge, also turn on **Allow user scripts** on the extension's own page in `chrome://extensions` — without it nothing runs. Step-by-step under [English](#english).
+>
+> Necesitas antes un gestor de userscripts: [Violentmonkey](https://violentmonkey.github.io/) (código abierto) o [Tampermonkey](https://www.tampermonkey.net/). En Chrome y Edge, activa además **Allow user scripts** en la página de la propia extensión en `chrome://extensions`; sin eso no se ejecuta nada. Pasos detallados en [Español](#español).
+
 ![The campaigns list with matching campaigns outlined in purple, each showing the watch time it still costs, next to the panel](docs/screenshot-campaigns.png)
 
 *Campaigns: matching campaigns get outlined **purple** on the page itself, and each one says what it still costs you right there — here *Fortnite* is about to close, so it reads **⏳ 34 h · you still need 30m** in red; a campaign with no hurry carries a plain grey **⏱** with the time instead. *Apex Legends* right above it has no mark and no outline at all, which is the point: it did not match a keyword. The panel lists the same campaigns with their rewards, the hours each one needs, the filter chips and the sort, and **the ones you already own are ticked and struck through** so what stands out is what is left. / Campañas: las campañas que coinciden se enmarcan en **morado** en la propia página, y cada una dice ahí mismo lo que todavía te cuesta — aquí *Fortnite* está por cerrar, así que lleva **⏳ 34 h · te faltan 30m** en rojo; una campaña sin prisa lleva en su lugar un **⏱** gris con el tiempo. *Apex Legends*, justo encima, no lleva marca ni marco, que es de lo que se trata: no casó con ninguna keyword. El panel lista esas mismas campañas con sus recompensas, las horas que pide cada una, las etiquetas de filtro y el orden, y **las que ya tienes van con ✓ y tachadas**, para que lo que resalte sea lo que falta.*
@@ -110,7 +116,7 @@ Userscript that classifies and highlights drops/campaigns on Twitch based on you
 
 **Install:**
 1. Install a userscript manager: [Violentmonkey](https://violentmonkey.github.io/) (open source, Chrome/Edge/Firefox) or [Tampermonkey](https://www.tampermonkey.net/). On Chrome and Edge, also turn on **Allow user scripts** on the extension's own page in `chrome://extensions` — without it nothing runs.
-2. Open the installer: [twitch-drops-highlighter.user.js](https://github.com/g31w0fw0rld/twitch-drops-highlighter/raw/main/twitch-drops-highlighter.user.js) (also on [GreasyFork](https://greasyfork.org/es-419/users/1590477-g31w) and [OpenUserJS](https://openuserjs.org/users/g31w0fw0rldgmail.com/scripts)).
+2. Open the installer: [twitch-drops-highlighter.user.js](https://github.com/g31w0fw0rld/twitch-drops-highlighter/raw/main/twitch-drops-highlighter.user.js) (also on [GreasyFork](https://greasyfork.org/scripts/573570) and [OpenUserJS](https://openuserjs.org/scripts/g31w0fw0rldgmail.com/Twitch_Drops_Highlighter_+_Keywords_%28Full_+_i18n%29)).
 
 **Site:** `twitch.tv/drops/*`
 
@@ -173,7 +179,7 @@ Userscript that classifies and highlights drops/campaigns on Twitch based on you
 
 **Instalación:**
 1. Instala un gestor de userscripts: [Violentmonkey](https://violentmonkey.github.io/) (código abierto, Chrome/Edge/Firefox) o [Tampermonkey](https://www.tampermonkey.net/). En Chrome y Edge, activa además **Allow user scripts** en la página de la propia extensión en `chrome://extensions`; sin eso no se ejecuta nada.
-2. Abre el instalador: [twitch-drops-highlighter.user.js](https://github.com/g31w0fw0rld/twitch-drops-highlighter/raw/main/twitch-drops-highlighter.user.js) (también en [GreasyFork](https://greasyfork.org/es-419/users/1590477-g31w) y [OpenUserJS](https://openuserjs.org/users/g31w0fw0rldgmail.com/scripts)).
+2. Abre el instalador: [twitch-drops-highlighter.user.js](https://github.com/g31w0fw0rld/twitch-drops-highlighter/raw/main/twitch-drops-highlighter.user.js) (también en [GreasyFork](https://greasyfork.org/scripts/573570) y [OpenUserJS](https://openuserjs.org/scripts/g31w0fw0rldgmail.com/Twitch_Drops_Highlighter_+_Keywords_%28Full_+_i18n%29)).
 
 **Sitio:** `twitch.tv/drops/*`
 
