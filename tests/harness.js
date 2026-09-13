@@ -40,7 +40,14 @@ const DUMP = fs.readFileSync(
 // hace React al montar la lista de campañas: el panel puede haberse llenado antes de que
 // las filas existan. Sin poder ponerlo en ese orden no hay forma de ejercitar esa carrera,
 // y un test sobre esto saldria verde con el fallo dentro.
+// `clicarSelector` / `clicarIndice` / `clicarEnMs` disparan un clic izquierdo limpio sobre
+// CUALQUIER nodo, no solo sobre la ✕ del inventario (eso es `clicarX`). Hizo falta para el
+// modal de canales participantes, que se abre desde un enlace de Twitch reescrito por el
+// script: sin poder clicar ahi no hay forma de ejercitarlo, y un test que solo mire el href
+// no prueba el modal. El clic lleva `button: 0` y ningun modificador a proposito, que es
+// justo lo que el enganche exige para interceptar.
 function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = DUMP,
+               clicarSelector = null, clicarIndice = 0, clicarEnMs = null,
                url = 'https://www.twitch.tv/drops/inventory', lateHtml = null, lateMs = 5000,
                keywords = ['pokemon', 'marvel', 'squadra', 'sorcerer', 'rust'] } = {}) {
   return new Promise(resolve => {
@@ -180,6 +187,14 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = 
         cont.innerHTML = lateHtml;
         while (cont.firstChild) w.document.body.appendChild(cont.firstChild);
       }, lateMs);
+    }
+
+    if (clicarSelector) {
+      setTimeout(() => {
+        const nodos = w.document.querySelectorAll(clicarSelector);
+        const n = nodos[clicarIndice];
+        if (n) n.dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+      }, clicarEnMs === null ? Math.max(0, waitMs - 3000) : clicarEnMs);
     }
 
     if (clicarX !== null) {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.11
+// @version      1.3.12
 // @description  Highlights the Twitch drop campaigns matching your keywords on the page itself, and lists them in a panel split into active and expired. Rewards you own are ticked, one earned but not collected is flagged with a gift, and every open card shows the watch time you still need. Sort by closing date or by cheapest, trim the list with four filters, and exclude with keywords starting with "-". Optional auto-claim of finished drops. Reads badge campaigns too. 16 languages, read-only GraphQL queries.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.11";
+    const SCRIPT_VERSION = "1.3.12";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -160,6 +160,10 @@
                 rewards: "Recompensas",
                 minutesShort: "min",
                 dropDetails: "Detalle del drop",
+                participatingChannels: "Canales participantes",
+                participatingChannelsHint: "Mira cualquiera de estos canales para ganar las recompensas de esta campaña.",
+                whoIsLiveNow: "Ver quién está en directo ahora",
+                wholeCategoryChannels: "En esta campaña participa toda la categoría, no una lista de canales.",
                 earnedUnclaimed: "ganado, falta reclamar",
                 urgentUnclaimed: "sin reclamar",
                 filterPending: "Algo pendiente",
@@ -236,6 +240,10 @@
                 rewards: "Rewards",
                 minutesShort: "min",
                 dropDetails: "Drop details",
+                participatingChannels: "Participating channels",
+                participatingChannelsHint: "Watch any of these channels to earn this campaign's rewards.",
+                whoIsLiveNow: "See who is live right now",
+                wholeCategoryChannels: "This campaign is open to the whole category, not a list of channels.",
                 earnedUnclaimed: "earned, not claimed",
                 urgentUnclaimed: "unclaimed",
                 filterPending: "Something left",
@@ -297,6 +305,10 @@
                 rewards: "Belohnungen",
                 minutesShort: "min",
                 dropDetails: "Drop-Details",
+                participatingChannels: "Teilnehmende Kanäle",
+                participatingChannelsHint: "Schau einen dieser Kanäle, um die Belohnungen dieser Kampagne zu erhalten.",
+                whoIsLiveNow: "Sehen, wer gerade live ist",
+                wholeCategoryChannels: "Diese Kampagne gilt für die gesamte Kategorie, nicht für eine Kanalliste.",
                 earnedUnclaimed: "verdient, nicht abgeholt",
                 urgentUnclaimed: "nicht abgeholt",
                 filterPending: "Noch offen",
@@ -356,6 +368,10 @@
                 rewards: "Récompenses",
                 minutesShort: "min",
                 dropDetails: "Détail du drop",
+                participatingChannels: "Chaînes participantes",
+                participatingChannelsHint: "Regarde n'importe laquelle de ces chaînes pour obtenir les récompenses de cette campagne.",
+                whoIsLiveNow: "Voir qui est en direct maintenant",
+                wholeCategoryChannels: "Cette campagne concerne toute la catégorie, pas une liste de chaînes.",
                 earnedUnclaimed: "gagné, non réclamé",
                 urgentUnclaimed: "non réclamés",
                 filterPending: "Reste à faire",
@@ -415,6 +431,10 @@
                 rewards: "Recompensas",
                 minutesShort: "min",
                 dropDetails: "Detalhe do drop",
+                participatingChannels: "Canais participantes",
+                participatingChannelsHint: "Assiste a qualquer um destes canais para ganhar as recompensas desta campanha.",
+                whoIsLiveNow: "Ver quem está ao vivo agora",
+                wholeCategoryChannels: "Esta campanha abrange toda a categoria, não uma lista de canais.",
                 earnedUnclaimed: "ganho, falta resgatar",
                 urgentUnclaimed: "sem resgatar",
                 filterPending: "Falta algo",
@@ -474,6 +494,10 @@
                 rewards: "Награды",
                 minutesShort: "мин",
                 dropDetails: "Подробности дропа",
+                participatingChannels: "Участвующие каналы",
+                participatingChannelsHint: "Смотрите любой из этих каналов, чтобы получить награды этой кампании.",
+                whoIsLiveNow: "Посмотреть, кто сейчас в эфире",
+                wholeCategoryChannels: "Эта кампания охватывает всю категорию, а не список каналов.",
                 earnedUnclaimed: "получено, не забрано",
                 urgentUnclaimed: "не забрано",
                 filterPending: "Есть незавершённые",
@@ -533,6 +557,10 @@
                 rewards: "Ödüller",
                 minutesShort: "dk",
                 dropDetails: "Drop ayrıntısı",
+                participatingChannels: "Katılan kanallar",
+                participatingChannelsHint: "Bu kampanyanın ödüllerini kazanmak için bu kanallardan herhangi birini izle.",
+                whoIsLiveNow: "Şu anda kimin yayında olduğunu gör",
+                wholeCategoryChannels: "Bu kampanya bir kanal listesini değil, kategorinin tamamını kapsar.",
                 earnedUnclaimed: "kazanıldı, alınmadı",
                 urgentUnclaimed: "alınmadı",
                 filterPending: "Eksiği var",
@@ -592,6 +620,10 @@
                 rewards: "報酬",
                 minutesShort: "分",
                 dropDetails: "ドロップの詳細",
+                participatingChannels: "参加チャンネル",
+                participatingChannelsHint: "これらのチャンネルのいずれかを視聴すると、このキャンペーンの報酬を獲得できます。",
+                whoIsLiveNow: "今配信中のチャンネルを見る",
+                wholeCategoryChannels: "このキャンペーンは特定のチャンネルではなく、カテゴリ全体が対象です。",
                 earnedUnclaimed: "獲得済み、未受け取り",
                 urgentUnclaimed: "未受け取り",
                 filterPending: "未完了あり",
@@ -651,6 +683,10 @@
                 rewards: "보상",
                 minutesShort: "분",
                 dropDetails: "드롭 상세",
+                participatingChannels: "참여 채널",
+                participatingChannelsHint: "이 채널 중 아무거나 시청하면 이 캠페인의 보상을 받을 수 있습니다.",
+                whoIsLiveNow: "지금 방송 중인 채널 보기",
+                wholeCategoryChannels: "이 캠페인은 특정 채널 목록이 아니라 카테고리 전체가 대상입니다.",
                 earnedUnclaimed: "획득함, 미수령",
                 urgentUnclaimed: "미수령",
                 filterPending: "남은 항목",
@@ -710,6 +746,10 @@
                 rewards: "Nagrody",
                 minutesShort: "min",
                 dropDetails: "Szczegóły dropu",
+                participatingChannels: "Kanały biorące udział",
+                participatingChannelsHint: "Oglądaj dowolny z tych kanałów, aby zdobyć nagrody z tej kampanii.",
+                whoIsLiveNow: "Zobacz, kto jest teraz na żywo",
+                wholeCategoryChannels: "Ta kampania obejmuje całą kategorię, a nie listę kanałów.",
                 earnedUnclaimed: "zdobyte, nieodebrane",
                 urgentUnclaimed: "nieodebrane",
                 filterPending: "Coś zostało",
@@ -769,6 +809,10 @@
                 rewards: "Palkinnot",
                 minutesShort: "min",
                 dropDetails: "Dropin tiedot",
+                participatingChannels: "Osallistuvat kanavat",
+                participatingChannelsHint: "Katso mitä tahansa näistä kanavista ansaitaksesi tämän kampanjan palkinnot.",
+                whoIsLiveNow: "Katso, kuka on nyt livenä",
+                wholeCategoryChannels: "Tämä kampanja koskee koko kategoriaa, ei kanavalistaa.",
                 earnedUnclaimed: "ansaittu, lunastamatta",
                 urgentUnclaimed: "lunastamatta",
                 filterPending: "Jotain kesken",
@@ -828,6 +872,10 @@
                 rewards: "Phần thưởng",
                 minutesShort: "phút",
                 dropDetails: "Chi tiết drop",
+                participatingChannels: "Các kênh tham gia",
+                participatingChannelsHint: "Xem bất kỳ kênh nào trong số này để nhận phần thưởng của chiến dịch.",
+                whoIsLiveNow: "Xem ai đang phát trực tiếp",
+                wholeCategoryChannels: "Chiến dịch này áp dụng cho cả danh mục, không phải một danh sách kênh.",
                 earnedUnclaimed: "đã đạt, chưa nhận",
                 urgentUnclaimed: "chưa nhận",
                 filterPending: "Còn dang dở",
@@ -887,6 +935,10 @@
                 rewards: "奖励",
                 minutesShort: "分钟",
                 dropDetails: "掉宝详情",
+                participatingChannels: "参与的频道",
+                participatingChannelsHint: "观看其中任意一个频道即可获得本次活动的奖励。",
+                whoIsLiveNow: "查看当前正在直播的频道",
+                wholeCategoryChannels: "本次活动面向整个分类，而不是特定频道列表。",
                 earnedUnclaimed: "已达成，未领取",
                 urgentUnclaimed: "未领取",
                 filterPending: "还有未完成",
@@ -946,6 +998,10 @@
                 rewards: "المكافآت",
                 minutesShort: "د",
                 dropDetails: "تفاصيل الدروب",
+                participatingChannels: "القنوات المشاركة",
+                participatingChannelsHint: "شاهد أيًا من هذه القنوات لكسب مكافآت هذه الحملة.",
+                whoIsLiveNow: "شاهد من يبث الآن",
+                wholeCategoryChannels: "هذه الحملة تشمل الفئة بأكملها، وليست قائمة قنوات محددة.",
                 earnedUnclaimed: "تم كسبه ولم تتم المطالبة به",
                 urgentUnclaimed: "دون مطالبة",
                 filterPending: "متبقٍ شيء",
@@ -1005,6 +1061,10 @@
                 rewards: "इनाम",
                 minutesShort: "मि",
                 dropDetails: "ड्रॉप विवरण",
+                participatingChannels: "भाग लेने वाले चैनल",
+                participatingChannelsHint: "इस अभियान के इनाम पाने के लिए इनमें से कोई भी चैनल देखें।",
+                whoIsLiveNow: "देखें अभी कौन लाइव है",
+                wholeCategoryChannels: "यह अभियान पूरी श्रेणी के लिए है, किसी चैनल सूची के लिए नहीं।",
                 earnedUnclaimed: "अर्जित, दावा बाकी",
                 urgentUnclaimed: "दावा बाकी",
                 filterPending: "कुछ बाकी है",
@@ -1064,6 +1124,10 @@
                 rewards: "Hadiah",
                 minutesShort: "mnt",
                 dropDetails: "Detail drop",
+                participatingChannels: "Kanal yang berpartisipasi",
+                participatingChannelsHint: "Tonton salah satu kanal ini untuk mendapatkan hadiah kampanye ini.",
+                whoIsLiveNow: "Lihat siapa yang sedang live",
+                wholeCategoryChannels: "Kampanye ini berlaku untuk seluruh kategori, bukan daftar kanal tertentu.",
                 earnedUnclaimed: "didapat, belum diklaim",
                 urgentUnclaimed: "belum diklaim",
                 filterPending: "Masih ada sisa",
@@ -1501,6 +1565,28 @@
         const _apiClosedCampaigns = {};
         // Que valores de `status` devolvio Twitch y cuantas veces. Se vuelca en consola
         // al final del fetch; ver el porque alli.
+        // NOMBRE DE CAMPAÑA -> SU ID, y aparte de los otros dos mapas por dos motivos.
+        //
+        // Existe porque en `/drops/campaigns` el DOM NO trae ni un `dropID`: verificado
+        // sobre `tests/fixture-campanas-acordeon-expandido.html`, dos acordeones
+        // desplegados, cero. En el inventario si viene al lado del enlace, asi que alli
+        // esto no hace falta; aqui el unico puente entre lo que se ve y la campaña es el
+        // nombre que Twitch imprime en negrita sobre cada sub-campaña.
+        //
+        //   · va indexado por CAMPAÑA y no por juego, que es justo lo que `_apiDropNames`
+        //     no puede dar: ese funde las sub-campañas de un juego en una entrada y se
+        //     queda con el id de la primera que llego. Un acordeon de LEGO Batman trae
+        //     cuatro, con cuatro ids, y todas enlazan el mismo slug.
+        //   · se puebla ANTES del filtro de keywords. Los enlaces que hay que arreglar
+        //     son los de la pagina entera, no solo los de las campañas que te interesan,
+        //     y el id ya viene en `ViewerDropsDashboard`: no cuesta una consulta mas.
+        //
+        // Un nombre repetido entre dos campañas guarda `null` a proposito: ese nombre
+        // deja de servir para identificar nada y su enlace se queda como esta.
+        const _apiCampaignIds = {};
+        function _claveDeCampaña(nombre) {
+            return String(nombre || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        }
         const _apiStatusSeen = {};
         let _apiDataReady = false;
 
@@ -2108,7 +2194,7 @@
         // `.twitch-drop-page-mark`: esa clase se BORRA entera al empezar cada escaneo
         // y se llevaria el boton por delante.
         const TIP_SCOPE = '#twitch-drops-panel, .twitch-drop-page-mark, ' +
-            '[data-drop-tooltip-attached], [data-drop-own-tip]';
+            '[data-drop-tooltip-attached], [data-drop-own-tip], [data-drop-dir-filtered]';
         // Un control con aviso es el que tiene `title`... o el que lo tiene guardado,
         // porque mientras la caja esta arriba el atributo no esta.
         const TIP_SELECTOR = `[title], [${TIP_STASH_ATTR}]`;
@@ -2504,6 +2590,11 @@
             if (_apiLoadingEl) _apiLoadingEl.style.display = "none";
             // Process snapshots from API data regardless of current page
             _processSnapshotsFromAPI();
+            // Antes del reparto por paginas a proposito: en `/drops/campaigns` el indice
+            // de campañas es lo UNICO que sabe de que campaña es cada enlace, y esa rama
+            // no pasa por `_refreshPanelAfterLateData`. Ponerlo solo alli dejaba los
+            // enlaces de campañas con el de Twitch para siempre.
+            _refrescarEnlacesTrasLaApi();
             if (location.pathname.includes('/campaigns')) {
                 // Re-escanea la pagina y repinta entero: ahora si hay fechas y tramos
                 // con los que ordenar y filtrar.
@@ -2887,6 +2978,15 @@
                 const campaignName = campaign.name || '';
                 const ownerName = campaign.owner?.name || '';
                 const searchText = (gameName + ' ' + campaignName + ' ' + ownerName).toLowerCase();
+
+                // ANTES del filtro: ver arriba, los enlaces de la pagina son de todas las
+                // campañas y no solo de las tuyas.
+                const claveCamp = _claveDeCampaña(campaignName);
+                if (claveCamp && campaign.id) {
+                    _apiCampaignIds[claveCamp] = (claveCamp in _apiCampaignIds &&
+                        _apiCampaignIds[claveCamp] !== campaign.id) ? null : campaign.id;
+                }
+
                 if (!_matchesKeywords(searchText)) continue;
 
                 const apiKey = gameName || campaignName;
@@ -2926,6 +3026,13 @@
                 try {
                     const details = await _gqlGetCampaignDetails(campaign.id, campaign.owner?.login || 'twitch');
                     const timeBasedDrops = details?.user?.dropCampaign?.timeBasedDrops || [];
+                    // Sale gratis: esta respuesta ya esta pagada. Lo que se guarda aqui es
+                    // lo que evita que el modal tenga que volver a pedirla, y sobre todo lo
+                    // que deja saber SIN pedir nada que una campaña no tiene lista y que su
+                    // enlace no debe abrir modal ninguno.
+                    const _canales = _normalizaCanales(details?.user?.dropCampaign?.allow);
+                    if (_canales) _apiCampaignChannels[campaign.id] = _canales;
+
                     const drops = [];
                     for (const drop of timeBasedDrops) {
                         const rewardNames = (drop.benefitEdges || [])
@@ -4361,9 +4468,18 @@
             // Con el atajo puesto sin esta salvedad, el panel se quedaba en blanco ahi.
             if (active.length === 0 && expired.length === 0 && !_apiDataReady) {
                 _updateAllCardsWithDropNames();
+                _refrescarEnlacesTrasLaApi();
                 return;
             }
+            _refrescarEnlacesTrasLaApi();
             _rerenderPanes();
+        }
+
+        // Los enlaces de `/drops/campaigns` dependen del indice de la API, que llega
+        // despues del primer escaneo: sin esto se quedarian con el enlace de Twitch hasta
+        // que alguien desplegara otro acordeon.
+        function _refrescarEnlacesTrasLaApi() {
+            if (typeof _filtrarEnlacesDeCanales === 'function') _filtrarEnlacesDeCanales();
         }
 
         function clearViewFilters() {
@@ -5074,6 +5190,30 @@
             // arranque porque hasta que el panel existe no hay ningun control con
             // `title` que servir.
             _initOwnTooltips();
+            // LA SOLAPA DE NOTIFICACIONES, PINTADA AL CONSTRUIR EL PANEL.
+            //
+            // `buildPanel` crea el panel vacio y hasta ahora solo lo llenaba quien pasara
+            // despues por `renderNotificationsTab`, que NO es todo el mundo:
+            //   · `/drops/campaigns` la llama al final del escaneo, asi que alli salia
+            //     siempre y por eso el fallo parecia intermitente;
+            //   · `/drops/inventory` no escanea —su rama hace `cleanInventory` y
+            //     `_rerenderPanes`, y ninguna de las dos la llama—, asi que el pane se
+            //     quedaba con CERO hijos: ni notificaciones ni el «no hay ninguna».
+            //     Reproducido con jsdom sobre el volcado del inventario el 2026-09-12.
+            //   · `_processSnapshotsFromAPI` solo la llama `if (hasChanges)`, o sea que
+            //     cuando no cambiaba nada tampoco tapaba el agujero.
+            //   · y al cambiar de tema el panel se reconstruye, pero el repintado va
+            //     dentro de un `if (active.length || expired.length)`.
+            //
+            // Ponerlo aqui los cierra los cuatro de una vez, que es la razon de que vaya
+            // en la construccion y no en cada uno de los caminos: el estado inicial de un
+            // pane es cosa de quien lo crea.
+            //
+            // No hace ruido: la rama con notificaciones pendientes NO llama a
+            // `updateNotificationTitleAndSound` —solo lo hace la vacia, para CALLAR el
+            // sonido—, asi que repintar lo ya guardado no suena. Sonar aqui habria sido
+            // ademas un aviso por notificaciones viejas, que es justo lo que no se quiere.
+            renderNotificationsTab();
             return results;
         }
 
@@ -6471,6 +6611,472 @@
             el.setAttribute(HIDDEN_ATTR, '1');
         }
 
+        // =============================================
+        // EL ENLACE DE «CANAL EN VIVO QUE PARTICIPE», FILTRADO POR SU CAMPAÑA
+        // =============================================
+        // Twitch escribe ese enlace apuntando a la CATEGORIA con el filtro de drops
+        // —`/directory/category/<slug>?filter=drops`— y eso lista a todo el que lleve
+        // el tag de drops puesto, participe de verdad en esta campaña o no. El tag lo
+        // pone el canal, asi que no es una promesa de nada: es justo la queja de la que
+        // sale esto.
+        //
+        // La misma pagina admite ademas `?dropID=<id de campaña>` y entonces si filtra
+        // por la campaña. Verificado el 2026-09-12 sobre «Halo: The Master Chief
+        // Collection», cruzando el listado filtrado contra los 8 canales que
+        // twitchdrops.app da para esa campaña: SIETE de los ocho, con dos diferencias que
+        // son justo las que confirman que el parametro hace algo.
+        //
+        //   · `Griizzzy_` sale en twitchdrops.app y NO en el directorio: no estaba
+        //     emitiendo. Es la asimetria de fondo entre las dos superficies —una lista la
+        //     campaña, la otra lista quien esta EN VIVO— y no un fallo del filtro. De ahi
+        //     que un directorio vacio a horas muertas no signifique campaña sin canales.
+        //   · `TheGravemindTTV` sale en el directorio y NO en twitchdrops.app, y esto
+        //     quedo RESUELTO el 2026-09-12 preguntandoselo a la API en vez de deducirlo
+        //     de la pagina: `allow.channels` de «BTB Ladies Night-SEP12» trae OCHO logins
+        //     —los mismos ocho de twitchdrops.app, `griizzzy_` incluido— y ese canal no
+        //     esta entre ellos. O sea que `?dropID=` NO se limita a la lista de canales
+        //     de la campaña: trae esos y ademas alguno mas de la categoria.
+        //
+        //     Por el camino se probaron dos explicaciones por el aspecto de la pagina —el
+        //     marco de color de las miniaturas— y las dos se cayeron. No se decide mirando
+        //     como pinta Twitch sus tarjetas; se decide con el campo que dice quien
+        //     participa.
+        //
+        //     LA CONSECUENCIA ES DE TEXTO, no de codigo: este enlace NO puede describirse
+        //     como «los canales que participan», ni en el README ni en la ficha ni en la
+        //     descripcion. Lo que hace es acotar a la campaña en vez de al tag, que sigue
+        //     siendo mejor de lo que Twitch enlaza ahi.
+        //
+        //     Lo que sostiene el cambio sigue en pie: con `filter=drops` a secas el
+        //     listado son los del tag y con `dropID` son ocho, siete de ellos los de la
+        //     campaña. Los dos listados no son el mismo.
+        //
+        // Y DE CAMINO, por si alguien vuelve con la idea de enseñar los canales en vez de
+        // enlazar el directorio: `allow.channels` llega (verificado el 2026-09-12 con el
+        // hash de entonces), pero en 26 campañas reales venia asi —0 canales en 21, un
+        // canal en 2, y luego 8, 48 y 576—. O sea que en cuatro de cada cinco campañas
+        // NO HAY LISTA porque participa toda la categoria; en las de un canal Twitch ya
+        // lo nombra en la frase; y una lista de 576 no la quiere leer nadie. La franja
+        // donde un desplegable aporta algo es estrecha: una sola de las 26.
+        //
+        // AQUI NO HACE FALTA NI LA API NI ADIVINAR EL SLUG: las dos piezas ya estan en
+        // el DOM, una al lado de la otra. Medido con jsdom sobre
+        // `tests/fixture-inventario-pokemon.html`, los dos enlaces del volcado cuelgan
+        // de un `.inventory-campaign-info` que contiene tambien el
+        // `a.tw-link[href*="dropID="]` de SU campaña, cinco niveles mas arriba. El slug
+        // viene ya escrito en el href de Twitch.
+        //
+        // Se REESCRIBE el href en vez de añadir un enlace al lado. Es una decision, no
+        // un descuido: el enlace de Twitch lleva a una lista peor que la nuestra, y dos
+        // enlaces seguidos a lo mismo obligan al lector a elegir entre dos cosas que no
+        // sabe distinguir. El precio es que si Twitch cambia esa pagina, esto falla en
+        // silencio; por eso queda la marca `data-drop-dir-filtered` en el ancla y el
+        // recuento en consola.
+        //
+        // TRES GUARDRAILES, y los tres existen porque el fallo silencioso seria mandar
+        // al usuario a la campaña EQUIVOCADA, que es peor que no tocar nada:
+        //   · solo se tocan los enlaces que YA traen `filter=drops`. Un enlace de
+        //     categoria a secas no promete drops y no es nuestro.
+        //   · el ambito preferido es `.inventory-campaign-info`; subir contando padres
+        //     es el respaldo, no el camino.
+        //   · si en ese ambito hay mas de un `dropID`, es que se subio de mas y estamos
+        //     mirando el envoltorio de varias campañas: se deja el enlace como esta.
+        //
+        // El `@match` del script ya acota esto a las paginas de drops, asi que no hay
+        // enlace de categoria de ningun otro sitio de Twitch al alcance.
+        const DIR_LINK_SEL = 'a[href*="/directory/category/"]';
+
+        // EL ENLACE CAMBIADO SE VE. Es la contrapartida de reescribir en vez de añadir:
+        // sin ninguna marca, la unica forma de saber si el script hizo algo es pasar el
+        // raton por encima y leer la barra de estado.
+        //
+        // Va en una hoja de estilo colgada del atributo propio y NO en `style.fontWeight`
+        // por lo mismo que el ocultado del inventario: React repinta y se lleva por
+        // delante lo que escribamos en `style`, pero no conoce `data-drop-dir-filtered`
+        // y no lo toca.
+        const DIR_LINK_ATTR = 'data-drop-dir-filtered';
+        function _ensureDirLinkStyle() {
+            if (document.getElementById('twitch-drops-dir-css')) return;
+            const st = document.createElement('style');
+            st.id = 'twitch-drops-dir-css';
+            st.textContent = '[' + DIR_LINK_ATTR + '="1"] { font-weight: 700 !important; }';
+            (document.head || document.documentElement).appendChild(st);
+        }
+
+        // DOS VIAS, y cual toca lo decide la pagina sin preguntar por la URL.
+        //
+        // En el INVENTARIO el id esta en el DOM, al lado del enlace. En CAMPAÑAS no esta
+        // en ningun sitio —cero `dropID` en los dos acordeones del volcado— y el unico
+        // puente es el nombre en negrita de la sub-campaña, que se cruza con el indice
+        // que deja la API.
+        function _dropIDdeSuCampaña(a) {
+            return _dropIDporVecindad(a) || _dropIDporNombre(a);
+        }
+
+        function _dropIDporVecindad(a) {
+            let scope = a.closest('.inventory-campaign-info');
+            if (!scope) {
+                let n = a.parentElement;
+                for (let i = 0; i < 8 && n; i++, n = n.parentElement) {
+                    if (n.querySelector('a.tw-link[href*="dropID="]')) { scope = n; break; }
+                }
+            }
+            if (!scope) return '';
+            const links = scope.querySelectorAll('a.tw-link[href*="dropID="]');
+            if (links.length !== 1) return '';
+            const m = (links[0].getAttribute('href') || '').match(/dropID=([^&]+)/);
+            return m ? m[1] : '';
+        }
+
+        // EL NOMBRE DE LA SUB-CAMPAÑA A LA QUE PERTENECE UN ENLACE.
+        //
+        // Un acordeon es UN JUEGO y dentro caben varias campañas, cada una con su bloque,
+        // su fecha y su propio «Como obtener el Drop» —cuatro en el de LEGO Batman— y
+        // todas enlazando el MISMO slug. Asi que el ambito no puede ser el acordeon: seria
+        // darle a las cuatro el id de una.
+        //
+        // El bloque se busca por una propiedad y no contando padres, como ya hacen
+        // `_findPerCardWrapper` y `_baldosaDe`: es el ancestro mas cercano que contiene
+        // EXACTAMENTE UN `<strong>` de nombre de campaña. Los `<strong>` de «Recompensas»,
+        // «Como obtener el Drop» y «Conexion» no cuentan porque viven dentro de
+        // `.drop-details__label`, que es una clase de verdad y no un hash de
+        // styled-components como `hXUAvr` —esas cambian en cada build de Twitch y no se
+        // pueden usar para nada—.
+        //
+        // Si al subir se pasa de cero a varios, es que el bloque no existe como tal y se
+        // devuelve vacio: el enlace se queda con lo que Twitch escribio.
+        function _nombreDeSuCampaña(a) {
+            // EN EL INVENTARIO NO HAY `<strong>`: el nombre de la campaña es el primer
+            // `<p>` de su `.inventory-campaign-info`. Verificado con jsdom sobre
+            // `tests/fixture-inventario-pokemon.html`: «SQUADRA SEASON 6.2 Drops» y
+            // «Sorcerer's Grassy Garb», los dos exactos.
+            //
+            // Sin esto el modal salia ahi con el titulo y el subtitulo diciendo LO MISMO
+            // —«Canales participantes» dos veces—, porque al no encontrar nombre caia al
+            // generico que ya usa el subtitulo. Visto en la captura del 2026-09-13.
+            const bloqueInv = a.closest('.inventory-campaign-info');
+            if (bloqueInv) {
+                const primero = bloqueInv.querySelector('p');
+                const txt = primero ? primero.textContent.replace(/\s+/g, ' ').trim() : '';
+                if (txt) return txt;
+            }
+            let n = a.parentElement;
+            for (let i = 0; i < 12 && n; i++, n = n.parentElement) {
+                const titulos = [...n.querySelectorAll('strong')]
+                    .filter(st => !st.closest('.drop-details__label'));
+                if (titulos.length === 1) return titulos[0].textContent.trim();
+                if (titulos.length > 1) return '';
+            }
+            return '';
+        }
+
+        function _dropIDporNombre(a) {
+            const clave = _claveDeCampaña(_nombreDeSuCampaña(a));
+            if (!clave) return '';
+            return _apiCampaignIds[clave] || '';
+        }
+
+        function _filtrarEnlacesDeCanales(root) {
+            let hechos = 0, sinCampaña = 0;
+            const noResueltos = [];
+            (root || document).querySelectorAll(DIR_LINK_SEL).forEach((a) => {
+                const href = a.getAttribute('href') || '';
+                if (!/[?&]filter=drops\b/.test(href)) return;
+                // Ya filtrado. Se pregunta por el HREF y no por la marca a proposito:
+                // React puede repintar el enlace y devolverle el suyo, y entonces hay
+                // que volver a escribirlo aunque el atributo propio siguiera puesto.
+                //
+                // Pero antes de salir se repasa el AVISO, que no puede ponerse a la vez
+                // que el enlace: el id de campaña llega con `ViewerDropsDashboard` y la
+                // lista de canales una consulta mas tarde, asi que un enlace reescrito en
+                // ese hueco se quedaba sin frase para siempre —la siguiente pasada lo
+                // saltaba por llevar ya el `dropID`—. Aqui se le da otra oportunidad en
+                // cada repaso, que es lo que hace que el aviso no dependa del momento en
+                // que se engancho.
+                if (/[?&]dropID=/.test(href)) {
+                    const idYa = (href.match(/[?&]dropID=([^&]+)/) || [])[1];
+                    const yaSabidos = idYa ? _apiCampaignChannels[decodeURIComponent(idYa)] : null;
+                    if (yaSabidos && yaSabidos.length === 0) _avisarTodaLaCategoria(a);
+                    return;
+                }
+                const id = _dropIDdeSuCampaña(a);
+                if (!id) {
+                    sinCampaña++;
+                    // CON EL NOMBRE, y no solo la cuenta. La parte de esto que no se
+                    // puede comprobar en el arnes es que el `<strong>` del DOM y el
+                    // `campaign.name` de la API sean la misma cadena: un test con un
+                    // payload propio los hace casar por construccion. Aqui, en el
+                    // navegador, un nombre en esta lista teniendo la campaña delante es
+                    // exactamente ese fallo.
+                    const nombre = _nombreDeSuCampaña(a);
+                    if (nombre) noResueltos.push(nombre);
+                    return;
+                }
+                a.setAttribute('href', href + '&dropID=' + encodeURIComponent(id));
+                _ensureDirLinkStyle();
+                a.setAttribute(DIR_LINK_ATTR, '1');
+                _engancharModalDeCanales(a, id);
+                hechos++;
+            });
+            if (hechos || sinCampaña) {
+                console.log('[Twitch Drops] enlaces de canales participantes filtrados por campaña:',
+                    hechos, sinCampaña ? `| sin campaña a la vista: ${sinCampaña}` : '',
+                    noResueltos.length ? noResueltos : '');
+            }
+            return hechos;
+        }
+
+        // EL CLIC ABRE EL MODAL SOLO SI HAY ALGO QUE ENSEÑAR.
+        //
+        // La regla es una sola y no admite estados intermedios: se intercepta cuando YA
+        // tenemos la lista de canales y esa lista no esta vacia. En cualquier otro caso
+        // —campaña abierta a toda la categoria, lista todavia sin llegar, consulta
+        // fallida— el enlace se queda siendo un enlace y lleva al directorio.
+        //
+        // Antes no era asi y se veia: el 2026-09-12, «No Man's Sky» —que casa con tus
+        // keywords, asi que su lista ya estaba pedida— iba derecho al directorio, mientras
+        // «September 2026» de Wolvesville —que no casa— abria un modal para decir que
+        // tampoco tenia canales. El mismo caso acabando en dos sitios distintos segun si
+        // la campaña era o no de las tuyas, que es algo que el usuario no puede deducir.
+        // Un modal que solo dice «esto no tiene lista, toma el enlace que ibas a usar» es
+        // un clic de peaje.
+        //
+        // Lo que hace viable la regla es PRECARGAR AL APUNTAR: al pasar el raton o al
+        // llegar tabulando se pide la lista, asi que cuando el clic llega ya esta. Solo se
+        // consulta lo que apuntas —no las 123 campañas activas— y el peor caso es el
+        // comportamiento de Twitch, no un modal a medias.
+        //
+        // Y se respeta ctrl/cmd/shift/alt y el boton central: esos son «abremelo en otra
+        // pestaña» y quitarselos a cambio de un modal es un mal negocio.
+        // CUANDO NO HAY MODAL, LO DICE EL AVISO.
+        //
+        // Un enlace que en unas campañas abre una lista y en otras te lleva al directorio
+        // no explica por si solo la diferencia, y la diferencia es informacion util: que
+        // ahi participa toda la categoria y no una lista de canales. Asi que lo que en
+        // esas campañas no puede ser un modal es una frase.
+        //
+        // Va en el `title` y lo pinta el motor de avisos propio, no el del navegador: el
+        // enlace lleva nuestra marca `data-drop-dir-filtered`, que se añadio al ambito de
+        // ese motor para esto. Twitch no le pone `title` a ese enlace, asi que no se pisa
+        // nada suyo.
+        //
+        // No se escribe si el motor tiene el aviso guardado (la caja esta abierta ahora
+        // mismo sobre este enlace): lo devuelve al cerrarse y sobreescribiria esto.
+        function _avisarTodaLaCategoria(a) {
+            if (!a || !a.isConnected) return;
+            if (a.hasAttribute(TIP_STASH_ATTR)) return;
+            a.title = t.wholeCategoryChannels;
+        }
+
+        function _engancharModalDeCanales(a, campaignId) {
+            // Lo que ya se sabe se dice sin esperar a que nadie apunte: la campaña que
+            // paso tus keywords trae su lista pedida desde el arranque.
+            const yaConocidos = _apiCampaignChannels[campaignId];
+            if (yaConocidos && yaConocidos.length === 0) _avisarTodaLaCategoria(a);
+            const precargar = () => {
+                // El aviso se escribe al RESOLVER, no al apuntar: en el primer hover la
+                // respuesta todavia viene de camino y el motor de avisos —que espera un
+                // cuarto de segundo— puede llegar antes. Ahi no sale nada, y en el
+                // siguiente hover si. Es preferible a inventar una frase antes de saber.
+                Promise.resolve(_canalesDeCampaña(campaignId)).then((canales) => {
+                    if (canales && canales.length === 0) _avisarTodaLaCategoria(a);
+                });
+            };
+            a.addEventListener('mouseenter', precargar);
+            a.addEventListener('focus', precargar);
+            a.addEventListener('click', (ev) => {
+                if (ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
+                const canales = _apiCampaignChannels[campaignId];
+                if (!canales || canales.length === 0) return;
+                ev.preventDefault();
+                _abrirModalDeCanales(campaignId, _nombreDeSuCampaña(a), a.href, canales);
+            });
+        }
+
+        // React repinta el inventario —al reclamar, al recargar drops— y se lleva por
+        // delante el href reescrito. El observer se ancla en el propio enlace y NO se ve
+        // a si mismo: lo unico que escribimos son atributos, y aqui solo se mira
+        // `childList`. Es el mismo argumento que ya sostiene a `_startRowsObserver`.
+        let _dirObserver = null;
+        let _dirTimer = null;
+
+        function _traeEnlaceDeCanales(n) {
+            if (!n || n.nodeType !== 1) return false;
+            return !!(n.matches && n.matches(DIR_LINK_SEL)) ||
+                   !!(n.querySelector && n.querySelector(DIR_LINK_SEL));
+        }
+
+        // =============================================
+        // EL MODAL DE CANALES PARTICIPANTES
+        // =============================================
+        // Lo que Kick da nativo —un dialogo con los canales de la campaña, que es donde
+        // salio la idea— y Twitch no tiene en ninguna de sus dos paginas de drops.
+        //
+        // La lista sale de `allow.channels` de `DropCampaignDetails`, que es EXACTAMENTE
+        // la que publica twitchdrops.app: los ocho logins de «BTB Ladies Night-SEP12»
+        // casaron uno a uno el 2026-09-12. No sale del directorio, y por eso el modal y
+        // el enlace NO son la misma cosa ni se sustituyen:
+        //
+        //   · `allow.channels` dice QUIEN PUEDE, este o no emitiendo. Es la campaña.
+        //   · el directorio con `?dropID=` dice QUIEN ESTA EN DIRECTO, y ademas trae algun
+        //     canal que no esta en esa lista (ver el caso `TheGravemindTTV` mas arriba).
+        //
+        // Por eso el enlace al directorio viaja DENTRO del modal. Un modal con 576 nombres
+        // —que los hay— sin saber cual esta emitiendo seria peor que el enlace.
+        //
+        // TRES DIFERENCIAS CON EL DE KICK, y las tres son porque Twitch no da lo mismo:
+        //   · sin avatar: `allow.channels` trae `{id, name, displayName}` y nada mas.
+        //     Kick si manda la foto en su payload. Habria que pedirlos en otra consulta y
+        //     no vale lo que cuesta.
+        //   · sin boton de seguir: el corazon de Kick ESCRIBE en la cuenta. Eso es una
+        //     mutacion, no una lectura, y aqui no se hace.
+        //   · sin marca de «en directo»: no viene en el campo. Lo cubre el enlace del pie.
+        //
+        // Y el reparto real, medido sobre 26 campañas el 2026-09-12, es lo que explica que
+        // el modal no se abra casi nunca: 21 no tienen lista (participa toda la categoria),
+        // 2 tienen un solo canal que Twitch ya nombra en su propia frase, y las otras tres
+        // traen 8, 48 y 576. O sea que el caso normal es que el enlace siga siendo un
+        // enlace, y el modal es la excepcion.
+        const _apiCampaignChannels = {};
+
+        function _normalizaCanales(allow) {
+            if (!allow) return null;
+            return (allow.channels || [])
+                .map(c => ({ login: String(c.name || '').toLowerCase(), nombre: c.displayName || c.name || '' }))
+                .filter(c => c.login);
+        }
+
+        // `null` = no se pudo saber (la consulta fallo o ya no viene el campo), que NO es
+        // lo mismo que una lista vacia —esa significa «participa toda la categoria»— y por
+        // eso el modal los cuenta distinto.
+        async function _canalesDeCampaña(campaignId) {
+            if (_apiCampaignChannels[campaignId]) return _apiCampaignChannels[campaignId];
+            try {
+                // `channelLogin` va a 'twitch' porque aqui no tenemos el dueño de la
+                // campaña: esto se pide al hacer clic, fuera del bucle que si lo sabe. Es
+                // el mismo respaldo que ya usa ese bucle cuando la campaña no trae dueño.
+                const d = await _gqlGetCampaignDetails(campaignId, 'twitch');
+                const canales = _normalizaCanales(d?.user?.dropCampaign?.allow);
+                if (canales) _apiCampaignChannels[campaignId] = canales;
+                return canales;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function _abrirModalDeCanales(campaignId, nombreCampaña, urlDirectorio, canales) {
+            const { overlay, box } = createModalContainer();
+            box.style.padding = '22px 24px';
+
+            const titulo = document.createElement('div');
+            titulo.textContent = nombreCampaña || t.participatingChannels;
+            Object.assign(titulo.style, { fontSize: '16px', fontWeight: '700', color: colors.text });
+            box.appendChild(titulo);
+
+            // El subtitulo solo cuando el titulo es OTRA cosa. Sin nombre de campaña el
+            // titulo ya es «Canales participantes», y repetirlo debajo en gris no dice
+            // nada: se lee como un fallo de pintado.
+            if (nombreCampaña) {
+                const sub = document.createElement('div');
+                sub.textContent = t.participatingChannels;
+                Object.assign(sub.style, { fontSize: '11px', color: colors.gray, margin: '2px 0 12px' });
+                box.appendChild(sub);
+            } else {
+                titulo.style.marginBottom = '12px';
+            }
+
+            // La frase que explica la lista va FUERA del contenedor con scroll: es
+            // texto fijo sobre lo que viene debajo, no una fila mas. Dentro, se iba
+            // hacia arriba en cuanto bajabas por la lista —y con 576 canales eso es
+            // enseguida—, asi que quien mas la necesitaba era quien antes la perdia.
+            const hint = document.createElement('div');
+            hint.textContent = t.participatingChannelsHint;
+            Object.assign(hint.style, { fontSize: '12px', color: colors.gray, marginBottom: '10px' });
+            box.appendChild(hint);
+
+            const cuerpo = document.createElement('div');
+            // El tope de altura es del CUERPO y no de la caja: asi el titulo, esta frase
+            // y el pie
+            // —donde vive el enlace al directorio— no se van con el scroll de una lista de
+            // 576 nombres.
+            Object.assign(cuerpo.style, {
+                fontSize: '13px', color: colors.gray,
+                maxHeight: '46vh', overflowY: 'auto'
+            });
+            box.appendChild(cuerpo);
+
+            const pie = document.createElement('div');
+            Object.assign(pie.style, {
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                gap: '12px', marginTop: '16px', flexWrap: 'wrap'
+            });
+            const enVivo = document.createElement('a');
+            enVivo.href = urlDirectorio;
+            enVivo.target = '_blank';
+            enVivo.rel = 'noopener noreferrer';
+            enVivo.textContent = t.whoIsLiveNow;
+            Object.assign(enVivo.style, { color: colors.purpleLight, fontSize: '12px' });
+            pie.appendChild(enVivo);
+
+            const cerrar = document.createElement('button');
+            cerrar.textContent = t.accept || 'OK';
+            Object.assign(cerrar.style, {
+                padding: '6px 12px', backgroundColor: colors.surface,
+                color: colors.purple, border: `1px solid ${colors.purple}`,
+                borderRadius: '6px', cursor: 'pointer', fontWeight: '600'
+            });
+            pie.appendChild(cerrar);
+            box.appendChild(pie);
+
+            _pintarCanalesEn(cuerpo, canales);
+
+            const detach = attachDismissHandlers(overlay, () => { closeOverlayAnimated(overlay); });
+            cerrar.onclick = () => { detach(); closeOverlayAnimated(overlay); };
+
+            document.body.appendChild(overlay);
+            try { setInertOnBodyChildrenExcept(overlay, true); } catch (e) { /* noop */ }
+            requestAnimationFrame(() => {
+                overlay.style.opacity = '1';
+                box.style.transform = 'translateY(0) scale(1)';
+                box.style.opacity = '1';
+            });
+            setTimeout(() => { cerrar.focus(); }, 100);
+
+        }
+
+        function _pintarCanalesEn(cuerpo, canales) {
+            for (const c of canales) {
+                const fila = document.createElement('a');
+                fila.href = 'https://www.twitch.tv/' + encodeURIComponent(c.login);
+                fila.target = '_blank';
+                fila.rel = 'noopener noreferrer';
+                fila.textContent = c.nombre || c.login;
+                Object.assign(fila.style, {
+                    display: 'block', padding: '8px 4px', fontSize: '14px',
+                    color: colors.text, textDecoration: 'none',
+                    borderBottom: `1px solid ${colors.border}`
+                });
+                fila.addEventListener('mouseenter', () => { fila.style.color = colors.purpleLight; });
+                fila.addEventListener('mouseleave', () => { fila.style.color = colors.text; });
+                cuerpo.appendChild(fila);
+            }
+        }
+
+        function _startDirLinksObserver() {
+            if (_dirObserver) return;
+            _dirObserver = new MutationObserver((muts) => {
+                let hay = false;
+                for (const m of muts) {
+                    for (const n of m.addedNodes) if (_traeEnlaceDeCanales(n)) { hay = true; break; }
+                    if (hay) break;
+                }
+                if (!hay) return;
+                if (_dirTimer) clearTimeout(_dirTimer);
+                _dirTimer = setTimeout(() => _filtrarEnlacesDeCanales(), 300);
+            });
+            _dirObserver.observe(document.body, { childList: true, subtree: true });
+        }
+
         function cleanInventory(type = "expired") {
             let attempts = 0;
             const maxAttempts = 10;
@@ -6825,6 +7431,12 @@
             // Build the floating panel
             const resultsContainer = buildPanel();
 
+            // Va en las DOS paginas de drops y antes de cualquier rama: el enlace de
+            // canales participantes sale en el inventario y en las campañas, y la
+            // funcion no depende de cual sea —pregunta por el enlace, no por la URL—.
+            _filtrarEnlacesDeCanales();
+            _startDirLinksObserver();
+
             if (isInventory) {
                 // ---------------------------------------------
                 // AQUI YA NO SE CAMBIA DE PESTAÑA
@@ -7006,6 +7618,10 @@
                     waitForDropsFunction();
                 } else {
                     cleanInventory(cleanExpiredInventoryFlag ? 'expired' : '');
+                    // La navegacion de SPA no vuelve a pasar por waitForDropsFunction en
+                    // esta rama, asi que el repintado del inventario se quedaria con el
+                    // enlace de Twitch hasta la siguiente mutacion.
+                    _filtrarEnlacesDeCanales();
                 }
             }
         });
