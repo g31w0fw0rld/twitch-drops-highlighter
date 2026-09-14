@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.14
+// @version      1.3.15
 // @description  Drops panel for Twitch. Twitch hands you a wall of campaigns with no way to say which games you care about, and never tells you how much watch time a drop still needs — only a bar that says it is in progress. This outlines the ones your keywords match on the page itself and puts the exact time left on every card. Its queries only read; claiming is optional and ships off. The rest is in "Script Information", in the panel, and in the repository. 16 languages.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.14";
+    const SCRIPT_VERSION = "1.3.15";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -1587,6 +1587,29 @@
         function _claveDeCampaña(nombre) {
             return String(nombre || '').replace(/\s+/g, ' ').trim().toLowerCase();
         }
+
+        // EL MISMO INDICE, PERO DENTRO DE SU JUEGO. Y no es una optimizacion: sin el,
+        // los nombres de campaña mas corrientes no identifican nada y su enlace se queda
+        // sin filtrar, que es justo lo que se veia el 2026-09-13 en la pagina de
+        // campañas:
+        //
+        //   · «Twitch Drops» a secas es el nombre de la unica campaña de Lords Mobile Y
+        //     de la unica de Doomsday: Last Survivors —las dos de IGG—, asi que las dos
+        //     se anulaban entre si y ninguno de los dos enlaces se toco;
+        //   · «September Week 2» de MARVEL Contest of Champions corrio la misma suerte,
+        //     mientras su vecina «September Week 2 - CCP», que si es unica, se filtraba
+        //     bien. De ahi el sintoma reportado —«funciona con la primera campaña y no
+        //     con la segunda»—, que no era el orden: era el nombre.
+        //
+        // El desempate es el JUEGO, y esta en las dos fuentes sin pedir nada: la API lo
+        // trae en `game.id` y la pagina lo lleva en la caratula del acordeon
+        // (`ttv-boxart/<id>`), que es el mismo numero (ver `_gameIdFromBoxArt`). Un
+        // nombre repetido DENTRO de un mismo juego sigue guardando `null`: ahi el
+        // desempate no existe y el enlace se queda como esta.
+        const _apiCampaignIdsPorJuego = {};
+        function _claveDeCampañaEnJuego(gameId, clave) {
+            return (gameId && clave) ? gameId + '|' + clave : '';
+        }
         const _apiStatusSeen = {};
         let _apiDataReady = false;
 
@@ -2985,6 +3008,13 @@
                 if (claveCamp && campaign.id) {
                     _apiCampaignIds[claveCamp] = (claveCamp in _apiCampaignIds &&
                         _apiCampaignIds[claveCamp] !== campaign.id) ? null : campaign.id;
+                    // Y otra vez acotado a su juego, que es lo que salva a los nombres
+                    // que se repiten entre juegos (ver `_apiCampaignIdsPorJuego`).
+                    const claveEnJuego = _claveDeCampañaEnJuego(_gameIdOf(campaign), claveCamp);
+                    if (claveEnJuego) {
+                        _apiCampaignIdsPorJuego[claveEnJuego] = (claveEnJuego in _apiCampaignIdsPorJuego &&
+                            _apiCampaignIdsPorJuego[claveEnJuego] !== campaign.id) ? null : campaign.id;
+                    }
                 }
 
                 if (!_matchesKeywords(searchText)) continue;
@@ -6770,9 +6800,38 @@
             return '';
         }
 
+        // EL JUEGO AL QUE PERTENECE UN ENLACE, leido de la caratula de SU acordeon.
+        //
+        // Se sube hasta el primer ancestro que contenga una `div.accordion-header` —el
+        // envoltorio del acordeon— y de ahi sale la caratula con el id dentro. Es el
+        // mismo patron que `_dropIDporVecindad`: se busca por una propiedad y se para en
+        // el primero que la cumple, porque mas arriba estan los acordeones de todos los
+        // demas juegos y ahi el dato ya seria de otro.
+        //
+        // El slug que Twitch escribe en el propio href (`/directory/category/lords-mobile`)
+        // sirve para lo mismo y estaba mas a mano, pero cruzarlo con la API obligaria a
+        // fabricar el slug a partir del `displayName` —o sea a adivinar como Twitch trata
+        // los dos puntos, las cifras romanas y los acentos—. El id no se adivina.
+        function _juegoDeSuAcordeon(a) {
+            let n = a.parentElement;
+            for (let i = 0; i < 14 && n; i++, n = n.parentElement) {
+                const cab = n.querySelector('div.accordion-header');
+                if (!cab) continue;
+                const img = cab.querySelector('img[src*="ttv-boxart"]');
+                return img ? _gameIdFromBoxArt(img.getAttribute('src')) : '';
+            }
+            return '';
+        }
+
         function _dropIDporNombre(a) {
             const clave = _claveDeCampaña(_nombreDeSuCampaña(a));
             if (!clave) return '';
+            // Primero dentro de su juego, que es el unico ambito donde un nombre como
+            // «Twitch Drops» significa una sola campaña. El indice global queda de
+            // respaldo para donde no haya acordeon del que leer el juego.
+            const enJuego = _apiCampaignIdsPorJuego[
+                _claveDeCampañaEnJuego(_juegoDeSuAcordeon(a), clave)];
+            if (enJuego) return enJuego;
             return _apiCampaignIds[clave] || '';
         }
 
