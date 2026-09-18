@@ -11,6 +11,10 @@
 //   · el tramo al 100 % («Mouseathon») desaparece;
 //   · el tramo al 56 % («IronmouseWah Emote») NO, que es lo que la guarda protegia.
 // Sin la segunda, «esconderlo todo» pasaria el test igual.
+//
+// Y las dos valen SOLO mientras la campaña tenga algo en curso, que es el caso de arriba.
+// El de abajo —la misma campaña ya saldada— cambio de signo el 2026-09-17: ahi no se
+// esconde nada. El porque esta escrito junto a sus comprobaciones.
 const { run, readFixture } = require('./harness');
 const emblema = readFixture('fixture-inventario-emblema.html');
 
@@ -73,11 +77,27 @@ const comprobar = (ok, msg) => { console.log((ok ? '  ok   ' : '  FALLA') + ' ' 
     const b2 = baldosas(r2.w);
     console.log('  baldosas:', JSON.stringify(b2));
     comprobar(b2.length === 1 && b2[0].nombre === 'Mouseathon', 'el recorte dejo solo el tramo hecho');
-    comprobar(b2.every(x => x.oculto), 'desaparece');
-    // Y con la rejilla vacia, el encabezado tampoco tiene nada que decir: se va con ella.
-    // Sin esto la casilla dejaba el nombre, la fecha y el «Acerca de este Drop» ocupando
-    // lo mismo que antes y sin ninguna recompensa debajo.
-    comprobar(campanaOculta(r2.w) === true, 'y con ella se va el bloque entero de la campaña');
+    // LO QUE SE ESPERA AQUI CAMBIO EL 2026-09-17, Y LO CAMBIO EL USUARIO.
+    //
+    // Este caso daba por bueno que una campaña sin nada en curso desapareciera entera
+    // —primero sus baldosas y luego, por no dejar la cabecera sobre una rejilla vacia, el
+    // bloque—. Ahora no se toca ninguna de las dos cosas: una campaña saldada se queda tal
+    // como la pinta Twitch, porque es el unico sitio donde se ve lo que ganaste en ella.
+    //
+    // No es un cambio de opinion sobre el fallo que traia aqui: ese era otro —el nodo que
+    // se escondia se elegia contando nueve padres y podia ser el que contiene TRES
+    // campañas, ver `_inventoryContainerOf`— y esta arreglado por su cuenta. Este es el
+    // criterio de que despeja la casilla: lo que ya tienes de una campaña que aun te debe
+    // algo, y nada mas.
+    //
+    // Se deja escrito porque el test estaba en verde sobre lo contrario, igual que paso en
+    // test-inventario-no-borra-la-pagina: un test fija una decision tan bien como fija un
+    // acierto, y sin la nota el siguiente que lo lea creera que aquello estaba comprobado.
+    comprobar(b2.every(x => !x.oculto), 'la baldosa cumplida se queda: aqui ya no hay nada que despejar');
+    comprobar(campanaOculta(r2.w) === false, 'y el bloque de la campaña tampoco se esconde');
+    const ocultos2 = r2.w.document.querySelectorAll('[data-twitch-drops-hidden="1"]').length;
+    console.log('  nodos ocultados:', ocultos2);
+    comprobar(ocultos2 === 0, 'no se esconde NADA en una campaña completamente reclamada');
 
     console.log(fallos === 0 ? '\nTODO EN VERDE' : '\n' + fallos + ' COMPROBACIONES EN ROJO');
     process.exit(fallos === 0 ? 0 : 1);

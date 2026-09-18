@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.15
+// @version      1.3.16
 // @description  Drops panel for Twitch. Twitch hands you a wall of campaigns with no way to say which games you care about, and never tells you how much watch time a drop still needs — only a bar that says it is in progress. This outlines the ones your keywords match on the page itself and puts the exact time left on every card. Its queries only read; claiming is optional and ships off. The rest is in "Script Information", in the panel, and in the repository. 16 languages.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.15";
+    const SCRIPT_VERSION = "1.3.16";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -6497,15 +6497,19 @@
         // Es la misma leccion que ya costo la rejilla de Kick (_hideKickClaimedBlocks):
         // display:none y se acabo.
         //
-        // No hay pareja «devolver» porque no hay quien la llame: la unica forma de
-        // deshacer esto es «Recargar drops», que vacia la lista y ademas recarga la
-        // pagina (ver resetInventoryDeletedKeys). Escribirla sin usarla seria dejar
-        // codigo muerto prometiendo una funcion que no existe.
+        // Y SI HAY PAREJA «DEVOLVER» (`_revalidarEscondidos`), que antes no existia. El
+        // motivo por el que no estaba era bueno —no habia quien la llamara, y escribirla
+        // sin uso es codigo muerto— pero la razon para llamarla ya estaba escrita en el
+        // parrafo siguiente: React REUTILIZA nodos, asi que uno que escondamos puede
+        // volver con otro contenido dentro y quedarse invisible. Quitandolo no pasaba
+        // —React lo recreaba—. Es el mismo riesgo que se acepto en Kick con los bloques
+        // de reclamados, y alli SI hay `_restoreKickClaimedBlocks` para deshacerlo.
         //
-        // Lo que si hay que vigilar en la pagina: React REUTILIZA nodos, asi que uno
-        // que escondamos podria volver con otro contenido dentro y quedarse invisible.
-        // Quitandolo no pasaba —React lo recreaba—. Es el mismo riesgo que se acepto en
-        // Kick con los bloques de reclamados, y no se ha visto ocurrir alli.
+        // Un escondido de este script es por tanto una afirmacion que se vuelve a
+        // comprobar, no una marca definitiva: si el nodo deja de ser lo que era cuando se
+        // escondio, vuelve a la vista. Es lo unico que hace que un error de juicio aqui se
+        // pueda ver y se corrija solo, en vez de dejar media pagina en blanco hasta que
+        // alguien recargue.
         // El bloque de campaña al que pertenece una imagen de recompensa: nueve padres
         // arriba. Estaba escrito dos veces dentro del bucle y ahora lo usa ademas
         // _inventoryImages, asi que vive en un solo sitio: si esa cuenta cambia con un
@@ -6529,13 +6533,57 @@
         // una a una —que es lo que se pidio— sin tocar el andamio de la pagina. Es la
         // direccion segura: esconder de menos deja cosas a la vista, esconder de mas borra
         // el inventario.
+        //
+        // Y AQUI YA NO SE CUENTAN PADRES. Contar nueve era una profundidad fija sobre un
+        // arbol que no la tiene, y la diferencia no es un rediseño futuro: esta DENTRO del
+        // mismo inventario. Medido sobre `tests/fixture-inventario-pokemon.html`, de sus 26
+        // imagenes de recompensa
+        //     6  en curso   -> su bloque de campaña esta a  9 padres
+        //     20 ya cobradas -> su bloque de campaña esta a 8 padres
+        // O sea que una recompensa cuelga un nivel MAS ARRIBA en cuanto pasa a cobrada, que
+        // es justo lo que hace reclamarla. Con la cuenta fija, esas 20 aterrizaban un nivel
+        // por encima de su campaña: en el nodo que contiene LAS TRES. Y la guarda de 1.3.5
+        // no lo paraba —`_esBloqueDeCampaña` solo rechazaba los nodos con CERO campañas, no
+        // los que tienen varias—, asi que esconderlo se llevaba el inventario entero.
+        // Reportado el 2026-09-17: «al reclamar el ultimo drop de alguna campaña borra toda
+        // la seccion de inventarios».
+        //
+        // Se busca por PROPIEDAD, como ya hacen `_inventoryTileOf` y `_findPerCardWrapper`:
+        // el bloque es el antepasado MAS CERCANO que es una campaña, y se exige ademas que
+        // sea UNA SOLA. Dos o mas es un envoltorio de seccion por definicion, y ahi se
+        // devuelve null en vez de un nodo que alguien pueda esconder. La misma direccion
+        // segura de siempre: de menos deja cosas a la vista, de mas borra el inventario.
         function _inventoryContainerOf(img) {
-            let el = img;
-            for (let i = 0; i < 9; i++) {
-                if (el.parentElement) el = el.parentElement;
-                else return null;
+            if (!img) return null;
+            for (let n = img.parentElement; n && n !== document.body; n = n.parentElement) {
+                if (!n.querySelector) return null;
+                if (!_esBloqueDeCampaña(n)) continue;
+                // El primero que lo es manda: si ya trae varias campañas dentro, no hay
+                // ningun antepasado mas arriba que traiga menos.
+                return _cuantasCampañas(n) === 1 ? n : null;
             }
-            return el;
+            return null;
+        }
+
+        // EL ENLACE PROPIO DE UNA CAMPAÑA, que NO es «cualquier `a.tw-link` con `dropID=`».
+        //
+        // Este script escribe `&dropID=` tambien en el enlace de «canal en vivo que
+        // participe» (ver _filtrarEnlacesDeCanales), que vive dentro del mismo bloque y
+        // apunta a `/directory/category/…`. O sea que en cuanto ese enlace se reescribe,
+        // un bloque de UNA campaña pasa a tener DOS enlaces con `dropID`, y todo lo que
+        // cuente enlaces para saber cuantas campañas hay cuenta el doble —y lo que coja
+        // «el primero» puede coger el nuestro—. Se excluye por la ruta y no por la marca
+        // `data-…` propia, porque la ruta es cierta antes de que la marca exista.
+        const SEL_CAMP_LINK = 'a.tw-link[href*="dropID="]:not([href*="/directory/"])';
+
+        // CUANTAS CAMPAÑAS HAY DENTRO DE UN NODO. Se cuenta por los dos marcadores y gana
+        // el mayor: `.inventory-campaign-info` es el bloque de informacion de cada campaña
+        // y `?dropID=` su enlace, y no hay garantia de que Twitch pinte siempre los dos.
+        function _cuantasCampañas(el) {
+            if (!el || !el.querySelectorAll) return 0;
+            return Math.max(
+                el.querySelectorAll('.inventory-campaign-info').length,
+                el.querySelectorAll(SEL_CAMP_LINK).length);
         }
 
         // ¿ES el nodo un bloque de campaña? Se pregunta SOLO antes de esconderlo, nunca
@@ -6549,7 +6597,7 @@
         // todo lo que cuelgue de ella.
         function _esBloqueDeCampaña(el) {
             if (!el || !el.querySelector) return false;
-            return !!(el.querySelector('a.tw-link[href*="dropID="]')
+            return !!(el.querySelector(SEL_CAMP_LINK)
                 || el.querySelector('.inventory-campaign-info'));
         }
 
@@ -6628,6 +6676,13 @@
         // la ✕ reaparecian al recargar, y encima sin su ✕ —porque para el script SI
         // estaban descartadas—.
         const HIDDEN_ATTR = 'data-twitch-drops-hidden';
+        // POR QUE se escondio. No es documentacion: es lo que permite volver a juzgarlo.
+        // Sin el motivo, «devolver» tendria que adivinar que se esperaba de ese nodo, y
+        // adivinar es como se llego hasta aqui. Tres motivos y ni uno mas:
+        //   descartada — el usuario pulso la ✕ de esa campaña
+        //   campaña    — la casilla de «ocultar abiertos» se llevo el bloque entero
+        //   baldosa    — una recompensa ya cobrada dentro de una campaña aun en curso
+        const HIDDEN_WHY = 'data-twitch-drops-hidden-why';
         function _ensureHiddenStyle() {
             if (document.getElementById('twitch-drops-hidden-css')) return;
             const st = document.createElement('style');
@@ -6635,10 +6690,73 @@
             st.textContent = '[' + HIDDEN_ATTR + '="1"] { display: none !important; }';
             (document.head || document.documentElement).appendChild(st);
         }
-        function _hideInventoryNode(el) {
+        function _hideInventoryNode(el, porque) {
             if (!el || el.getAttribute(HIDDEN_ATTR) === '1') return;
             _ensureHiddenStyle();
+            el.setAttribute(HIDDEN_WHY, porque || 'campaña');
             el.setAttribute(HIDDEN_ATTR, '1');
+        }
+        function _mostrarInventoryNode(el) {
+            el.removeAttribute(HIDDEN_ATTR);
+            el.removeAttribute(HIDDEN_WHY);
+        }
+
+        // ¿SIGUE SIENDO VERDAD LO QUE SE DIJO DE ESE NODO AL ESCONDERLO?
+        //
+        // Se comprueba la MISMA condicion que lo escondio, no una parecida: si la prueba
+        // de aqui fuera mas floja que la de alla, esto no seria un repaso sino un sello
+        // de goma.
+        function _sigueCuadrando(el) {
+            const porque = el.getAttribute(HIDDEN_WHY);
+            if (porque === 'baldosa') {
+                // Una baldosa es UNA recompensa y ninguna campaña dentro. Si ahora abarca
+                // dos imagenes, o se ha convertido en el envoltorio de una campaña, React
+                // reutilizo el nodo para otra cosa.
+                if (el.querySelectorAll('img.inventory-drop-image').length !== 1) return false;
+                if (_cuantasCampañas(el) !== 0) return false;
+                // Y nada en curso dentro: es lo mismo que exige el barrido para esconderla.
+                return !_algoEnCurso(el);
+            }
+            // Los otros dos motivos son de bloque: una campaña, y una sola.
+            if (!_esBloqueDeCampaña(el) || _cuantasCampañas(el) !== 1) return false;
+            if (porque !== 'descartada') return true;
+            // Y la descartada tiene que seguir siendo LA que se descarto. Un nodo
+            // reutilizado para otra campaña no hereda el descarte de la anterior.
+            const enlace = el.querySelector(SEL_CAMP_LINK);
+            const id = enlace && (enlace.getAttribute('href').match(/dropID=([^&]+)/) || [])[1];
+            return !!id && deletedInventoryDrops.includes(id);
+        }
+
+        // DEVOLVER A LA VISTA LO QUE YA NO CUADRA. Es la pareja de `_hideInventoryNode` y
+        // la unica red que hay debajo de todo esto: cualquier nodo que se esconda por
+        // error —porque React lo reutilizo, porque Twitch rediseño el inventario, porque
+        // una regla de aqui se equivoco— reaparece en el siguiente repaso en vez de
+        // quedarse invisible hasta que alguien recargue la pagina.
+        function _revalidarEscondidos() {
+            for (const el of document.querySelectorAll('[' + HIDDEN_ATTR + '="1"]')) {
+                // Fuera del documento no hay nada que devolver: React lo recreara si toca.
+                if (!document.body.contains(el)) continue;
+                if (!_sigueCuadrando(el)) _mostrarInventoryNode(el);
+            }
+        }
+
+        // Y SE REPASA MIENTRAS DURE LA PAGINA, no solo mientras dure el barrido. El
+        // barrido son 10 vueltas de medio segundo y se acaba; los repintados de React no,
+        // y el que reutilice un nodo escondido puede llegar mucho despues. Un observador
+        // que solo MIRA y como mucho quita atributos no puede verse a si mismo: no toca el
+        // arbol, asi que no genera las mutaciones que lo despiertan.
+        let _observadorEscondidos = null;
+        let _repasoPendiente = null;
+        function _vigilarEscondidos() {
+            if (_observadorEscondidos) return;
+            _observadorEscondidos = new MutationObserver(() => {
+                if (_repasoPendiente) return;
+                _repasoPendiente = setTimeout(() => {
+                    _repasoPendiente = null;
+                    _revalidarEscondidos();
+                }, 300);
+            });
+            _observadorEscondidos.observe(document.body, { childList: true, subtree: true });
         }
 
         // =============================================
@@ -6748,11 +6866,11 @@
             if (!scope) {
                 let n = a.parentElement;
                 for (let i = 0; i < 8 && n; i++, n = n.parentElement) {
-                    if (n.querySelector('a.tw-link[href*="dropID="]')) { scope = n; break; }
+                    if (n.querySelector(SEL_CAMP_LINK)) { scope = n; break; }
                 }
             }
             if (!scope) return '';
-            const links = scope.querySelectorAll('a.tw-link[href*="dropID="]');
+            const links = scope.querySelectorAll(SEL_CAMP_LINK);
             if (links.length !== 1) return '';
             const m = (links[0].getAttribute('href') || '').match(/dropID=([^&]+)/);
             return m ? m[1] : '';
@@ -7262,8 +7380,13 @@
                 [3000, 6000, 9000].forEach((ms) => setTimeout(dismissClaimedBanners, ms));
             }
 
+            // El repaso de lo escondido va ANTES que nada y en cada vuelta: si algo se
+            // escondio mal en la vuelta anterior, esta lo devuelve. Y el observador se
+            // queda puesto para cuando el barrido ya no este.
+            _vigilarEscondidos();
             const checker = setInterval(() => {
                 attempts++;
+                _revalidarEscondidos();
                 const imgs = _inventoryImages();
                 if (imgs.length > 0) {
                     const toRemove = [];
@@ -7279,13 +7402,41 @@
                             if (container) {
                                 const notificationPath = container.querySelector(`path[d="${NOTIFICATION_SVG_PATH}"]`);
                                 if (!notificationPath && _esBloqueDeCampaña(container)) {
-                                    toRemove.push(container);
+                                    // UNA CAMPAÑA COMPLETAMENTE RECLAMADA NO SE TOCA: ni el
+                                    // bloque ni sus baldosas. Decidido el 2026-09-17, y no
+                                    // por miedo al fallo que trajo aqui —ese era el nodo mal
+                                    // elegido y esta arreglado en `_inventoryContainerOf`—
+                                    // sino porque las dos alternativas son peores: esconder
+                                    // el bloque deja de lado el unico sitio donde se ve lo
+                                    // que ganaste en ella, y esconder solo sus baldosas deja
+                                    // la cabecera —nombre, fechas, «Acerca de este Drop»—
+                                    // sobre una rejilla vacia, que ocupa lo mismo y ya no
+                                    // dice nada.
+                                    //
+                                    // La prueba de «no queda nada por hacer aqui» es
+                                    // positiva y es la de siempre: ninguna barra por debajo
+                                    // del 100 % (ver _algoEnCurso). Vale para las dos
+                                    // casillas: si nada esta en curso, tampoco hay nada
+                                    // «abierto» que ocultar.
+                                    if (!_algoEnCurso(container)) return;
+                                    if (type === "active") {
+                                        toRemove.push({ el: container, porque: 'campaña' });
+                                    } else {
+                                        // Y en «cerrados/completados» se va la BALDOSA ya
+                                        // cobrada, no el bloque: lo que estorba de una
+                                        // campaña a medias es lo que ya tienes, y lo que
+                                        // se viene a ver es lo que falta.
+                                        const baldosa = _inventoryTileOf(img);
+                                        if (baldosa && !_algoEnCurso(baldosa)) {
+                                            toRemove.push({ el: baldosa, porque: 'baldosa' });
+                                        }
+                                    }
                                 }
                             }
                         } else {
                             const container = _inventoryContainerOf(img);
                             if (container) {
-                                const linkElement = container.querySelector('a.tw-link[href*="dropID="]');
+                                const linkElement = container.querySelector(SEL_CAMP_LINK);
                                 if (linkElement) {
                                     const href = linkElement.getAttribute('href');
                                     const dropIDMatch = href.match(/dropID=([^&]+)/);
@@ -7304,7 +7455,7 @@
                                         if (!aToRemoveAdded.includes(dropID)) {
                                             aToRemoveAdded.push(dropID);
                                             if (deletedInventoryDrops.includes(dropID)) {
-                                                _hideInventoryNode(container);
+                                                _hideInventoryNode(container, 'descartada');
                                             } else {
                                                 const newLink = document.createElement('a');
                                                 newLink.textContent = t.removeIcon || '❌';
@@ -7315,9 +7466,14 @@
                                                 newLink.dataset.dropOwnTip = '1';
                                                 newLink.onclick = (e) => {
                                                     e.preventDefault();
-                                                    _hideInventoryNode(container);
+                                                    // El descarte se apunta ANTES de esconder:
+                                                    // `_sigueCuadrando` pregunta por la lista
+                                                    // para decidir si ese nodo sigue mereciendo
+                                                    // estar escondido, y un repaso que cayera
+                                                    // entremedias lo devolveria a la vista.
                                                     deletedInventoryDrops.push(dropID);
                                                     setInventoryDeletedKeys(deletedInventoryDrops);
+                                                    _hideInventoryNode(container, 'descartada');
                                                 };
                                                 if (!linkElement.dataset.buttonAdded) {
                                                     linkElement.dataset.buttonAdded = "true";
@@ -7364,7 +7520,17 @@
                                 //
                                 // Y equivocarse en esta direccion no borra nada: deja cosas a la
                                 // vista, que es el error que se puede ver y deshacer.
-                                const images = _esBloqueDeCampaña(container)
+                                //
+                                // Y CON UNA CONDICION MAS desde el 2026-09-17: la campaña
+                                // tiene que seguir teniendo algo EN CURSO. Con todo
+                                // reclamado no se esconde ni una baldosa, porque entonces
+                                // se irian todas y quedaria la cabecera sobre una rejilla
+                                // vacia —el mismo argumento que retiro la regla de «si no
+                                // queda nada a la vista, se va el bloque entero»—. Lo que
+                                // la casilla despeja es lo que ya tienes de una campaña
+                                // que aun te debe algo; una campaña saldada se queda tal
+                                // como la pinta Twitch.
+                                const images = (_esBloqueDeCampaña(container) && _algoEnCurso(container))
                                     ? container.querySelectorAll("img.inventory-drop-image")
                                     : [];
                                 images.forEach((im) => {
@@ -7398,46 +7564,23 @@
                                     if (imgToRemove && type === "expired") {
                                         const notificationPath = imgToRemove.querySelector(`path[d="${NOTIFICATION_SVG_PATH}"]`);
                                         if (!notificationPath) {
-                                            toRemove.push(imgToRemove);
+                                            toRemove.push({ el: imgToRemove, porque: 'baldosa' });
                                         }
                                     }
                                 });
-                                // Y SI NO QUEDA NADA A LA VISTA, SE VA EL BLOQUE ENTERO.
+                                // AQUI VIVIA «SI NO QUEDA NADA A LA VISTA, SE VA EL BLOQUE
+                                // ENTERO», y se retiro el 2026-09-17 a peticion del usuario.
                                 //
-                                // Esconder las baldosas una a una deja el encabezado de la
-                                // campaña —su nombre, su fecha, su «Acerca de este Drop»— con la
-                                // rejilla vacia debajo, que es peor que no esconder nada: ocupa
-                                // lo mismo y ya no dice nada. Pasa justo en las campañas de
-                                // emblemas y emotes con todo cumplido, que son las que no se van
-                                // por su cuenta.
+                                // Lo que resolvia era real —esconder las baldosas una a una
+                                // dejaba la cabecera de la campaña sobre una rejilla vacia—
+                                // pero lo resolvia por el lado caro: escondiendo el bloque.
+                                // Ahora esa situacion no llega a darse, porque las baldosas
+                                // de una campaña sin nada en curso ya no se esconden (ver el
+                                // bucle de arriba). O sea que no se ha cambiado un problema
+                                // por otro: se ha quitado la causa en vez del sintoma.
                                 //
-                                // Se decide contando, no suponiendo: si TODAS las imagenes de
-                                // recompensa del bloque estan escondidas o en la lista para
-                                // esconder, el bloque sobra. Con una sola visible se queda, que
-                                // es el caso de la campaña a medias.
-                                if (type === "expired") {
-                                    const todas = Array.from(container.querySelectorAll("img.inventory-drop-image"));
-                                    // El recorrido se para EN el contenedor y no sigue hasta el
-                                    // body. Mirando mas arriba, este bloque se alimentaba a si
-                                    // mismo: el propio contenedor es antepasado de todas sus
-                                    // imagenes, asi que en cuanto cualquier nodo por encima
-                                    // entraba en `toRemove`, todas las imagenes de todas las
-                                    // campañas se declaraban «ya fuera» y cada contenedor se
-                                    // añadia. Cuanto mas escondia, mas creia poder esconder.
-                                    const fuera = (im) => {
-                                        for (let n = im; n && n !== container; n = n.parentElement) {
-                                            if (n.getAttribute && n.getAttribute(HIDDEN_ATTR) === '1') return true;
-                                            if (toRemove.includes(n)) return true;
-                                        }
-                                        return false;
-                                    };
-                                    // Y jamas un contenedor con algo EN CURSO dentro, que es la
-                                    // misma prueba positiva que usa el barrido de baldosas.
-                                    if (todas.length > 0 && todas.every(fuera)
-                                        && !_algoEnCurso(container) && _esBloqueDeCampaña(container)) {
-                                        toRemove.push(container);
-                                    }
-                                }
+                                // Con ella se va tambien el ayudante `fuera()`, que existia
+                                // solo para contar cuantas baldosas quedaban a la vista.
                                 const buttons = Array.from(container.querySelectorAll("button")).filter((btn) => {
                                     const label = btn.querySelector('[data-a-target="tw-core-button-label-text"]');
                                     const text = (label ? label.textContent : btn.textContent || "").trim().toLowerCase();
@@ -7460,8 +7603,8 @@
                             }
                         }
                     });
-                    toRemove.forEach(function (el) {
-                        _hideInventoryNode(el);
+                    toRemove.forEach(function (x) {
+                        _hideInventoryNode(x.el, x.porque);
                     });
                 }
                 if (attempts >= maxAttempts) clearInterval(checker);
