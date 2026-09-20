@@ -69,10 +69,16 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = 
     w.unsafeWindow = w;
     const pedidas = [];
     w.fetch = (u, opts) => {
-      let op = '';
-      try { op = JSON.parse(opts && opts.body)[0].operationName || ''; } catch (e) { /* la de siembra */ }
+      let op = '', cuerpo = null;
+      try { cuerpo = JSON.parse(opts && opts.body); op = cuerpo[0].operationName || ''; } catch (e) { /* la de siembra */ }
       if (op) pedidas.push(op);
-      const payload = gql && op && gql[op];
+      // Una entrada de `gql` puede ser una FUNCION, y entonces se le pasa el cuerpo de la
+      // peticion. Hacia falta para `DropCampaignDetails`, que es UNA CONSULTA POR CAMPAÑA:
+      // con un payload fijo, dos campañas distintas reciben los mismos tramos y un test
+      // sobre «cada campaña aporta lo suyo» pasaria por construccion. El resto de
+      // entradas siguen siendo objetos y no cambian.
+      const bruto = gql && op && gql[op];
+      const payload = typeof bruto === 'function' ? bruto(cuerpo) : bruto;
       // Sin payload se devuelve una promesa que no resuelve NUNCA, que es lo que habia
       // antes: una respuesta vacia no es lo mismo que no contestar, y el script distingue
       // los dos casos (el aviso de «sin inventario» sale solo en el segundo).

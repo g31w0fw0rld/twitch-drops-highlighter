@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.16
+// @version      1.3.17
 // @description  Drops panel for Twitch. Twitch hands you a wall of campaigns with no way to say which games you care about, and never tells you how much watch time a drop still needs — only a bar that says it is in progress. This outlines the ones your keywords match on the page itself and puts the exact time left on every card. Its queries only read; claiming is optional and ships off. The rest is in "Script Information", in the panel, and in the repository. 16 languages.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.16";
+    const SCRIPT_VERSION = "1.3.17";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -1610,6 +1610,38 @@
         function _claveDeCampañaEnJuego(gameId, clave) {
             return (gameId && clave) ? gameId + '|' + clave : '';
         }
+
+        // Y EL MISMO INDICE OTRA VEZ, CON SOLO LAS QUE ESTAN CORRIENDO AHORA.
+        //
+        // Porque el juego no desempata cuando el homonimo es de SU MISMO juego, y eso
+        // tampoco es un caso raro: un torneo reparte UNA CAMPAÑA POR DIA y las llama a
+        // todas igual. El 2026-09-20, en el acordeon de Rocket League, «RL World
+        // Championship» era la campaña del dia 20 y tambien la del 19 y la del 18, asi
+        // que la clave `30921|rl world championship` guardaba `null` y ese enlace se
+        // quedaba sin filtrar —ni `dropID`, ni negrita, ni modal— mientras su vecina «RL
+        // Worlds Sub Drops», que si es unica, funcionaba. Reproducido con el volcado de
+        // ese acordeon en `tests/test-enlace-canales-nombre-repetido-en-el-juego.js`.
+        //
+        // Quien desempata ahi es el RELOJ: de esas tres campañas homonimas solo una esta
+        // viva, y es justo la que la pagina esta enseñando —/drops/campaigns no lista lo
+        // vencido—. Asi que las campañas activas llevan su propio indice y se mira
+        // ANTES; lo demas se queda como estaba, de respaldo.
+        //
+        // El orden de consulta es juego primero y reloj despues (ver `_dropIDporNombre`),
+        // y no al reves: el juego es el desempate fuerte —dice de QUE acordeon es el
+        // enlace— y el reloj solo separa a las de dentro. Con el reloj por delante, un
+        // bloque cuya campaña ya no esta activa podria llevarse el id de otro juego que
+        // si lo esta, que es mandar al usuario a la campaña equivocada; el fallo que esto
+        // arregla, en cambio, solo deja el enlace como lo escribio Twitch.
+        const _apiCampaignIdsVivos = {};
+        const _apiCampaignIdsVivosPorJuego = {};
+
+        // Guardar o anular, que es la regla de los cuatro mapas y no de uno: un nombre
+        // que ya apunta a OTRA campaña deja de identificar nada y se queda en `null`.
+        function _apuntaCampaña(mapa, clave, id) {
+            if (!clave || !id) return;
+            mapa[clave] = (clave in mapa && mapa[clave] !== id) ? null : id;
+        }
         const _apiStatusSeen = {};
         let _apiDataReady = false;
 
@@ -2988,6 +3020,48 @@
                 }
             }
 
+            // LOS JUEGOS QUE YA TE INTERESAN, antes de recorrer nada.
+            //
+            // El filtro de keywords es POR CAMPAÑA y la tarjeta del panel es POR JUEGO, y
+            // esos dos ambitos no casan: basta con que UNA campaña de un juego pase el
+            // filtro para que el juego tenga tarjeta, y entonces esa tarjeta enseña solo
+            // los tramos de esa campaña y calla los de sus hermanas, sin decir que se
+            // deja nada.
+            //
+            // Reportado el 2026-09-20 con League of Legends, y la consola lo deja
+            // demostrado: el acordeon reparte «Love, Sera» (campaña «Split 3 - Sub Drop
+            // (Pt.2)», de Riot Games) y «WSCI Chat Badge» (campaña «WSCI 2026», de
+            // Twitch), y el panel enseñaba solo el segundo. La entrada existia por la
+            // keyword `twitch`, que casa con el OWNER de esa campaña; la de Riot Games no
+            // casa con ninguna y no entraba. Se ve en que la entrada NO sale en la linea
+            // «casan por algo que no esta en el titulo» —su `displayTitle` es «League of
+            // Legends - Twitch», asi que la keyword si esta en el titulo— y aun asi la
+            // tarjeta del DOM, que dice «Riot Games», llevaba el chip `twitch`.
+            //
+            // Asi que un juego que ya te interesa se lleva TODAS sus campañas abiertas. Lo
+            // que esto cuesta es una consulta de detalle por hermana —`DropCampaignDetails`
+            // es una por campaña— y solo en juegos que ya tienen tarjeta: no se abre la
+            // puerta a las 116 campañas de la API, solo a las hermanas de las 26 que ya
+            // pasaban.
+            //
+            // Tres cosas que NO hace:
+            //   · no toca las CERRADAS. Una hermana vencida no tiene donde salir en la
+            //     tarjeta de un juego abierto (es el mismo motivo por el que Kick filtra
+            //     sus tramos por estado), y meterla en «Cerrados» inventaria una tarjeta
+            //     que nadie pidio.
+            //   · no se salta una NEGATIVA. «-dead by daylight» es una orden, y una
+            //     hermana que la lleve se queda fuera aunque su juego tenga tarjeta.
+            //   · no añade etiquetas. El chip sigue diciendo la keyword que metio al
+            //     juego en el panel, que es la respuesta a «por que estoy viendo esto».
+            const _juegosDeInteres = new Set();
+            for (const c of dropCampaigns) {
+                if (_campaignStatus(c) !== 'active') continue;
+                const juego = c.game?.displayName || '';
+                if (!juego) continue;
+                const txt = (juego + ' ' + (c.name || '') + ' ' + (c.owner?.name || '')).toLowerCase();
+                if (_matchesKeywords(txt)) _juegosDeInteres.add(juego);
+            }
+
             // Process drop campaigns
             for (const campaign of dropCampaigns) {
                 // Ya NO se descarta lo que no esta ACTIVE: la solapa de Cerrados tiene
@@ -3006,18 +3080,27 @@
                 // campañas y no solo de las tuyas.
                 const claveCamp = _claveDeCampaña(campaignName);
                 if (claveCamp && campaign.id) {
-                    _apiCampaignIds[claveCamp] = (claveCamp in _apiCampaignIds &&
-                        _apiCampaignIds[claveCamp] !== campaign.id) ? null : campaign.id;
+                    _apuntaCampaña(_apiCampaignIds, claveCamp, campaign.id);
                     // Y otra vez acotado a su juego, que es lo que salva a los nombres
                     // que se repiten entre juegos (ver `_apiCampaignIdsPorJuego`).
                     const claveEnJuego = _claveDeCampañaEnJuego(_gameIdOf(campaign), claveCamp);
-                    if (claveEnJuego) {
-                        _apiCampaignIdsPorJuego[claveEnJuego] = (claveEnJuego in _apiCampaignIdsPorJuego &&
-                            _apiCampaignIdsPorJuego[claveEnJuego] !== campaign.id) ? null : campaign.id;
+                    _apuntaCampaña(_apiCampaignIdsPorJuego, claveEnJuego, campaign.id);
+                    // Y las dos claves otra vez en el indice de las que estan corriendo,
+                    // que es lo unico que separa a las campañas de un torneo diario
+                    // (ver `_apiCampaignIdsVivos`). Lo vencido y lo que aun no ha
+                    // empezado no entra aqui: es precisamente lo que estorbaba.
+                    if (status === 'active') {
+                        _apuntaCampaña(_apiCampaignIdsVivos, claveCamp, campaign.id);
+                        _apuntaCampaña(_apiCampaignIdsVivosPorJuego, claveEnJuego, campaign.id);
                     }
                 }
 
-                if (!_matchesKeywords(searchText)) continue;
+                // `casaSola` es la campaña que pasa el filtro por si misma; la hermana
+                // entra prestada, por el juego (ver `_juegosDeInteres`).
+                const casaSola = _matchesKeywords(searchText);
+                const hermanaDeInteres = !casaSola && status === 'active' && !!gameName &&
+                    _juegosDeInteres.has(gameName) && !_hasNegativeKeyword(searchText);
+                if (!casaSola && !hermanaDeInteres) continue;
 
                 const apiKey = gameName || campaignName;
                 // Full display title matching DOM format: "Game - Owner"
@@ -3110,9 +3193,22 @@
                             // juego: la clave del mapa es el juego, asi que un juego con
                             // varias campañas las funde en una entrada y solo cabe un id.
                             // Es la misma limitacion que ya funde sus badges.
-                            _apiDropNames[apiKey] = { drops: [], startAt: campaign.startAt || '', endAt: campaign.endAt || '', displayTitle, imgSrc: _apiImage(campaign), boxArt: _boxArtUrlOf(campaign), campaignId: campaign.id || '', searchText, gameId: _gameIdOf(campaign) };
+                            // `soloHermana` dice que esta entrada la creo una campaña que
+                            // entro prestada, por su juego. Importa por el TITULO: el
+                            // orden en que la API devuelve las campañas no esta
+                            // garantizado, asi que sin esto el `displayTitle` de un juego
+                            // podria cambiar de una carga a otra —y ese titulo es la clave
+                            // de los avisos, o sea que cambiarlo levanta un 🔔 de «campaña
+                            // nueva» que no lo es—. Con la marca, manda siempre el titulo
+                            // de una campaña que casa por si misma.
+                            _apiDropNames[apiKey] = { drops: [], startAt: campaign.startAt || '', endAt: campaign.endAt || '', displayTitle, imgSrc: _apiImage(campaign), boxArt: _boxArtUrlOf(campaign), campaignId: campaign.id || '', searchText, gameId: _gameIdOf(campaign), soloHermana: !casaSola };
                         } else {
                             _mergeSearchText(_apiDropNames[apiKey], searchText);
+                            if (casaSola && _apiDropNames[apiKey].soloHermana) {
+                                _apiDropNames[apiKey].displayTitle = displayTitle;
+                                _apiDropNames[apiKey].campaignId = campaign.id || _apiDropNames[apiKey].campaignId;
+                                _apiDropNames[apiKey].soloHermana = false;
+                            }
                         }
                         _apiDropNames[apiKey].drops.push(...drops);
                         if (!_apiDropNames[apiKey].imgSrc) {
@@ -6944,13 +7040,18 @@
         function _dropIDporNombre(a) {
             const clave = _claveDeCampaña(_nombreDeSuCampaña(a));
             if (!clave) return '';
-            // Primero dentro de su juego, que es el unico ambito donde un nombre como
-            // «Twitch Drops» significa una sola campaña. El indice global queda de
-            // respaldo para donde no haya acordeon del que leer el juego.
-            const enJuego = _apiCampaignIdsPorJuego[
-                _claveDeCampañaEnJuego(_juegoDeSuAcordeon(a), clave)];
-            if (enJuego) return enJuego;
-            return _apiCampaignIds[clave] || '';
+            // Cuatro intentos, de mas acotado a menos. Primero dentro de su juego, que
+            // es el unico ambito donde un nombre como «Twitch Drops» significa una sola
+            // campaña, y ahi primero entre las que estan corriendo, que es lo unico que
+            // desempata a las homonimas de un mismo juego (un torneo diario). Los dos
+            // indices globales quedan de respaldo para donde no haya acordeon del que
+            // leer el juego. Una clave anulada por homonimia vale `null` y cae al
+            // siguiente intento.
+            const enJuego = _claveDeCampañaEnJuego(_juegoDeSuAcordeon(a), clave);
+            return _apiCampaignIdsVivosPorJuego[enJuego] ||
+                   _apiCampaignIdsPorJuego[enJuego] ||
+                   _apiCampaignIdsVivos[clave] ||
+                   _apiCampaignIds[clave] || '';
         }
 
         function _filtrarEnlacesDeCanales(root) {
