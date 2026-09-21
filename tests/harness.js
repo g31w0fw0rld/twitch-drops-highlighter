@@ -49,7 +49,12 @@ const DUMP = fs.readFileSync(
 function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = DUMP,
                clicarSelector = null, clicarIndice = 0, clicarEnMs = null,
                url = 'https://www.twitch.tv/drops/inventory', lateHtml = null, lateMs = 5000,
-               keywords = ['pokemon', 'marvel', 'squadra', 'sorcerer', 'rust'] } = {}) {
+               keywords = ['pokemon', 'marvel', 'squadra', 'sorcerer', 'rust'],
+               // La casilla de «ocultar cerrados/completados del inventario». Va siempre
+               // puesta porque es lo que ejercita el barrido; se puede quitar para probar
+               // que con ella quitada NO se esconde nada, que es el control de cualquier
+               // regla de escondido.
+               ocultarCerrados = true } = {}) {
   return new Promise(resolve => {
     const vc = new VirtualConsole();
     vc.on('jsdomError', () => {});
@@ -59,7 +64,7 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = 
     });
     const w = dom.window;
     const store = new Map([
-      ['twitch_show_hide_inventory_expired', true],
+      ['twitch_show_hide_inventory_expired', ocultarCerrados],
       ['twitch_inventory_deleted_drops', JSON.stringify(borrados)],
       ['twitch_drop_keywords', JSON.stringify(keywords)]
     ]);

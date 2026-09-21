@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.17
+// @version      1.3.18
 // @description  Drops panel for Twitch. Twitch hands you a wall of campaigns with no way to say which games you care about, and never tells you how much watch time a drop still needs — only a bar that says it is in progress. This outlines the ones your keywords match on the page itself and puts the exact time left on every card. Its queries only read; claiming is optional and ships off. The rest is in "Script Information", in the panel, and in the repository. 16 languages.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.17";
+    const SCRIPT_VERSION = "1.3.18";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -1636,6 +1636,27 @@
         const _apiCampaignIdsVivos = {};
         const _apiCampaignIdsVivosPorJuego = {};
 
+        // EL ESTADO DE CADA CAMPAÑA, POR SU ID. Es el unico indice de los cinco que NO va
+        // por nombre, y por eso hace falta aparte: el inventario si escribe el id en el
+        // DOM —`?dropID=` en el enlace del bloque— asi que ahi no hay que adivinar nada.
+        //
+        // Existe porque la pagina NO dice en ningun idioma-independiente si una campaña
+        // cerro: lo dice con una fecha traducida («Fecha de termino: dom 20 de sep») y con
+        // una frase traducida («Esta recompensa ya no esta disponible»), y las dos habria
+        // que acertarlas en 28 locales. El estado si viene en `ViewerDropsDashboard`, que
+        // ya se pide igualmente.
+        //
+        // Se llena ANTES del filtro de keywords, como los de nombre: la casilla de
+        // «ocultar cerrados» habla del inventario entero, no solo de las campañas que te
+        // interesan.
+        //
+        // Y NO se vacia al rehacer el indice, al contrario que los demas. Rehacerlo deja
+        // una ventana con el mapa vacio, y en esa ventana `_sigueCuadrando` diria que una
+        // campaña caducada ya no lo esta y `_revalidarEscondidos` la devolveria a la vista
+        // para volver a esconderla al instante siguiente. Sobreescribir entrada a entrada
+        // es inofensivo: una campaña que cerro no vuelve a abrirse.
+        const _apiCampaignStatusById = {};
+
         // Guardar o anular, que es la regla de los cuatro mapas y no de uno: un nombre
         // que ya apunta a OTRA campaña deja de identificar nada y se queda en `null`.
         function _apuntaCampaña(mapa, clave, id) {
@@ -2655,6 +2676,9 @@
                 // con los que ordenar y filtrar.
                 highlightAndLinkDrops();
             } else {
+                // El indice de estados acaba de existir, y el barrido del inventario ya
+                // termino: sin esto, una campaña cerrada no se esconderia hasta recargar.
+                _esconderCampañasCaducadas();
                 _refreshPanelAfterLateData();
             }
         }
@@ -3078,6 +3102,8 @@
 
                 // ANTES del filtro: ver arriba, los enlaces de la pagina son de todas las
                 // campañas y no solo de las tuyas.
+                if (campaign.id) _apiCampaignStatusById[campaign.id] = status;
+
                 const claveCamp = _claveDeCampaña(campaignName);
                 if (claveCamp && campaign.id) {
                     _apuntaCampaña(_apiCampaignIds, claveCamp, campaign.id);
@@ -6762,6 +6788,38 @@
             return base;
         }
 
+        // EL ID DE LA CAMPAÑA DE UN BLOQUE, tal cual lo escribe Twitch en su enlace.
+        function _idDeCampañaDelBloque(el) {
+            const a = el && el.querySelector && el.querySelector(SEL_CAMP_LINK);
+            const m = a && (a.getAttribute('href') || '').match(/dropID=([^&]+)/);
+            return m ? decodeURIComponent(m[1]) : '';
+        }
+
+        // ¿LA CERRO TWITCH? Lo dice la API y nadie mas (ver `_apiCampaignStatusById`).
+        // Sin dato se contesta que NO: la direccion segura es dejar la campaña a la vista.
+        function _campañaCaducada(el) {
+            const id = _idDeCampañaDelBloque(el);
+            return !!id && _apiCampaignStatusById[id] === 'expired';
+        }
+
+        // LOS BOTONES DE RECLAMAR DE UN BLOQUE. Estaba escrito dentro del barrido y se
+        // saca aqui porque ahora lo miran DOS sitios —el barrido, para pulsarlos, y el
+        // escondido de caducadas, para no tapar uno—: con la deteccion duplicada, el dia
+        // que Twitch cambie el boton uno de los dos se quedaria atras y el que se quedara
+        // atras seria el que esconde.
+        function _botonesDeReclamarEn(container) {
+            if (!container || !container.querySelectorAll) return [];
+            return Array.from(container.querySelectorAll("button")).filter((btn) => {
+                const label = btn.querySelector('[data-a-target="tw-core-button-label-text"]');
+                const text = (label ? label.textContent : btn.textContent || "").trim().toLowerCase();
+                const testSelector = (btn.getAttribute('data-test-selector') || '').toLowerCase();
+                const targetSelector = (btn.getAttribute('data-a-target') || '').toLowerCase();
+                const innerWithClaim = btn.querySelector('[data-test-selector*="claim"], [data-a-target*="claim"]');
+                const hasClaimAttr = testSelector.includes('claim') || targetSelector.includes('claim') || !!innerWithClaim;
+                return text.includes("reclamar") || text.includes("claim") || hasClaimAttr;
+            });
+        }
+
         // Y se esconde con una REGLA CSS, no con un `style.display` inline. React
         // repinta el inventario mientras la API sigue llegando, y en ese repintado
         // vuelve a escribir el `style` del nodo: el escondido se perdia y este barrido
@@ -6813,8 +6871,15 @@
                 // Y nada en curso dentro: es lo mismo que exige el barrido para esconderla.
                 return !_algoEnCurso(el);
             }
-            // Los otros dos motivos son de bloque: una campaña, y una sola.
+            // Los otros tres motivos son de bloque: una campaña, y una sola.
             if (!_esBloqueDeCampaña(el) || _cuantasCampañas(el) !== 1) return false;
+            if (porque === 'caducada') {
+                // La misma prueba que lo escondio, no una parecida: que la API siga
+                // dandola por cerrada y que no haya aparecido un boton de reclamar
+                // dentro. Si el indice se quedara sin ese id, esto devuelve la campaña a
+                // la vista, que es la direccion segura.
+                return _campañaCaducada(el) && _botonesDeReclamarEn(el).length === 0;
+            }
             if (porque !== 'descartada') return true;
             // Y la descartada tiene que seguir siendo LA que se descarto. Un nodo
             // reutilizado para otra campaña no hereda el descarte de la anterior.
@@ -7355,6 +7420,66 @@
             _dirObserver.observe(document.body, { childList: true, subtree: true });
         }
 
+        // LA CAMPAÑA QUE CERRO SIN QUE LLEGARAS A TIEMPO
+        // =============================================
+        // Reportado el 2026-09-20: con la casilla de «ocultar cerrados/completados»
+        // puesta, «PEC: Fall Finals 1_DAY3» —caducada, al 45 %, con su unica recompensa
+        // diciendo «Esta recompensa ya no esta disponible»— NO desaparecia. Y tampoco le
+        // salia la ✕, asi que no habia forma de quitarla ni a mano.
+        //
+        // Las dos guardas del barrido la dejaban pasar, y las dos por el mismo motivo de
+        // fondo: las dos se escribieron pensando en una campaña ABIERTA.
+        //
+        //   · con la barra al 45 %, `_algoEnCurso` dice «queda algo por ganar» y el
+        //     barrido no toca la baldosa. En una campaña abierta es cierto; en una cerrada
+        //     ese 45 % no es progreso, es el sitio donde te quedaste.
+        //   · y con la barra al 100 %, la regla de 1.3.16 —«una campaña completamente
+        //     reclamada no se toca»— la salta entera. Comprobado con el mismo volcado
+        //     subiendo la barra: tampoco se escondia, o sea que no era una guarda sino las
+        //     dos, cada una por su lado.
+        //
+        // Asi que una campaña cerrada no es ninguno de los dos casos: no le queda nada que
+        // ganar y no esta «completa». Es justo lo que la casilla dice en su primera
+        // palabra —«ocultar CERRADOS/completados»— y lo unico que hacia era lo segundo.
+        //
+        // Se esconde el BLOQUE entero y no sus baldosas, al reves que en una campaña a
+        // medias: ahi lo que estorba es lo que ya tienes y lo que se viene a ver es lo que
+        // falta, y aqui no falta nada. Esconder solo las baldosas dejaria la cabecera
+        // —nombre, fechas, «Acerca de este Drop»— sobre una rejilla vacia, que es el mismo
+        // argumento que retiro esa regla en 1.3.16.
+        //
+        // DOS FRENOS, y los dos son de la direccion segura:
+        //   · lo cerrado lo dice la API por el id del enlace, no la pagina. La fecha y la
+        //     frase estan traducidas a 28 locales y acertarlas seria adivinar; sin dato en
+        //     el indice no se esconde nada.
+        //   · y si dentro quedara un boton de reclamar, no se toca: lo que caduca es el
+        //     plazo para ganarlo, no necesariamente el de cobrarlo, y tapar un boton que
+        //     todavia responde seria perder el premio. El mismo criterio que ya rige en
+        //     Kick para su pestaña de cerradas.
+        //
+        // Va en su propio paso, fuera del bucle por imagenes del barrido, porque hay que
+        // poder repetirlo cuando llegue la API: el barrido dura 5 s (10 intentos) y
+        // `_fetchDropsViaGQL` pide UNA CONSULTA DE DETALLE POR CAMPAÑA, asi que con 26
+        // entradas el indice no esta listo dentro de esa ventana casi nunca.
+        function _esconderCampañasCaducadas() {
+            if (!location.pathname.includes('/inventory')) return 0;
+            if (!cleanExpiredInventoryFlag) return 0;
+            let hechas = 0;
+            const vistos = new Set();
+            for (const img of _inventoryImages()) {
+                const container = _inventoryContainerOf(img);
+                if (!container || vistos.has(container)) continue;
+                vistos.add(container);
+                if (container.getAttribute(HIDDEN_ATTR) === '1') continue;
+                if (!_esBloqueDeCampaña(container)) continue;
+                if (!_campañaCaducada(container)) continue;
+                if (_botonesDeReclamarEn(container).length > 0) continue;
+                _hideInventoryNode(container, 'caducada');
+                hechas++;
+            }
+            return hechas;
+        }
+
         function cleanInventory(type = "expired") {
             let attempts = 0;
             const maxAttempts = 10;
@@ -7488,6 +7613,7 @@
             const checker = setInterval(() => {
                 attempts++;
                 _revalidarEscondidos();
+                _esconderCampañasCaducadas();
                 const imgs = _inventoryImages();
                 if (imgs.length > 0) {
                     const toRemove = [];
@@ -7682,15 +7808,7 @@
                                 //
                                 // Con ella se va tambien el ayudante `fuera()`, que existia
                                 // solo para contar cuantas baldosas quedaban a la vista.
-                                const buttons = Array.from(container.querySelectorAll("button")).filter((btn) => {
-                                    const label = btn.querySelector('[data-a-target="tw-core-button-label-text"]');
-                                    const text = (label ? label.textContent : btn.textContent || "").trim().toLowerCase();
-                                    const testSelector = (btn.getAttribute('data-test-selector') || '').toLowerCase();
-                                    const targetSelector = (btn.getAttribute('data-a-target') || '').toLowerCase();
-                                    const innerWithClaim = btn.querySelector('[data-test-selector*="claim"], [data-a-target*="claim"]');
-                                    const hasClaimAttr = testSelector.includes('claim') || targetSelector.includes('claim') || !!innerWithClaim;
-                                    return text.includes("reclamar") || text.includes("claim") || hasClaimAttr;
-                                });
+                                const buttons = _botonesDeReclamarEn(container);
                                 if (type === "expired") {
                                     if (buttons.length > 0) {
                                         buttons.forEach((btn, i) => {
