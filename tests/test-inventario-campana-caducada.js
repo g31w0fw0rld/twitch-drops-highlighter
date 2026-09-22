@@ -68,16 +68,22 @@ const dashboardCon = (camps) => [{
     data: { currentUser: { id: '1', login: 'prueba', dropCampaigns: camps },
             rewardCampaignsAvailableToUser: [] } }];
 
-const detalle = (cuerpo) => {
+// `extra` son los campos que `DropCampaignDetails` añade sobre la campaña. Por defecto
+// NINGUNO, que es como se venia usando y ademas es un caso que hay que seguir cubriendo:
+// la consulta es persistida y su seleccion de campos la fija Twitch, asi que el dia que no
+// traiga ni `status` ni `endAt` esto tiene que quedarse a la vista y no esconderse por
+// descarte.
+const detalleCon = (extra) => (cuerpo) => {
     const id = (((cuerpo || [])[0] || {}).variables || {}).dropID || '';
-    return [{ data: { user: { id: 'o-pec', dropCampaign: {
+    return [{ data: { user: { id: 'o-pec', dropCampaign: Object.assign({
         id, name: 'PEC: Fall Finals 1_DAY3',
         timeBasedDrops: [{ id: id + '-t0', name: 'PUBG Varsity Jacket',
             requiredMinutesWatched: 120, requiredSubs: 0,
             benefitEdges: [{ benefit: { id: id + '-b0', name: 'PUBG Varsity Jacket',
                 distributionType: 'DIRECT_ENTITLEMENT' } }] }]
-    } } } }];
+    }, extra || {}) } } }];
 };
+const detalle = detalleCon(null);
 
 const inventory = [{ data: { currentUser: { inventory: {
     dropCampaignsInProgress: [], gameEventDrops: [], earnedDropRewards: { edges: [] } } } } }];
@@ -129,10 +135,40 @@ async function escondido(opts) {
     const conBoton = await escondido({ dump: DUMP_CON_BOTON });
     comprobar(!conBoton.nodo, 'CONTROL: con un boton de reclamar dentro, no se toca');
 
+    // LA QUE EL PANEL YA NO LISTA. Medido en el navegador el 2026-09-22: de las tres
+    // campañas que el barrido dejaba a la vista, dos —«PEC: Fall Finals 1_DAY3» y «Jynxzi
+    // Invitational», las dos terminadas dos dias antes— NO estaban entre los 122 ids que
+    // devolvia `ViewerDropsDashboard`. O sea que cerrar y desaparecer del panel no es lo
+    // mismo, y el inventario se queda en esa franja sin nadie que sepa el estado.
+    //
+    // Se pregunta por el id que lleva el enlace del propio bloque. Lo que este caso
+    // comprueba no es solo que se esconda: es que se esconda SIN el dashboard, que es lo
+    // unico que distingue este arreglo de volver a leer el indice.
+    const fueraDelPanel = await escondido({ dump: DUMP,
+        gql: { ViewerDropsDashboard: dashboardCon([]), Inventory: inventory,
+               DropCampaignDetails: detalleCon({ status: 'EXPIRED',
+                   startAt: cuando(-4), endAt: cuando(-2) }) } });
+    comprobar(!!fueraDelPanel.nodo,
+        'la que el panel ya no lista se esconde preguntando por su id');
+    comprobar(!!fueraDelPanel.nodo
+        && fueraDelPanel.nodo.getAttribute('data-twitch-drops-hidden-why') === 'caducada',
+        'y tambien por caducada, no por otra regla');
+
+    // El mismo camino con la respuesta contraria. Sin este control, «preguntar» y
+    // «esconder lo que no esta en el indice» darian el mismo verde: bastaria con esconder
+    // todo lo desconocido para pasar el de arriba.
+    const fueraPeroViva = await escondido({ dump: DUMP,
+        gql: { ViewerDropsDashboard: dashboardCon([]), Inventory: inventory,
+               DropCampaignDetails: detalleCon({ status: 'ACTIVE',
+                   startAt: cuando(-2), endAt: cuando(2) }) } });
+    comprobar(!fueraPeroViva.nodo,
+        'CONTROL: si al preguntar contesta que sigue abierta, no se esconde');
+
     const ajena = await escondido({ dump: DUMP,
         gql: { ViewerDropsDashboard: dashboardCon([]), Inventory: inventory,
                DropCampaignDetails: detalle } });
-    comprobar(!ajena.nodo, 'CONTROL: sin dato de esa campaña en la API, no se esconde');
+    comprobar(!ajena.nodo,
+        'CONTROL: ni en el indice ni en la respuesta del detalle, no se esconde');
 
     const sinCasilla = await escondido({ dump: DUMP, ocultarCerrados: false });
     comprobar(!sinCasilla.nodo, 'CONTROL: con la casilla quitada, no se esconde nada');

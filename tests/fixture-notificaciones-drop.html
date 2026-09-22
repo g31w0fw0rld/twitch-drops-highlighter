@@ -1,0 +1,42 @@
+<!--
+  EL CENTRO DE NOTIFICACIONES DE TWITCH, reconstruido con los selectores que el script usa
+  para barrerlo (`cleanInventory` → `checkNotifications`):
+
+    · la campana: el <button> con el `path` de NOTIFICATION_SVG_PATH;
+    · el globo: [data-test-selector="center-window__balloon"] con su `.tw-popover-header`
+      y el boton de cerrar con el mismo `path` que el de borrar (esa colision es real y
+      esta documentada en el codigo);
+    · y tres `.persistent-notification`, cada una con su `.persistent-notification__body`
+      y su `button[data-test-selector="persistent-notification__delete"]`.
+
+  NO es un volcado: Twitch sirve ese globo solo al abrirlo y con la sesion puesta. Lo que
+  si es real es el dato que decide: el nodo de «Corrupted Creeper Cape» con
+  `distributionType: "CODE"` y su `thumbnailURL`, copiados de `earnedDropRewards` de la
+  cuenta del usuario (2026-09-22). El `data-espia` de cada boton es del arnes, no de Twitch.
+
+  Las tres notificaciones dicen «drop», que es lo que las mete en el barrido. Se
+  diferencian en como se delata la de codigo:
+    codigo-nombre   la nombra en el texto
+    codigo-imagen   NO la nombra, pero enseña su imagen (el uuid del asset)
+    normal          ninguna de las dos: esta si se borra
+-->
+<button aria-label="Notificaciones"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M5 3h14l3 6v12H2V9l3-6Zm-.264 5 1.5-3h11.528l1.5 3H15v3a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V8H4.736ZM4 10v9h16v-9h-3v1a3 3 0 0 1-3 3h-4a3 3 0 0 1-3-3v-1H4Z"></path></svg></button>
+
+<div data-test-selector="center-window__balloon">
+  <div class="tw-popover-header">
+    <button aria-label="Cerrar"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M6.414 5 5 6.414l5.588 5.588L5 17.59l1.414 1.414 5.588-5.588 5.588 5.588 1.414-1.414-5.588-5.588 5.588-5.588L17.59 5l-5.588 5.588L6.414 5Z"></path></svg></button>
+  </div>
+  <div class="persistent-notification">
+    <div class="persistent-notification__body"><p>¡Recibiste Corrupted Creeper Cape por tu drop de Minecraft!</p></div>
+    <button data-test-selector="persistent-notification__delete" data-espia="codigo-nombre"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M6.414 5 5 6.414l5.588 5.588L5 17.59l1.414 1.414 5.588-5.588 5.588 5.588 1.414-1.414-5.588-5.588 5.588-5.588L17.59 5l-5.588 5.588L6.414 5Z"></path></svg></button>
+  </div>
+  <div class="persistent-notification">
+    <img src="https://static-cdn.jtvnw.net/twitch-quests-assets/REWARD/07bed736-edcc-4d2b-b7f5-ef7709d6a971.png" alt="">
+    <div class="persistent-notification__body"><p>Ya puedes canjear tu drop.</p></div>
+    <button data-test-selector="persistent-notification__delete" data-espia="codigo-imagen"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M6.414 5 5 6.414l5.588 5.588L5 17.59l1.414 1.414 5.588-5.588 5.588 5.588 1.414-1.414-5.588-5.588 5.588-5.588L17.59 5l-5.588 5.588L6.414 5Z"></path></svg></button>
+  </div>
+  <div class="persistent-notification">
+    <div class="persistent-notification__body"><p>Reclamaste un drop de Rust.</p></div>
+    <button data-test-selector="persistent-notification__delete" data-espia="normal"><svg width="20" height="20" viewBox="0 0 24 24"><path d="M6.414 5 5 6.414l5.588 5.588L5 17.59l1.414 1.414 5.588-5.588 5.588 5.588 1.414-1.414-5.588-5.588 5.588-5.588L17.59 5l-5.588 5.588L6.414 5Z"></path></svg></button>
+  </div>
+</div>

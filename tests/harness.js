@@ -46,7 +46,12 @@ const DUMP = fs.readFileSync(
 // script: sin poder clicar ahi no hay forma de ejercitarlo, y un test que solo mire el href
 // no prueba el modal. El clic lleva `button: 0` y ningun modificador a proposito, que es
 // justo lo que el enganche exige para interceptar.
+// `espiaClics` apunta un selector y devuelve, en `clicsEspiados`, el `data-espia` de cada
+// nodo que lo cumpla y reciba un clic. Hizo falta para el barrido de notificaciones de
+// Twitch: lo que hay que comprobar ahi es que a una notificacion NO se le pulsa su boton de
+// borrar, y un clic en jsdom no deja rastro observable de ninguna otra forma.
 function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = DUMP,
+               espiaClics = null,
                clicarSelector = null, clicarIndice = 0, clicarEnMs = null,
                url = 'https://www.twitch.tv/drops/inventory', lateHtml = null, lateMs = 5000,
                keywords = ['pokemon', 'marvel', 'squadra', 'sorcerer', 'rust'],
@@ -91,6 +96,15 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = 
       return Promise.resolve({ ok: true, status: 200, json: async () => payload });
     };
     w.eval(SCRIPT);
+    // El espia va justo despues del eval y en fase de captura: el script clica mucho mas
+    // tarde (el barrido espera al inventario), asi que llega de sobra.
+    const clicsEspiados = [];
+    if (espiaClics) {
+      w.document.addEventListener('click', (e) => {
+        const n = e.target && e.target.closest && e.target.closest(espiaClics);
+        if (n) clicsEspiados.push(n.getAttribute('data-espia') || '(sin marca)');
+      }, true);
+    }
     w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
     w.dispatchEvent(new w.Event('load'));
 
@@ -176,7 +190,7 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = 
           const i = c.querySelector('img');
           return { titulo: c.getAttribute('data-notif-title'), img: i ? i.src : null };
         });
-      resolve({ camps, totalX: xs.length, chips, marcados, tarjetas, marcasPuestas: escaneos, pedidas, w, dom });
+      resolve({ camps, totalX: xs.length, chips, marcados, tarjetas, marcasPuestas: escaneos, pedidas, clicsEspiados, w, dom });
     };
 
     // CUANTAS VECES HA ESCANEADO. Cada pasada del escaneo borra y vuelve a poner las
