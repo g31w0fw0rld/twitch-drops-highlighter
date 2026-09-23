@@ -321,6 +321,114 @@ const comprobar = (ok, msg) => { console.log((ok ? '  ok    ' : '  FALLA ') + ms
     console.log('  marca en la fila:', JSON.stringify(textoMarca));
     comprobar(/4\s*h/.test(textoMarca), 'la fila dice lo que cuesta llevarse LO SUYO (4 h)');
 
+    // EL ENLACE DE CATEGORIA (2026-09-23). La campaña de recompensas enlaza la categoria a
+    // secas —`/directory/category/control-2`, tres veces, una por premio— y pasa a llevar
+    // SU id, no el de la campaña de drops que se llama igual.
+    const enlaces = [...r.w.document.querySelectorAll('a[href*="/directory/category/"]')];
+    console.log('  enlaces:', JSON.stringify(enlaces.map(a => a.getAttribute('href'))));
+    comprobar(enlaces.length === 3, 'siguen siendo los tres enlaces del volcado');
+    comprobar(enlaces.every(a => a.getAttribute('href') ===
+        '/directory/category/control-2?filter=drops&dropID=' + CAMPAÑA_RECOMPENSAS.id),
+        'los TRES llevan el id de la campaña de recompensas (no solo el primero)');
+    comprobar(!enlaces.some(a => a.getAttribute('href').includes(CAMPAÑA_DROPS.id)),
+        'ninguno se lleva el id de la campaña de drops homonima');
+    comprobar(enlaces.every(a => a.getAttribute('data-drop-dir-filtered') === '1'),
+        'y los tres van marcados en negrita');
+
+    // LA ETIQUETA EN EL INVENTARIO, que es el reporte: ahi no hay fila de pagina y la
+    // tarjeta sale de la entrada de la API de la campaña de recompensas, que entro por su
+    // juego y no por ninguna keyword propia. Tenia que decir «twitch» y no decia nada.
+    //
+    // Y de paso el CONTROL NEGATIVO del enlace: un acordeon con un `filter=drops` dentro es
+    // de drops, y su enlace de categoria a secas no es de la regla nueva aunque la cabecera
+    // se llame como una campaña de recompensas.
+    const ACORDEON_DE_DROPS = `
+      <div id="control-drops-acordeon"><div class="accordion-header"><p>CONTROL Resonant launch</p>
+        <img src="https://static-cdn.jtvnw.net/ttv-boxart/1338428218_IGDB-120x160.jpg"></div>
+        <a class="tw-link" href="/directory/category/control-2?filter=drops">canal</a>
+        <a class="tw-link" id="control-a-secas" href="/directory/category/control-2">CONTROL Resonant</a>
+      </div>`;
+    const inv = await run({
+        url: 'https://www.twitch.tv/drops/inventory',
+        keywords: ['twitch'],
+        gql: { ViewerDropsDashboard: dashboard, Inventory: inventory, DropCampaignDetails: detallesDe },
+        lateHtml: ACORDEON_DE_DROPS, lateMs: 4000,
+        waitMs: 14000
+    });
+    const cards = [...inv.w.document.querySelectorAll('#twitch-drops-active-pane [data-notif-title]')];
+    const etiquetas = (c) => [...c.querySelectorAll('.drop-kw-chips > span')].map(sp => sp.textContent.trim());
+    console.log('  tarjetas del inventario:', JSON.stringify(cards.map(c =>
+        [c.getAttribute('data-notif-title'), etiquetas(c)])));
+    const rc = cards.find(c => /Sierra/.test(c.textContent));
+    comprobar(!!rc, 'en el inventario sale la tarjeta de la campaña de recompensas');
+    comprobar(!!rc && etiquetas(rc).includes('twitch'),
+        'y dice la keyword que metio a su juego en el panel («twitch»)');
+    const dr = cards.find(c => /Twitch Gaming/.test(c.getAttribute('data-notif-title') || ''));
+    comprobar(!!dr && etiquetas(dr).includes('twitch'), 'CONTROL: la de drops la sigue diciendo');
+    const aSecas = inv.w.document.getElementById('control-a-secas');
+    comprobar(!!aSecas && aSecas.getAttribute('href') === '/directory/category/control-2',
+        'CONTROL: el enlace a secas de un acordeon de drops no se toca');
+
+    // EL SIERRA SUIT DUPLICADO (2026-09-23). Con el Suit ya concedido, la tarjeta pintaba
+    // «Sierra Suit (1 h)» SIN tachar y, en otro chip, «✓ Sierra Suit»: el tramo solo se
+    // tachaba contando concesiones contra grupos (1 < 3) y el chip de «lo que ya te dio»
+    // no sabia que ese nombre ya era de un tramo. Ahora el tramo se tacha por su nombre y
+    // el chip aparte no se repite.
+    //
+    // EL CONTROL es una campaña de recompensas del mismo juego con DOS grupos que dan lo
+    // mismo («Premio Doble») y UNA concesion con ese nombre: no dice cual de los dos fue,
+    // asi que ninguno se tacha, y el chip aparte se queda porque es lo unico que dice que
+    // ya te llevaste uno.
+    const DOBLE = {
+        id: 'doble-0001', name: 'Doble launch', brand: '',
+        startsAt: '2026-09-22T14:00:00Z', endsAt: '2099-10-13T13:59:59.999Z', status: 'UNKNOWN',
+        game: CAMPAÑA_RECOMPENSAS.game,
+        unlockRequirements: { subsGoal: 0, minuteWatchedGoal: 120 },
+        rewards: [{ id: 'doble-r', name: 'Premio Doble' }],
+        rewardGroups: [
+            { id: 'doble-g1', unlockRequirements: { subsGoal: 0, minuteWatchedGoal: 60 }, rewards: [{ id: 'doble-r', name: 'Premio Doble' }] },
+            { id: 'doble-g2', unlockRequirements: { subsGoal: 0, minuteWatchedGoal: 120 }, rewards: [{ id: 'doble-r', name: 'Premio Doble' }] }
+        ]
+    };
+    const concedido = (id, name, campaignId, tipo) => ({ node: {
+        id, item: { id, distributionType: tipo, name }, campaign: { id: campaignId },
+        status: 'CLAIMED', earnedAt: '2026-09-23T10:00:00Z' } });
+    const conSuit = await run({
+        url: 'https://www.twitch.tv/drops/inventory',
+        keywords: ['twitch'],
+        gql: {
+            ViewerDropsDashboard: [{ data: {
+                currentUser: { id: '1', login: 'prueba', dropCampaigns: [CAMPAÑA_DROPS] },
+                rewardCampaignsAvailableToUser: [CAMPAÑA_RECOMPENSAS, DOBLE] } }],
+            Inventory: [{ data: { currentUser: { inventory: {
+                dropCampaignsInProgress: [], gameEventDrops: [],
+                earnedDropRewards: { edges: [
+                    concedido('suit-concedido', 'Sierra Suit', CAMPAÑA_RECOMPENSAS.id, 'CODE'),
+                    concedido('doble-concedido', 'Premio Doble', DOBLE.id, 'BADGE')
+                ] } } } } }],
+            DropCampaignDetails: detallesDe
+        },
+        waitMs: 14000
+    });
+    const premiosDe = (re) => {
+        const t = conSuit.chips.find(c => re.test(c.titulo || ''));
+        return t ? t.badges.flatMap(b => b.premios) : null;
+    };
+    const sierra = premiosDe(/^CONTROL Resonant launch/);
+    console.log('  premios de CONTROL con el Suit concedido:', JSON.stringify(sierra));
+    const suits = (sierra || []).filter(p => /Sierra Suit/.test(p.texto));
+    comprobar(suits.length === 1, 'el Sierra Suit sale UNA vez, no dos');
+    comprobar(suits.length === 1 && suits[0].tachado, 'y sale tachado');
+    comprobar((sierra || []).some(p => /Sierra Vest/.test(p.texto) && !p.tachado) &&
+              (sierra || []).some(p => /Sierra Helmet/.test(p.texto) && !p.tachado),
+        'y el Vest y el Helmet siguen pendientes');
+    const doble = premiosDe(/^Doble launch/);
+    console.log('  premios de la campaña de homonimos:', JSON.stringify(doble));
+    comprobar(!!doble && doble.filter(p => p.texto === 'Premio Doble' && !p.tachado).length === 2,
+        'CONTROL: con dos tramos homonimos y una concesion, el tramo NO se tacha');
+    comprobar(!!doble && doble.some(p => /Premio Doble/.test(p.texto) && p.tachado),
+        'CONTROL: y el chip aparte de lo concedido se queda');
+
     console.log(fallos === 0 ? '\nTODO EN VERDE' : '\n' + fallos + ' COMPROBACIONES EN ROJO');
     process.exit(fallos === 0 ? 0 : 1);
 })().catch(e => { console.error('FALLO', e); process.exit(1); });
