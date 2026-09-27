@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.22
+// @version      1.3.23
 // @description  Drops panel for Twitch. Twitch hands you a wall of campaigns with no way to say which games you care about, and never tells you how much watch time a drop still needs — only a bar that says it is in progress. This outlines the ones your keywords match on the page itself and puts the exact time left on every card. Its queries only read; claiming is optional and ships off. The rest is in "Script Information", in the panel, and in the repository. 16 languages.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.22";
+    const SCRIPT_VERSION = "1.3.23";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -7373,10 +7373,20 @@
             // Sin esto el modal salia ahi con el titulo y el subtitulo diciendo LO MISMO
             // —«Canales participantes» dos veces—, porque al no encontrar nombre caia al
             // generico que ya usa el subtitulo. Visto en la captura del 2026-09-13.
+            //
+            // Y ese `<p>` NO es solo de Twitch: el ❌ de descartar se inserta ahi dentro,
+            // justo detras del enlace, asi que su textContent traia el ❌ pegado al nombre
+            // y el modal salia titulado «TSG WarzoneShowdown-SEP26❌». Reportado el
+            // 2026-09-26. Se lee de una copia sin lo que pone el script.
             const bloqueInv = a.closest('.inventory-campaign-info');
             if (bloqueInv) {
                 const primero = bloqueInv.querySelector('p');
-                const txt = primero ? primero.textContent.replace(/\s+/g, ' ').trim() : '';
+                let txt = '';
+                if (primero) {
+                    const copia = primero.cloneNode(true);
+                    copia.querySelectorAll('[data-drop-remove]').forEach(el => el.remove());
+                    txt = copia.textContent.replace(/\s+/g, ' ').trim();
+                }
                 if (txt) return txt;
             }
             let n = a.parentElement;
@@ -8175,6 +8185,10 @@
                                                 newLink.style.color = colors.purple;
                                                 newLink.title = t.removeInventory;
                                                 newLink.dataset.dropOwnTip = '1';
+                                                // Va DENTRO del <p> del nombre de la campaña,
+                                                // asi que quien lea ese nombre tiene que
+                                                // saltarselo: ver _nombreDeSuCampaña.
+                                                newLink.dataset.dropRemove = '1';
                                                 newLink.onclick = (e) => {
                                                     e.preventDefault();
                                                     // El descarte se apunta ANTES de esconder:
