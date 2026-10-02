@@ -50,8 +50,13 @@ const DUMP = fs.readFileSync(
 // nodo que lo cumpla y reciba un clic. Hizo falta para el barrido de notificaciones de
 // Twitch: lo que hay que comprobar ahi es que a una notificacion NO se le pulsa su boton de
 // borrar, y un clic en jsdom no deja rastro observable de ninguna otra forma.
+// `cargaUnica` deja que el `load` lo dispare solo jsdom. Por defecto el arnes lo dispara
+// ADEMAS a mano, y como jsdom tambien dispara el suyo, el cuerpo del script arranca DOS
+// veces: dos consultas de cada, dos oyentes de cada. A los tests que miran el DOM les da
+// igual, pero uno que CUENTE peticiones o temporizadores mide el doble de lo que pasa en
+// un navegador. Medido el 2026-10-01: dos `load` sobre una ventana recien creada.
 function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = DUMP,
-               espiaClics = null,
+               espiaClics = null, cargaUnica = false, almacen = {},
                clicarSelector = null, clicarIndice = 0, clicarEnMs = null,
                url = 'https://www.twitch.tv/drops/inventory', lateHtml = null, lateMs = 5000,
                keywords = ['pokemon', 'marvel', 'squadra', 'sorcerer', 'rust'],
@@ -73,6 +78,10 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = 
       ['twitch_inventory_deleted_drops', JSON.stringify(borrados)],
       ['twitch_drop_keywords', JSON.stringify(keywords)]
     ]);
+    // `almacen` siembra claves sueltas antes de arrancar: lo que la ejecucion anterior
+    // habria dejado guardado. Hizo falta para el destino de enfoque, que se apunta en
+    // una pagina y se cobra en la siguiente (2026-10-02).
+    for (const [k, v] of Object.entries(almacen)) store.set(k, v);
     w.GM_getValue = (k, d) => store.has(k) ? store.get(k) : d;
     w.GM_setValue = (k, v) => store.set(k, v);
     w.GM_deleteValue = k => store.delete(k);
@@ -106,7 +115,7 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = 
       }, true);
     }
     w.document.dispatchEvent(new w.Event('DOMContentLoaded'));
-    w.dispatchEvent(new w.Event('load'));
+    if (!cargaUnica) w.dispatchEvent(new w.Event('load'));
 
     // La siembra. Va DESPUES del eval a proposito: el interceptor del script envuelve
     // `unsafeWindow.fetch` al arrancar, asi que esta llamada pasa por el y le deja el
