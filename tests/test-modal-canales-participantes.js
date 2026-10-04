@@ -58,7 +58,10 @@ const modalDe = (w) => [...w.document.querySelectorAll('div')]
         { clicarSelector: HALO, clicarIndice: 0, clicarEnMs: 9000 }));
     const m1 = modalDe(r1.w);
     comprobar(!!m1, 'se abre el modal');
-    const nombres = m1 ? [...m1.querySelectorAll('a[href*="twitch.tv/"]')].map(a => a.textContent) : [];
+    // El nombre va en su propio span desde que la fila lleva foto y marca de directo:
+    // el textContent del enlace entero trae tambien el texto de la marca.
+    const nombres = m1 ? [...m1.querySelectorAll('a[href*="twitch.tv/"]')]
+        .map(a => (a.querySelector('[data-canal-nombre]') || a).textContent) : [];
     console.log('  canales:', JSON.stringify(nombres));
     comprobar(nombres.includes('iblodreina') && nombres.includes('frickenrael') && nombres.includes('prowife'),
         'con los tres canales de la campaña');
@@ -75,6 +78,15 @@ const modalDe = (w) => [...w.document.querySelectorAll('div')]
     comprobar(!!m1 && m1.textContent.includes('Mira cualquiera'),
         'pero sigue estando en el modal');
 
+    // «Ver los 3 canales participantes», como AVISO: el enlace dice que abre la lista y
+    // cuantos trae sin tocar su texto, que es de Twitch (el usuario descarto el sufijo
+    // dentro del enlace el 2026-10-03). El aviso va en el `title`, que pinta la caja propia.
+    const aCon = r1.w.document.querySelector(HALO);
+    console.log('  enlace:', JSON.stringify(aCon && aCon.textContent), '| aviso:', JSON.stringify(aCon && aCon.getAttribute('title')));
+    comprobar(!!aCon && aCon.getAttribute('title') === 'Ver los 3 canales participantes',
+        'el aviso del enlace dice «Ver los 3 canales participantes»');
+    comprobar(!!aCon && aCon.textContent === 'otros', 'y el texto sigue siendo el de Twitch, sin nada añadido');
+
     console.log('\n=== campaña SIN lista: no se intercepta nada ===');
     const rSin2 = await run(base([], { clicarSelector: HALO, clicarIndice: 0, clicarEnMs: 9000 }));
     comprobar(!modalDe(rSin2.w), 'no se abre modal cuando participa toda la categoria');
@@ -88,6 +100,7 @@ const modalDe = (w) => [...w.document.querySelectorAll('div')]
         'el enlace avisa de que participa toda la categoria');
     comprobar(!!aSin && aSin.hasAttribute('data-drop-dir-filtered'),
         'y lleva la marca que hace que ese aviso lo pinte la caja del script');
+    comprobar(!!aSin && !/Ver los/.test(aSin.getAttribute('title') || ''), 'y sin cuenta: no hay lista que ver');
 
     console.log('\n=== lista aun sin llegar: el enlace sigue siendo un enlace ===');
     // `keywords: ['zzz']` para que NINGUNA campaña pase el filtro: asi no se piden
@@ -96,6 +109,8 @@ const modalDe = (w) => [...w.document.querySelectorAll('div')]
     const rSin = await run(base(['iblodreina'],
         { keywords: ['zzz'], clicarSelector: HALO, clicarIndice: 0, clicarEnMs: 9000 }));
     comprobar(!modalDe(rSin.w), 'sin lista en mano no se abre modal, ni siquiera uno de «cargando»');
+    const aPend = rSin.w.document.querySelector(HALO);
+    comprobar(!!aPend && !/Ver los/.test(aPend.getAttribute('title') || ''), 'ni se inventa una cuenta antes de saberla');
 
     console.log('\n=== ctrl+clic: se respeta el enlace ===');
     const r3 = await run(base(['iblodreina'], {}));

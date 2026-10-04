@@ -56,7 +56,7 @@ const DUMP = fs.readFileSync(
 // igual, pero uno que CUENTE peticiones o temporizadores mide el doble de lo que pasa en
 // un navegador. Medido el 2026-10-01: dos `load` sobre una ventana recien creada.
 function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = DUMP,
-               espiaClics = null, cargaUnica = false, almacen = {},
+               espiaClics = null, cargaUnica = false, almacen = {}, intervaloManual = null,
                clicarSelector = null, clicarIndice = 0, clicarEnMs = null,
                url = 'https://www.twitch.tv/drops/inventory', lateHtml = null, lateMs = 5000,
                keywords = ['pokemon', 'marvel', 'squadra', 'sorcerer', 'rust'],
@@ -104,6 +104,25 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = 
       if (!payload) return new Promise(() => {});
       return Promise.resolve({ ok: true, status: 200, json: async () => payload });
     };
+    // `intervaloManual` captura los setInterval de ESE retardo en vez de programarlos, y
+    // los devuelve en `intervalos` como { disparar(), vivo }: `vivo` pasa a false cuando
+    // el script lo cancela. Hizo falta para el refresco del modal de canales (60 s), que
+    // no se puede esperar en un test y cuyo fallo —refrescar cada dos minutos, o seguir
+    // consultando con el modal cerrado— solo se ve disparandolo.
+    const intervalos = [];
+    if (intervaloManual !== null) {
+      const realSet = w.setInterval.bind(w), realClear = w.clearInterval.bind(w);
+      w.setInterval = (fn, ms, ...rest) => {
+        if (ms !== intervaloManual) return realSet(fn, ms, ...rest);
+        const it = { id: 'manual-' + intervalos.length, vivo: true, disparar: () => fn(...rest) };
+        intervalos.push(it);
+        return it.id;
+      };
+      w.clearInterval = (id) => {
+        const it = intervalos.find(x => x.id === id);
+        if (it) it.vivo = false; else realClear(id);
+      };
+    }
     w.eval(SCRIPT);
     // El espia va justo despues del eval y en fase de captura: el script clica mucho mas
     // tarde (el barrido espera al inventario), asi que llega de sobra.
@@ -199,7 +218,7 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = 
           const i = c.querySelector('img');
           return { titulo: c.getAttribute('data-notif-title'), img: i ? i.src : null };
         });
-      resolve({ camps, totalX: xs.length, chips, marcados, tarjetas, marcasPuestas: escaneos, pedidas, clicsEspiados, w, dom });
+      resolve({ camps, totalX: xs.length, chips, marcados, tarjetas, marcasPuestas: escaneos, pedidas, clicsEspiados, intervalos, w, dom });
     };
 
     // CUANTAS VECES HA ESCANEADO. Cada pasada del escaneo borra y vuelve a poner las
