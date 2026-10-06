@@ -80,6 +80,22 @@ const comprobar = (ok, msg) => { console.log((ok ? '  ok    ' : '  FALLA ') + ms
     const hoja = r.w.document.getElementById('twitch-drops-dir-css');
     comprobar(marcados === 4, 'los cuatro quedan marcados para salir en negrita');
     comprobar(!!hoja && /font-weight:\s*700/.test(hoja.textContent), 'y la hoja esta puesta');
+
+    // EL CLIC, en una campaña de DROPS sin lista de canales (2026-10-05): sin modal que
+    // se quede el clic, el `Link` de Twitch navegaba con su ruta y perdia el `dropID`. El
+    // caso de recompensas esta en test-recompensa-y-drop-mismo-juego.js; este es el otro
+    // camino de _filtrarEnlacesDeCanales.
+    const abiertas = [];
+    r.w.open = (u) => { abiertas.push(String(u)); return null; };
+    const aHalo = [...r.w.document.querySelectorAll('a[href*="halo-the-master-chief-collection"]')][0];
+    let cancelado = null;
+    const enRaiz = (e) => { cancelado = e.defaultPrevented; };
+    r.w.document.addEventListener('click', enRaiz);
+    if (aHalo) aHalo.dispatchEvent(new r.w.MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+    r.w.document.removeEventListener('click', enRaiz);
+    console.log('  clic en Halo: cancelado =', cancelado, '| abiertas:', JSON.stringify(abiertas));
+    comprobar(cancelado === true && abiertas.length === 1 && abiertas[0].includes('dropID=halo-btb-0001'),
+        'el clic simple en el de Halo abre una pestaña CON su dropID y no deja navegar a React');
     console.log(fallos ? `\n${fallos} fallo(s)` : '\ntodo en verde');
     process.exit(fallos ? 1 : 0);
 })();

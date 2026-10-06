@@ -16,11 +16,11 @@
 const { run, readFixture } = require('./harness');
 
 const dia = 86400000, ahora = Date.now(), iso = (t) => new Date(t).toISOString();
-const dashboard = [{ data: { currentUser: { id: '1', login: 'p', dropCampaigns: [{
-    id: 'halo-btb-0001', name: 'BTB Ladies Night-SEP12', status: 'ACTIVE',
-    startAt: iso(ahora - dia), endAt: iso(ahora + 5 * dia),
+const dashboardCon = (status, startAt, endAt) => [{ data: { currentUser: { id: '1', login: 'p', dropCampaigns: [{
+    id: 'halo-btb-0001', name: 'BTB Ladies Night-SEP12', status, startAt, endAt,
     owner: { name: 'Estudio', login: 'estudio' }, game: { id: '1', displayName: 'Halo: The Master Chief Collection' }
 }] }, rewardCampaignsAvailableToUser: [] } }];
+const dashboard = dashboardCon('ACTIVE', iso(ahora - dia), iso(ahora + 5 * dia));
 const detalles = (canales, juego) => ([{ data: { user: { dropCampaign: {
     timeBasedDrops: [], ...(juego ? { game: { id: juego, displayName: 'Halo' } } : {}),
     allow: { channels: canales.map((n, i) => ({ id: String(i), name: n.toLowerCase(), displayName: n })) }
@@ -69,12 +69,12 @@ const filasDe = (w) => {
 let fallos = 0;
 const comprobar = (ok, msg) => { console.log((ok ? '  ok    ' : '  FALLA ') + msg); if (!ok) fallos++; };
 
-const base = (canales, estado, juego) => ({
+const base = (canales, estado, juego, dash = dashboard) => ({
     url: 'https://www.twitch.tv/drops/campaigns',
     dump: readFixture('fixture-campanas-acordeon-expandido.html'),
     keywords: ['halo'], waitMs: 12000,
     clicarSelector: HALO, clicarIndice: 0, clicarEnMs: 9000,
-    gql: { ViewerDropsDashboard: dashboard, DropCampaignDetails: detalles(canales, juego), Inventory: inventory,
+    gql: { ViewerDropsDashboard: dash, DropCampaignDetails: detalles(canales, juego), Inventory: inventory,
            DropsHighlighterChannelStatus: estado }
 });
 
@@ -154,6 +154,46 @@ const base = (canales, estado, juego) => ({
     if (aceptar) aceptar.click();
     await new Promise(res => setTimeout(res, 50));
     comprobar(!!aceptar && refrescos[0] && !refrescos[0].vivo, 'al cerrar con «Aceptar» el refresco se cancela');
+
+    console.log('\n=== proxima y cerrada: la lista con fotos, sin directo ni refresco ===');
+    // Pedido el 2026-10-05: fuera de la ventana de la campaña quien emite no importa, y la
+    // consulta se repetia cada minuto. El modal se abre igual —la lista es la campaña—,
+    // con las fotos de una sola consulta y sin marcas ni refresco. El CONTROL es el
+    // primer bloque de este fichero: la misma campaña ACTIVA si marca, ordena y refresca.
+    const casos = [
+        ['proxima', dashboardCon('UPCOMING', iso(ahora + dia), iso(ahora + 5 * dia))],
+        ['cerrada', dashboardCon('EXPIRED', iso(ahora - 5 * dia), iso(ahora - dia))]
+    ];
+    for (const [nombre, dash] of casos) {
+        // Sin el clic del arnes: una campaña que no esta activa no trae su lista pedida
+        // desde el arranque, asi que aqui se hace lo que hace el navegador —el raton pasa
+        // por encima, que es lo que la pide— y despues se pulsa.
+        const rx = await run(Object.assign(base(['Ana', 'Beto'], estadoGql({ ana: 'off', beto: 50 }), undefined, dash),
+            { intervaloManual: 60000, clicarSelector: null, clicarEnMs: null }));
+        rx.w.open = () => null;
+        const ax = rx.w.document.querySelector(HALO);
+        if (ax) {
+            ax.dispatchEvent(new rx.w.MouseEvent('mouseenter'));
+            await new Promise(res => setTimeout(res, 1500));
+            ax.dispatchEvent(new rx.w.MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+            await new Promise(res => setTimeout(res, 1500));
+        }
+        const fx = filasDe(rx.w);
+        const pedidasDirecto = rx.pedidas.filter(o => o === 'DropsHighlighterChannelStatus').length;
+        console.log(`  ${nombre}: filas`, JSON.stringify(fx && fx.map(x => [x.login, x.marca])),
+            '| consultas de directo:', pedidasDirecto, '| refrescos:', rx.intervalos.length);
+        comprobar(!!fx && fx.length === 2, `${nombre}: el modal se abre con sus dos canales`);
+        // UNA consulta, para las fotos (decidido el mismo dia: la foto viene en la misma
+        // respuesta que el directo, asi que cuesta lo mismo; lo que se ahorra es el minuto).
+        comprobar(pedidasDirecto === 1, `${nombre}: una sola consulta, la de las fotos`);
+        comprobar(rx.intervalos.length === 0, `${nombre}: y ningun refresco de 60 s puesto`);
+        comprobar(!!fx && fx.every(x => x.marca === null), `${nombre}: sin marca, ni «…» que nunca resuelva`);
+        comprobar(!!fx && fx.every(x => x.foto === `https://static-cdn.jtvnw.net/${x.login}-50x50.png`),
+            `${nombre}: pero cada canal con su foto`);
+        // Beto esta en directo y Ana no, asi que el orden por directo pondria a Beto
+        // primero: que siga Ana delante dice que no se reordeno, que es el de la campaña.
+        comprobar(!!fx && fx.map(x => x.login).join() === 'ana,beto', `${nombre}: en el orden de la campaña`);
+    }
 
     console.log(fallos ? `\n${fallos} fallo(s) — FALLOS` : '\ntodo en verde');
     process.exit(fallos ? 1 : 0);

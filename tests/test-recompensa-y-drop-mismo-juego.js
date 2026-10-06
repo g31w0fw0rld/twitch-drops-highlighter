@@ -335,6 +335,43 @@ const comprobar = (ok, msg) => { console.log((ok ? '  ok    ' : '  FALLA ') + ms
     comprobar(enlaces.every(a => a.getAttribute('data-drop-dir-filtered') === '1'),
         'y los tres van marcados en negrita');
 
+    // EL AVISO (2026-10-05): no tienen modal, asi que el aviso dice por que. No es el de
+    // «toda la categoria»: de una campaña de recompensas Twitch no da la lista, y eso es
+    // lo unico que se sabe.
+    const AVISO_RC = 'Twitch no publica la lista de canales de esta campaña de recompensas: el enlace lleva a quien está en directo en la categoría.';
+    console.log('  avisos:', JSON.stringify(enlaces.map(a => a.getAttribute('title'))));
+    comprobar(enlaces.every(a => a.getAttribute('title') === AVISO_RC),
+        'los tres llevan el aviso de que Twitch no publica su lista');
+
+    // Y EL CLIC LLEGA CON EL `dropID` (2026-10-05). El href estaba bien y aun asi el clic
+    // aterrizaba sin el id: el `<a>` es el `Link` del enrutador de Twitch, que en un clic
+    // simple navega con la ruta de sus props SALVO que el evento venga cancelado. Asi que
+    // lo que se mide es justo eso —que el evento llegue cancelado a la raiz, donde escucha
+    // React— y que la pestaña nueva se abra con el href reescrito. El CONTROL es el
+    // ctrl+clic: ese lo abre el navegador con el href bueno y no hay que tocarlo.
+    const abiertas = [];
+    r.w.open = (u) => { abiertas.push(String(u)); return null; };
+    const pulsar = (a, extra = {}) => {
+        let cancelado = null;
+        const enRaiz = (e) => { cancelado = e.defaultPrevented; };
+        r.w.document.addEventListener('click', enRaiz);
+        a.dispatchEvent(new r.w.MouseEvent('click', Object.assign({ bubbles: true, cancelable: true, button: 0 }, extra)));
+        r.w.document.removeEventListener('click', enRaiz);
+        return cancelado;
+    };
+    if (enlaces[0]) {
+        const cancelado = pulsar(enlaces[0]);
+        console.log('  clic simple: cancelado =', cancelado, '| abiertas:', JSON.stringify(abiertas));
+        comprobar(cancelado === true, 'el clic simple llega cancelado, asi que el Link de React no navega');
+        comprobar(abiertas.length === 1 && abiertas[0].endsWith(
+            '/directory/category/control-2?filter=drops&dropID=' + CAMPAÑA_RECOMPENSAS.id),
+            'y abre una pestaña con el href que lleva el dropID');
+        abiertas.length = 0;
+        const conCtrl = pulsar(enlaces[0], { ctrlKey: true });
+        comprobar(conCtrl === false && abiertas.length === 0,
+            'CONTROL: el ctrl+clic se deja al navegador (ni se cancela ni se abre a mano)');
+    }
+
     // LA ETIQUETA EN EL INVENTARIO, que es el reporte: ahi no hay fila de pagina y la
     // tarjeta sale de la entrada de la API de la campaña de recompensas, que entro por su
     // juego y no por ninguna keyword propia. Tenia que decir «twitch» y no decia nada.
@@ -368,6 +405,8 @@ const comprobar = (ok, msg) => { console.log((ok ? '  ok    ' : '  FALLA ') + ms
     const aSecas = inv.w.document.getElementById('control-a-secas');
     comprobar(!!aSecas && aSecas.getAttribute('href') === '/directory/category/control-2',
         'CONTROL: el enlace a secas de un acordeon de drops no se toca');
+    comprobar(!!aSecas && !aSecas.hasAttribute('title'),
+        'CONTROL: y tampoco se lleva el aviso de las de recompensas');
 
     // EL SIERRA SUIT DUPLICADO (2026-09-23). Con el Suit ya concedido, la tarjeta pintaba
     // «Sierra Suit (1 h)» SIN tachar y, en otro chip, «✓ Sierra Suit»: el tramo solo se
