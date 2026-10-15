@@ -53,7 +53,7 @@ const CAMPAÑA_DROPS = {
     },
     "status": "ACTIVE",
     "startAt": "2026-09-22T14:00:00Z",
-    "endAt": "2026-10-13T13:59:59.999Z",
+    "endAt": "2099-10-13T13:59:59.999Z",
     "detailsURL": "https://www.twitch.tv/drops/campaigns",
     "accountLinkURL": "https://www.twitch.tv",
     "self": {
@@ -86,7 +86,7 @@ const CAMPAÑA_RECOMPENSAS = {
     "name": "CONTROL Resonant launch",
     "brand": "",
     "startsAt": "2026-09-22T14:00:00Z",
-    "endsAt": "2026-10-13T13:59:59.999Z",
+    "endsAt": "2099-10-13T13:59:59.999Z",
     "status": "UNKNOWN",
     "summary": "Celebrate the launch of CONTROL Resonant and earn an exclusive in-game outfit for Dylan Faden by watching. Designed to look like a test dummy, help the FBC’s former test dummy take back CONTROL! #CONTROLResonant",
     "instructions": "",

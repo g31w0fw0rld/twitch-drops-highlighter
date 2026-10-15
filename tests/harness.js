@@ -58,7 +58,7 @@ const DUMP = fs.readFileSync(
 function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = DUMP,
                espiaClics = null, cargaUnica = false, almacen = {}, intervaloManual = null,
                clicarSelector = null, clicarIndice = 0, clicarEnMs = null,
-               url = 'https://www.twitch.tv/drops/inventory', lateHtml = null, lateMs = 5000,
+               url = 'https://www.twitch.tv/drops/inventory', lateHtml = null, lateMs = 5000, siembraEnRequest = false,
                keywords = ['pokemon', 'marvel', 'squadra', 'sorcerer', 'rust'],
                // La casilla de «ocultar cerrados/completados del inventario». Va siempre
                // puesta porque es lo que ejercita el barrido; se puede quitar para probar
@@ -139,16 +139,28 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = 
     // La siembra. Va DESPUES del eval a proposito: el interceptor del script envuelve
     // `unsafeWindow.fetch` al arrancar, asi que esta llamada pasa por el y le deja el
     // token y la integridad. Antes del eval no habria nadie escuchando.
+    //
+    // `siembraEnRequest` la manda como lo haria `fetch(new Request(url, init))` con un
+    // `Headers` de OTRO realm: las cabeceras viajan dentro del primer argumento y no en
+    // las opciones, y el objeto tiene `forEach` y `get` pero no es `instanceof Headers`.
+    // Es lo que se sospecha de Twitch en movil (2026-10-15), donde el script se quedaba
+    // sin token.
     if (gql) {
-      w.fetch('https://gql.twitch.tv/gql', {
-        method: 'POST',
-        headers: {
-          'authorization': 'OAuth token-de-prueba',
-          'client-integrity': 'integridad-de-prueba',
-          'client-session-id': 'sesion', 'client-version': 'version', 'x-device-id': 'dispositivo'
-        },
-        body: JSON.stringify([{ operationName: 'SiembraDeCabeceras' }])
-      });
+      const cabeceras = {
+        'authorization': 'OAuth token-de-prueba',
+        'client-integrity': 'integridad-de-prueba',
+        'client-session-id': 'sesion', 'client-version': 'version', 'x-device-id': 'dispositivo'
+      };
+      const cuerpo = JSON.stringify([{ operationName: 'SiembraDeCabeceras' }]);
+      if (siembraEnRequest) {
+        const ajenas = {
+          get: k => cabeceras[String(k).toLowerCase()] ?? null,
+          forEach: fn => Object.entries(cabeceras).forEach(([k, v]) => fn(v, k))
+        };
+        w.fetch({ url: 'https://gql.twitch.tv/gql', method: 'POST', headers: ajenas, body: cuerpo });
+      } else {
+        w.fetch('https://gql.twitch.tv/gql', { method: 'POST', headers: cabeceras, body: cuerpo });
+      }
     }
 
     const informe = () => {

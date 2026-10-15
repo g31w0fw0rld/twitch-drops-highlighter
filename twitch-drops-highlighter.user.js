@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.26
+// @version      1.3.27
 // @description  Drops panel for Twitch. Twitch hands you a wall of campaigns with no way to say which games you care about, and never tells you how much watch time a drop still needs — only a bar that says it is in progress. This outlines the ones your keywords match on the page itself and puts the exact time left on every card. Its queries only read; claiming is optional and ships off. The rest is in "Script Information", in the panel, and in the repository. 16 languages.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.26";
+    const SCRIPT_VERSION = "1.3.27";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -40,9 +40,13 @@
         clientVersion: null
     };
 
+    // `instanceof Headers` no basta: el script corre en el sandbox de Tampermonkey y
+    // los `Headers` que crea la pagina son de OTRO realm, asi que la comprobacion da
+    // false y se caia a `Object.keys`, que en un Headers no ve nada. Se reconoce por
+    // la forma —tiene `forEach` y `get`—, que es lo que se usa de el.
     function _normalizeHeaders(headers) {
         if (!headers) return {};
-        if (headers instanceof Headers) {
+        if (typeof headers.forEach === 'function' && typeof headers.get === 'function') {
             const obj = {};
             headers.forEach((v, k) => obj[k.toLowerCase()] = v);
             return obj;
@@ -57,6 +61,9 @@
         return obj;
     }
 
+    // Cuantas peticiones a gql.twitch.tv ha visto pasar el interceptor. Solo para el
+    // mensaje de cuando falta el token: cero dice que la pagina no pasa por `fetch`.
+    let _gqlVistas = 0;
     function _captureGqlHeaders(headers) {
         if (!headers) return;
         if (headers['client-integrity']) _gqlState.integrity = headers['client-integrity'];
@@ -120,6 +127,11 @@
     unsafeWindow.fetch = function(...args) {
         const [url, options] = args;
         if (_isTwitchGqlUrl(_urlOf(url))) {
+            _gqlVistas++;
+            // Las cabeceras pueden venir en las opciones o DENTRO de un `Request`, cuando
+            // la pagina llama `fetch(new Request(url, init))`. Hasta aqui solo se leian
+            // las opciones, y con un Request no llegaba ni el token ni el integrity.
+            if (url && typeof url === 'object' && url.headers) _captureGqlHeaders(_normalizeHeaders(url.headers));
             _captureGqlHeaders(_normalizeHeaders(options?.headers));
             if (_esReclamoDeDrop(options?.body)) {
                 const p = _realFetch.apply(this, args);
@@ -1874,7 +1886,14 @@
                     }
                     if (Date.now() - start > timeout) {
                         clearInterval(interval);
-                        reject('GQL state timeout');
+                        // Que pieza falto, y no un «timeout» a secas: es lo unico que
+                        // distingue un interceptor que no ve pasar nada (faltan las dos)
+                        // de una pagina que no pide integrity (falta solo esa). Reportado
+                        // el 2026-10-15: en movil, y en escritorio simulando movil, la
+                        // consulta fallaba y no se sabia por que.
+                        reject('GQL state timeout — token: ' + (_gqlState.token ? 'si' : 'NO')
+                            + ', client-integrity: ' + (_gqlState.integrity ? 'si' : 'NO')
+                            + ', peticiones GQL vistas: ' + _gqlVistas);
                     }
                 }, 500);
             });
