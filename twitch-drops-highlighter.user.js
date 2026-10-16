@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.28
+// @version      1.3.29
 // @description  Drops panel for Twitch. Twitch hands you a wall of campaigns with no way to say which games you care about, and never tells you how much watch time a drop still needs — only a bar that says it is in progress. This outlines the ones your keywords match on the page itself and puts the exact time left on every card. Its queries only read; claiming is optional and ships off. The rest is in "Script Information", in the panel, and in the repository. 16 languages.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.28";
+    const SCRIPT_VERSION = "1.3.29";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -5986,7 +5986,67 @@
             // sonido—, asi que repintar lo ya guardado no suena. Sonar aqui habria sido
             // ademas un aviso por notificaciones viejas, que es justo lo que no se quiere.
             renderNotificationsTab();
+            _iniciarCapaBajoMenus();
+            _ajustarCapaPanel();
             return results;
+        }
+
+        // EL PANEL SE METE DEBAJO DE LOS MENUS Y MODALES DE TWITCH, no encima.
+        //
+        // Pedido el 2026-10-15 con capturas: el menu de la cuenta, el de Bits, los
+        // susurros, las menciones, las notificaciones y el de Prime/Luna se abrian POR
+        // DEBAJO del panel. Medido ese dia: Twitch los monta todos igual, como un
+        // `.ReactModal__Overlay--after-open` dentro de `.tw-dialog-layer`, una capa
+        // colgada de <body> con `z-index: 5000`. El panel tenia 9999.
+        //
+        // Lo mismo que en Kick: no se copia el 5000, se lee de la capa abierta y el panel
+        // se pone una por debajo; al cerrarse vuelve a 9999. Se mira el overlay y no la
+        // capa, porque la capa se queda montada y vacia cuando no hay nada abierto.
+        const PANEL_Z = 9999;
+        function _capaDeMenuAbierto() {
+            let minima = Infinity;
+            for (const el of document.querySelectorAll('.ReactModal__Overlay--after-open')) {
+                if (el.closest('#twitch-drops-panel')) continue;
+                let z = NaN;
+                for (let e = el; e && e !== document.body; e = e.parentElement) {
+                    const n = parseInt(getComputedStyle(e).zIndex, 10);
+                    if (Number.isFinite(n)) z = n;
+                }
+                if (Number.isFinite(z) && z < minima) minima = z;
+            }
+            return minima;
+        }
+
+        function _ajustarCapaPanel() {
+            if (!document) return;
+            const panel = document.getElementById('twitch-drops-panel');
+            if (!panel) return;
+            const capa = _capaDeMenuAbierto();
+            const z = String(capa <= PANEL_Z ? Math.max(0, capa - 1) : PANEL_Z);
+            // Solo si cambia: escribir el mismo valor tambien cuenta como mutacion.
+            if (panel.style.zIndex !== z) panel.style.zIndex = z;
+        }
+
+        // Dos observers. El de <body>, solo `childList`, ve aparecer `.tw-dialog-layer`
+        // —Twitch la crea al abrir el primer menu—; el de cada capa mira DENTRO, porque el
+        // overlay se monta ahi y el `--after-open` llega despues como cambio de clase. El
+        // panel no esta en ninguna capa ni es hijo de una, asi que lo que se le escribe no
+        // despierta a ninguno de los dos.
+        let _capaObs = null;
+        const _capasVigiladas = new WeakSet();
+        function _vigilarCapas() {
+            for (const capa of document.querySelectorAll('.tw-dialog-layer')) {
+                if (_capasVigiladas.has(capa)) continue;
+                _capasVigiladas.add(capa);
+                new MutationObserver(_ajustarCapaPanel).observe(capa,
+                    { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+            }
+        }
+        function _iniciarCapaBajoMenus() {
+            if (_capaObs || !document.body) return;
+            _capaObs = new MutationObserver(() => { _vigilarCapas(); _ajustarCapaPanel(); });
+            _capaObs.observe(document.body, { childList: true });
+            _vigilarCapas();
         }
 
         // =============================================
