@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.27
+// @version      1.3.28
 // @description  Drops panel for Twitch. Twitch hands you a wall of campaigns with no way to say which games you care about, and never tells you how much watch time a drop still needs — only a bar that says it is in progress. This outlines the ones your keywords match on the page itself and puts the exact time left on every card. Its queries only read; claiming is optional and ships off. The rest is in "Script Information", in the panel, and in the repository. 16 languages.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.27";
+    const SCRIPT_VERSION = "1.3.28";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -1958,22 +1958,71 @@
             }];
             const res = await _gqlRequest(body);
             const data = res?.[0]?.data;
+            // El id del usuario, si viene: es lo que pide ahora `DropCampaignDetails`
+            // (ver _idDeUsuario). Sale gratis de esta respuesta.
+            if (data?.currentUser?.id) _miIdDeUsuario = String(data.currentUser.id);
             return {
                 dropCampaigns: data?.currentUser?.dropCampaigns ?? [],
                 rewardCampaigns: data?.rewardCampaignsAvailableToUser ?? []
             };
         }
 
+        // EL `channelLogin` DE `DropCampaignDetails` ES AHORA EL ID DEL USUARIO, no un
+        // login. Reportado el 2026-10-15: el panel paso de 23 campañas a una y la consola
+        // decia «tipos de recompensa: {}», o sea que ningun detalle traia tramos. La
+        // peticion de la propia pagina lleva en `channelLogin` el id NUMERICO de la
+        // cuenta, y un hash nuevo (`1f4903ec…`). Medido ese mismo dia en el navegador:
+        // con `'twitch'` la respuesta llega con `user: null`, SIN error y sin datos, con
+        // el hash viejo y con el nuevo; con el id, `user` resuelve. O sea que lo que
+        // rompio fue el parametro, y que el fallo es mudo: nada avisa, solo faltan cosas.
+        //
+        // El hash se cambia igualmente al de la pagina, que es el que trae los campos de
+        // hoy (la respuesta pegada por el usuario lleva todos los que se leen aqui).
+        //
+        // El id sale de `ViewerDropsDashboard` si lo trae; si no, de una consulta propia
+        // `currentUser { id }`, que no pide integridad (comprobado el mismo dia). Se pide
+        // UNA vez y se guarda, con un tope de 4 s: sin id se cae al login de antes, que es
+        // lo que habia.
+        let _miIdDeUsuario = null;
+        let _idDeUsuarioEnVuelo = null;
+        function _idDeUsuario() {
+            if (_miIdDeUsuario) return Promise.resolve(_miIdDeUsuario);
+            if (!_idDeUsuarioEnVuelo) {
+                const consulta = _gqlRequest([{
+                    operationName: 'DropsHighlighterCurrentUser',
+                    query: 'query DropsHighlighterCurrentUser { currentUser { id } }'
+                }]).then(r => {
+                    const id = r?.[0]?.data?.currentUser?.id;
+                    if (id) _miIdDeUsuario = String(id);
+                    return _miIdDeUsuario;
+                }, () => null);
+                const tope = new Promise(res => setTimeout(() => res(null), 4000));
+                _idDeUsuarioEnVuelo = Promise.race([consulta, tope]);
+            }
+            return _idDeUsuarioEnVuelo;
+        }
+
         // Get campaign details (timeBasedDrops)
         async function _gqlGetCampaignDetails(dropID, channelLogin) {
+            // Con el id ya guardado no se espera ni un tick: la consulta sale igual que antes.
+            const quien = _miIdDeUsuario || (await _idDeUsuario()) || channelLogin;
             const body = [{
                 operationName: "DropCampaignDetails",
-                variables: { dropID, channelLogin },
-                extensions: { persistedQuery: { version: 1, sha256Hash: "039277bf98f3130929262cc7c6efd9c141ca3749cb6dca442fc8ead9a53f77c1" } }
+                variables: { dropID, channelLogin: quien },
+                extensions: { persistedQuery: { version: 1, sha256Hash: "1f4903ecfff5d0ba12820e28288d3c524606b28916084214a8c0bb9a2043727a" } }
             }];
             const res = await _gqlRequest(body);
-            return res?.[0]?.data ?? null;
+            const data = res?.[0]?.data ?? null;
+            // El fallo de arriba fue mudo, asi que el siguiente se canta: un `user` nulo
+            // es que el parametro ya no identifica a nadie. Una vez por carga.
+            if (data && data.user === null && !_avisoDetalleSinUsuario) {
+                _avisoDetalleSinUsuario = true;
+                console.warn('[Twitch Drops] DropCampaignDetails devolvio user: null con channelLogin =',
+                    quien === _miIdDeUsuario ? '(tu id)' : quien, '-> las campañas saldran sin tramos.');
+            }
+            return data;
         }
+        let _avisoDetalleSinUsuario = false;
 
         // Get user inventory (drops in progress with currentMinutesWatched)
         //
@@ -4495,6 +4544,11 @@
 
         // Fetch drops from public API on load
         fetchDropsFromAPI();
+        // El id de la cuenta, pedido ya y en paralelo: asi el primer detalle —el del modal
+        // de canales, por ejemplo— no tiene que esperar dos consultas seguidas (ver
+        // _idDeUsuario). Si `ViewerDropsDashboard` lo trae antes, esta no hace falta pero
+        // tampoco estorba: es una consulta de una sola cifra.
+        _idDeUsuario();
         // Fetch inventory progress (currentMinutesWatched / requiredMinutesWatched) for tooltips
         fetchInventoryProgress();
 
@@ -4681,6 +4735,15 @@
 
         function setInertOnBodyChildrenExcept(overlay, inert) {
             if (inert) {
+                // El foco se suelta ANTES de ocultar: si se queda en un boton del panel
+                // —el que abrio este modal—, Chrome bloquea el `aria-hidden` del panel
+                // («Blocked aria-hidden on an element because its descendant retained
+                // focus»). Visto en la consola el 2026-10-15. El modal enfoca su propio
+                // boton un instante despues.
+                const foco = document.activeElement;
+                if (foco && foco !== document.body && !overlay.contains(foco) && typeof foco.blur === 'function') {
+                    foco.blur();
+                }
                 const saved = [];
                 Array.from(document.body.children).forEach((el) => {
                     if (el === overlay) return;

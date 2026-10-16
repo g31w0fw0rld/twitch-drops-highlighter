@@ -96,6 +96,13 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = 
       // con un payload fijo, dos campañas distintas reciben los mismos tramos y un test
       // sobre «cada campaña aporta lo suyo» pasaria por construccion. El resto de
       // entradas siguen siendo objetos y no cambian.
+      // La consulta del id de la cuenta (ver _idDeUsuario en el script) la contesta
+      // Twitch siempre y al momento, asi que el arnes tambien, salvo que el test la
+      // simule a proposito. Sin esto, cada test que no la nombra pagaba el tope de 4 s
+      // del script antes de pedir ningun detalle.
+      if (gql && op === 'DropsHighlighterCurrentUser' && !gql[op]) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => [{ data: { currentUser: { id: '1' } } }] });
+      }
       const bruto = gql && op && gql[op];
       const payload = typeof bruto === 'function' ? bruto(cuerpo) : bruto;
       // Sin payload se devuelve una promesa que no resuelve NUNCA, que es lo que habia
