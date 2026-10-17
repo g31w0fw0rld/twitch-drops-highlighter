@@ -89,7 +89,11 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = 
     const pedidas = [];
     w.fetch = (u, opts) => {
       let op = '', cuerpo = null;
-      try { cuerpo = JSON.parse(opts && opts.body); op = cuerpo[0].operationName || ''; } catch (e) { /* la de siembra */ }
+      // El cuerpo puede venir en las opciones o DENTRO del primer argumento, cuando la
+      // pagina llama `fetch(new Request(url, init))`. Un Request de verdad lo lleva como
+      // stream; los tests que lo simulan lo dejan en `body` como texto.
+      const bruto0 = (opts && opts.body) || (u && typeof u === 'object' ? u.body : null);
+      try { cuerpo = JSON.parse(bruto0); op = cuerpo[0].operationName || ''; } catch (e) { /* la de siembra */ }
       if (op) pedidas.push(op);
       // Una entrada de `gql` puede ser una FUNCION, y entonces se le pasa el cuerpo de la
       // peticion. Hacia falta para `DropCampaignDetails`, que es UNA CONSULTA POR CAMPAÑA:

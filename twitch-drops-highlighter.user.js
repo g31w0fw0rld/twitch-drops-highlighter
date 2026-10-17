@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.29
+// @version      1.3.30
 // @description  Drops panel for Twitch. Twitch hands you a wall of campaigns with no way to say which games you care about, and never tells you how much watch time a drop still needs — only a bar that says it is in progress. This outlines the ones your keywords match on the page itself and puts the exact time left on every card. Its queries only read; claiming is optional and ships off. The rest is in "Script Information", in the panel, and in the repository. 16 languages.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.29";
+    const SCRIPT_VERSION = "1.3.30";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -135,7 +135,23 @@
             _captureGqlHeaders(_normalizeHeaders(options?.headers));
             if (_esReclamoDeDrop(options?.body)) {
                 const p = _realFetch.apply(this, args);
-                p.then(() => { if (_onDropClaimed) _onDropClaimed(); }, () => { });
+                p.then(() => { if (_onDropClaimed) _onDropClaimed('mutacion'); }, () => { });
+                return p;
+            }
+            // Y EL CUERPO TAMBIEN PUEDE VENIR DENTRO DEL `Request`, igual que las
+            // cabeceras de arriba: con `fetch(new Request(url, init))` las opciones no
+            // existen y el reclamo pasaba sin verse, dejando solo el respaldo del clic.
+            // Se lee de una COPIA y antes de mandarlo: el cuerpo de un Request se consume
+            // una sola vez, y el que se manda tiene que llegar entero a Twitch.
+            if (options?.body == null && url && typeof url === 'object' && typeof url.clone === 'function') {
+                let cuerpo = null;
+                try { cuerpo = url.clone().text(); } catch (e) { /* sin copia no se opina */ }
+                const p = _realFetch.apply(this, args);
+                if (cuerpo) {
+                    Promise.all([cuerpo, p]).then(([t]) => {
+                        if (_esReclamoDeDrop(t) && _onDropClaimed) _onDropClaimed('mutacion (en Request)');
+                    }, () => { });
+                }
                 return p;
             }
         }
@@ -2074,6 +2090,10 @@
         // dropID -> { current, required, dropName, rewards: [], imageUrl }
         const _inventoryProgress = {};
         let _inventoryProgressReady = false;
+        // Los tramos que trajo la ULTIMA respuesta. `_inventoryProgress` no se vacia nunca,
+        // asi que guarda tambien los de campañas que ya salieron de «en curso»; quien
+        // pregunte por lo pendiente AHORA (_quedaGanadoSinReclamar) pregunta por estos.
+        let _dropIdsDeLaUltimaLectura = new Set();
 
         // Ids de lo ya reclamado. Son dos conjuntos porque hay dos formas de saberlo
         // y cubren casos distintos: `self.isClaimed` marca el tramo dentro de una
@@ -2163,6 +2183,7 @@
                 // si no consta, los dos lados hablan de espacios de id distintos. Ver
                 // el centinela, mas abajo.
                 const reclamadosEnCurso = [];
+                const dropIdsLeidos = new Set();
                 let conEstadoPropio = 0;
                 for (const c of campaigns) {
                     if (c?.id) campaignIdsInProgress.add(c.id);
@@ -2180,6 +2201,7 @@
                     }
                     for (const drop of (c.timeBasedDrops || [])) {
                         if (!drop?.id) continue;
+                        dropIdsLeidos.add(drop.id);
                         const rewardEdges = drop.benefitEdges || [];
                         _inventoryProgress[drop.id] = {
                             current: drop.self?.currentMinutesWatched || 0,
@@ -2312,6 +2334,7 @@
                     '| tramos reclamados en curso: casan', casan, 'y no casan', noCasan,
                     '| campañas en curso que traen su propio estado', conEstadoPropio + '/' + campaigns.length);
                 _claimedDropIds = claimedDrops;
+                _dropIdsDeLaUltimaLectura = dropIdsLeidos;
                 _claimedBenefitIds = claimedBenefits;
                 _claimedBenefitsByCampaign = claimedByCampaign;
                 _earnedRewardsByCampaign = earnedByCampaign;
@@ -2968,9 +2991,15 @@
             return false;
         }
 
+        // Lo que no tiene barra propia —una baldosa de «Reclamada»— sube hasta la primera
+        // que encuentre, y con UNA sola campaña en curso esa era la de la pagina entera:
+        // el tooltip del tramo y el cursor de mano acababan en `inventory-page`. Medido
+        // el 2026-10-16 en el volcado del usuario. Al abarcar dos rejillas se ha salido
+        // de la campaña, y ahi ya no hay tarjeta que encontrar.
         function _findPerCardWrapper(img) {
             let el = img.parentElement;
             while (el && el !== document.body) {
+                if (_abarcaVariasRejillas(el)) return null;
                 const bars = el.querySelectorAll('[role="progressbar"]');
                 if (bars.length >= 2) return null;
                 if (bars.length === 1) return el;
@@ -4560,17 +4589,51 @@
         // Cada aviso reprograma el temporizador, de modo que una tanda de reclamos —la
         // casilla los pulsa escalonados de 150 ms— acaba en UNA sola consulta, despues
         // del ultimo. Mismo esquema que _scheduleProgressRefetch en el script de Kick.
+        //
+        // Y SI LA RELECTURA LLEGA SIN EL RECLAMO, SE VUELVE A PEDIR. Reportado el
+        // 2026-10-16: con el reclamo automatico, a veces el chip se quedaba en 🎁 hasta
+        // recargar. Con una sola relectura, una respuesta que todavia no traiga el
+        // reclamo apuntado —el reclamo tarda en contestar, o el inventario va un paso
+        // por detras— se quedaba como la ultima palabra. Cual de las dos pasa no esta
+        // visto; la consola lo dice ahora: cada aviso escribe por donde llego, y cada
+        // reintento, que el inventario seguia sin darlo por reclamado.
+        //
+        // El reintento se decide por el DATO y no por el reloj: solo si tras releer
+        // sigue habiendo un tramo cumplido y sin reclamar (_quedaGanadoSinReclamar). Con
+        // todo apuntado no hay consulta de mas, y con un tramo que no se puede reclamar
+        // —p. ej. falta vincular la cuenta— el tope lo deja en dos.
         const RELEER_TRAS_MUTACION_MS = 1000;
         const RELEER_TRAS_CLIC_MS = 4000;
+        const RELEER_REINTENTOS_MS = [6000, 20000];
         let _releerInventarioTimer = null;
-        function _programarReleerInventario(ms) {
+        function _programarReleerInventario(ms, intento = 0) {
             if (_releerInventarioTimer) clearTimeout(_releerInventarioTimer);
-            _releerInventarioTimer = setTimeout(() => {
+            _releerInventarioTimer = setTimeout(async () => {
                 _releerInventarioTimer = null;
-                fetchInventoryProgress();
+                await fetchInventoryProgress();
+                // Si entretanto llego otro aviso, ese ya lleva su propia cadena.
+                if (_releerInventarioTimer || intento >= RELEER_REINTENTOS_MS.length) return;
+                if (!_quedaGanadoSinReclamar()) return;
+                console.log('[Twitch Drops] tras reclamar, el inventario aun trae un tramo cumplido'
+                    + ' sin reclamar: se relee otra vez en', RELEER_REINTENTOS_MS[intento] / 1000, 's');
+                _programarReleerInventario(RELEER_REINTENTOS_MS[intento], intento + 1);
             }, ms);
         }
-        _onDropClaimed = () => _programarReleerInventario(RELEER_TRAS_MUTACION_MS);
+        // ¿Hay algun tramo al 100 % que el inventario no de por reclamado? Es la misma
+        // pareja de datos que pinta el 🎁: el progreso y el indice de reclamados.
+        function _quedaGanadoSinReclamar() {
+            for (const id of _dropIdsDeLaUltimaLectura) {
+                const p = _inventoryProgress[id];
+                const required = Number(p && p.required) || 0;
+                if (required > 0 && (Number(p.current) || 0) >= required && !_claimedDropIds.has(id)) return true;
+            }
+            return false;
+        }
+        _onDropClaimed = (via) => {
+            console.log('[Twitch Drops] reclamo visto por la', via, '-> relectura del inventario en',
+                RELEER_TRAS_MUTACION_MS / 1000, 's');
+            _programarReleerInventario(RELEER_TRAS_MUTACION_MS);
+        };
         // En captura y por delegacion: cubre el clic a mano y el `btn.click()` de la
         // casilla, que tambien despacha un evento click. Los botones del propio panel
         // quedan fuera: ninguno reclama nada, y el filtrado por texto de
@@ -4579,7 +4642,10 @@
         document.addEventListener('click', (e) => {
             const btn = e.target && e.target.closest ? e.target.closest('button') : null;
             if (!btn || btn.closest('#twitch-drops-panel')) return;
-            if (_esBotonDeReclamar(btn)) _programarReleerInventario(RELEER_TRAS_CLIC_MS);
+            if (!_esBotonDeReclamar(btn)) return;
+            console.log('[Twitch Drops] reclamo visto por el clic -> relectura del inventario en',
+                RELEER_TRAS_CLIC_MS / 1000, 's');
+            _programarReleerInventario(RELEER_TRAS_CLIC_MS);
         }, true);
 
         // =============================================
@@ -7488,10 +7554,25 @@
         // sea UNA SOLA. Dos o mas es un envoltorio de seccion por definicion, y ahi se
         // devuelve null en vez de un nodo que alguien pueda esconder. La misma direccion
         // segura de siempre: de menos deja cosas a la vista, de mas borra el inventario.
+        //
+        // Y UNA CAMPAÑA SOLA NO BASTA PARA SER SU BLOQUE. Contar campañas distingue el
+        // bloque del envoltorio de seccion solo si hay mas de una: con UNA en curso, el
+        // envoltorio de «En progreso» y «Reclamada» (`inventory-max-width`) tambien
+        // contiene exactamente una, y desde una baldosa de «Reclamada» era el primer
+        // antepasado con campaña. Se tomaba por el bloque de esa campaña, y como iba a
+        // medias el barrido escondia todo lo cobrado de dentro: la rejilla de
+        // «Reclamada» entera. Reportado el 2026-10-16 con dos sesiones de la misma
+        // cuenta, una con cuatro campañas en el DOM (bien) y otra con una (vacia).
+        //
+        // Lo que si separa los dos casos son las REJILLAS: un bloque de campaña trae una
+        // sola `tw-tower` —la de sus tramos, medido en los seis volcados de inventario—
+        // y el envoltorio trae ademas la de «Reclamada». En cuanto se abarcan dos, ya no
+        // hay ningun antepasado mas arriba que sea una campaña.
         function _inventoryContainerOf(img) {
             if (!img) return null;
             for (let n = img.parentElement; n && n !== document.body; n = n.parentElement) {
                 if (!n.querySelector) return null;
+                if (_abarcaVariasRejillas(n)) return null;
                 if (!_esBloqueDeCampaña(n)) continue;
                 // El primero que lo es manda: si ya trae varias campañas dentro, no hay
                 // ningun antepasado mas arriba que traiga menos.
@@ -7534,6 +7615,14 @@
             if (!el || !el.querySelector) return false;
             return !!(el.querySelector(SEL_CAMP_LINK)
                 || el.querySelector('.inventory-campaign-info'));
+        }
+
+        // ¿Abarca el nodo mas de una rejilla de Twitch? Entonces es el envoltorio de una
+        // seccion —o de varias—, nunca una campaña ni la tarjeta de un tramo. Lo
+        // preguntan los dos que suben buscando por propiedad: _inventoryContainerOf y
+        // _findPerCardWrapper. `tw-tower` es una clase sin hash, como `tw-link`.
+        function _abarcaVariasRejillas(el) {
+            return !!(el && el.querySelectorAll) && el.querySelectorAll('.tw-tower').length > 1;
         }
 
         // LA BALDOSA a la que pertenece una imagen de recompensa.
@@ -7690,6 +7779,11 @@
                 // reutilizo el nodo para otra cosa.
                 if (el.querySelectorAll('img.inventory-drop-image').length !== 1) return false;
                 if (_cuantasCampañas(el) !== 0) return false;
+                // Y sigue siendo de UNA campaña a medias, que es la otra mitad de lo que
+                // exige el barrido. Sin esto, una baldosa de «Reclamada» escondida por
+                // error se quedaba escondida: pasaba todas las pruebas de baldosa.
+                const bloque = _inventoryContainerOf(el.querySelector('img.inventory-drop-image'));
+                if (!bloque || !_algoEnCurso(bloque)) return false;
                 // Y nada en curso dentro: es lo mismo que exige el barrido para esconderla.
                 return !_algoEnCurso(el);
             }

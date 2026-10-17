@@ -208,6 +208,78 @@ function comprobarAntes(r) {
         comprobar(consultasDeInventario(r) === 2, 'tres reclamos, una relectura — ' + consultasDeInventario(r));
     }
 
+    // Reportado el 2026-10-16: con el reclamo automatico, a veces el chip se quedaba en 🎁.
+    // Los tres casos siguientes son los dos caminos por los que eso podia pasar y el tope
+    // que impide que el arreglo de uno se convierta en un bucle.
+
+    console.log('\n=== E. la primera relectura llega sin el reclamo: se reintenta ===');
+    // El servidor solo lo da por reclamado a partir de la SEGUNDA consulta tras reclamar:
+    // es un inventario que va un paso por detras. Con una sola relectura, el 🎁 se quedaba.
+    {
+        const estado = { reclamado: false };
+        let tras = 0;
+        const r = await run({
+            cargaUnica: true, waitMs: 8000, keywords: ['rocket league'], ocultarCerrados: false,
+            gql: {
+                ViewerDropsDashboard: dashboard, DropCampaignDetails: detalles,
+                Inventory: (c) => { if (estado.reclamado && ++tras >= 2) estado.visto = true;
+                                    return inventario({ reclamado: !!estado.visto })(c); },
+                DropsPage_ClaimDropRewards: respuestaReclamo
+            }
+        });
+        comprobarAntes(r);
+        estado.reclamado = true;
+        await reclamarPorGql(r.w);
+        await espera(r.w, 2500);
+        const aMedias = chipDelTramo(r.w);
+        comprobar(!!aMedias && /🎁/.test(aMedias.texto),
+            'a los 2,5 s sigue en 🎁: la primera relectura no lo traia — ' + (aMedias && aMedias.texto));
+        await espera(r.w, 6500);
+        const despues = chipDelTramo(r.w);
+        comprobar(!!despues && despues.tachado && /✓/.test(despues.texto),
+            'a los 9 s: ✓ y tachado, por el reintento — ' + (despues && despues.texto));
+        comprobar(consultasDeInventario(r) === 3, 'tres consultas: carga, relectura y un reintento — ' + consultasDeInventario(r));
+    }
+
+    console.log('\n=== F. la mutacion viaja dentro de un Request ===');
+    // Sin opciones: el cuerpo va en el primer argumento, como con `fetch(new Request(…))`.
+    // Antes no se veia y solo quedaba el respaldo del clic; aqui no hay clic, asi que sin el
+    // arreglo no hay relectura ninguna.
+    {
+        const estado = { reclamado: false };
+        const r = await arrancar(estado);
+        comprobarAntes(r);
+        estado.reclamado = true;
+        const body = JSON.stringify([{ operationName: 'DropsPage_ClaimDropRewards',
+            variables: { input: { dropInstanceID: '1#' + CAMP + '#' + DROP } } }]);
+        let copias = 0;
+        const peticion = { url: 'https://gql.twitch.tv/gql', method: 'POST', body, headers: null,
+            clone() { copias++; return { text: async () => body }; } };
+        await r.w.fetch(peticion);
+        await espera(r.w, 2500);
+        const despues = chipDelTramo(r.w);
+        comprobar(copias === 1, 'el cuerpo se lee de UNA copia, no del Request que se manda — copias: ' + copias);
+        comprobar(!!despues && despues.tachado && /✓/.test(despues.texto),
+            'a los 2,5 s: ✓ y tachado — ' + (despues && despues.texto));
+        comprobar(consultasDeInventario(r) === 2, 'con una relectura — ' + consultasDeInventario(r));
+    }
+
+    console.log('\n=== G. un tramo que nunca pasa a reclamado no relee sin fin ===');
+    // P. ej. el que pide vincular la cuenta: cumplido, y el reclamo no prospera. Dos
+    // reintentos y se para; el siguiente aviso de reclamo, si lo hay, empieza otra cadena.
+    {
+        const estado = { reclamado: false };
+        const r = await arrancar(estado);
+        await reclamarPorGql(r.w);
+        // 40 s y no 30: la cadena es 1 + 6 + 20 s, y sin el tope la siguiente caeria a los
+        // 33 y a los 39. Con 30 s, una copia SIN tope tambien sumaba cuatro y el caso salia
+        // verde sin probar el tope (comprobado el 2026-10-16).
+        await espera(r.w, 40000);
+        comprobar(consultasDeInventario(r) === 4, 'carga, relectura y dos reintentos, ni uno mas — ' + consultasDeInventario(r));
+        const chip = chipDelTramo(r.w);
+        comprobar(!!chip && /🎁/.test(chip.texto), 'y el chip sigue diciendo la verdad: 🎁 — ' + (chip && chip.texto));
+    }
+
     console.log(fallos === 0 ? '\nTODO EN VERDE' : '\n' + fallos + ' COMPROBACIONES EN ROJO');
     process.exit(fallos === 0 ? 0 : 1);
 })();
