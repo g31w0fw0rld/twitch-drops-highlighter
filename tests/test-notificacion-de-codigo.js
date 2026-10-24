@@ -1,33 +1,16 @@
-// EL AVISO DE UN DROP DE CODIGO NO SE BORRA.
+// EL AVISO DE UN DROP DE CODIGO SE BORRA, COMO LOS DEMAS (2026-10-23).
 //
 // El script barre el centro de notificaciones de Twitch: en /drops/inventory, con la
 // casilla de «ocultar cerrados/completados» puesta, abre la campana y borra todo aviso que
-// diga «drop». Eso vale para los demas —lo que anuncian ya esta en tu inventario y ahi
-// sigue— pero NO para un drop que se entrega como CODIGO: ahi el aviso ES el canje, y
-// borrarlo es la unica forma que tiene este script de hacerte perder algo.
+// diga «drop». Entre 1.3.20 y 1.3.31 el de un drop que se entrega como CODIGO se dejaba
+// (pedido el 2026-09-22 con «Corrupted Creeper Cape», `distributionType: "CODE"`); el
+// 2026-10-23 el usuario pidio volver a borrarlo, para dejar la campana limpia.
 //
-// Pedido el 2026-09-22 con «Corrupted Creeper Cape» (Minecraft). Lo que lo hace un dato y
-// no una corazonada es el campo con el que Twitch lo dice, sacado de `earnedDropRewards`
-// de la cuenta del usuario ese mismo dia:
+// El fixture trae tres avisos —uno que nombra la recompensa de codigo, otro que solo
+// enseña su imagen y uno normal— y con la recompensa marcada `CODE` se tienen que borrar
+// los tres. El reconocimiento se queda, pero solo para la linea de consola.
 //
-//     item: { name: "Corrupted Creeper Cape", distributionType: "CODE",
-//             thumbnailURL: ".../REWARD/07bed736-edcc-4d2b-b7f5-ef7709d6a971.png" }
-//
-// Es el MISMO campo que ya separa `EMOTE` y `BADGE` en el benefit de una campaña
-// (AUTO_GRANTED_TYPES), o sea un solo enum en dos sitios.
-//
-// El aviso se reconoce por DOS señas independientes y basta una: el nombre escrito en su
-// texto, y el uuid del asset de su imagen —que no se traduce—. El fixture trae una
-// notificacion de cada clase para que se vea cual salva a cual.
-//
-// EL CONTROL NEGATIVO es la tercera notificacion, que dice «drop» y nada mas: esa SI se
-// borra. Sin ella, «no se borra la del codigo» seria indistinguible de «se dejo de barrer».
-//
-// Y EL CONTRASTE, que es la otra mitad: el mismo DOM con el mismo historial pero con esa
-// recompensa marcada `DIRECT_ENTITLEMENT` en vez de `CODE`. Ahi se borran las tres, que es
-// lo que demuestra que quien las salva es el campo y no el texto del fixture.
-//
-// Control negativo (tiene que salir en ROJO con el codigo publicado):
+// Control negativo (tiene que salir en ROJO con el codigo publicado, que los dejaba):
 //   git show HEAD:twitch-drops-highlighter.user.js > /tmp/pub.js
 //   TW_SCRIPT=/tmp/pub.js node tests/test-notificacion-de-codigo.js
 const { run, readFixture } = require('./harness');
@@ -69,26 +52,17 @@ const correr = (tipo) => run({
 
 (async () => {
     const r = await correr('CODE');
-    const borradas = r.clicsEspiados || [];
+    // Se cuentan valores DISTINTOS y no clics: el arnes dispara `load` a mano y jsdom
+    // dispara el suyo, asi que cada borrado se puede ver doble.
+    const borradas = [...new Set(r.clicsEspiados || [])].sort();
     console.log('  notificaciones borradas:', JSON.stringify(borradas));
 
     comprobar(borradas.includes('normal'),
         'el aviso de un drop normal se sigue borrando (el barrido funciona)');
-    comprobar(!borradas.includes('codigo-nombre'),
-        'el que NOMBRA la recompensa de codigo se queda');
-    comprobar(!borradas.includes('codigo-imagen'),
-        'y el que solo enseña su imagen tambien, aunque no la nombre');
-
-    // EL CONTRASTE.
-    const r2 = await correr('DIRECT_ENTITLEMENT');
-    // Se cuentan valores DISTINTOS y no clics: el arnes dispara `load` a mano y jsdom
-    // dispara el suyo, asi que el script arranca dos veces y cada borrado se ve doble. Es
-    // del arnes y no del script, y para lo que se comprueba aqui —a quien se le pulsa el
-    // boton y a quien no— da igual cuantas veces se le pulse.
-    const borradas2 = [...new Set(r2.clicsEspiados || [])].sort();
-    console.log('\n  con la misma recompensa como DIRECT_ENTITLEMENT:', JSON.stringify(borradas2));
-    comprobar(borradas2.length === 3,
-        'sin el CODE se borran las tres: quien las salva es el campo, no el fixture');
+    comprobar(borradas.includes('codigo-nombre'),
+        'el que NOMBRA la recompensa de codigo se borra tambien');
+    comprobar(borradas.includes('codigo-imagen'),
+        'y el que solo enseña su imagen, igual');
 
     console.log(fallos === 0 ? '\nTODO EN VERDE' : '\n' + fallos + ' COMPROBACIONES EN ROJO');
     process.exit(fallos === 0 ? 0 : 1);
