@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.33
+// @version      1.3.34
 // @description  Drops panel for Twitch. Twitch hands you a wall of campaigns with no way to say which games you care about, and never tells you how much watch time a drop still needs — only a bar that says it is in progress. This outlines the ones your keywords match on the page itself and puts the exact time left on every card. Its queries only read; claiming is optional and ships off. The rest is in "Script Information", in the panel, and in the repository. 16 languages.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -217,7 +217,7 @@
                 scriptInfoLanguages: "Idiomas:",
                 scriptInfoGitHub: "GitHub:",
                 scriptInfoPrivacy: "Privacidad:",
-                scriptInfoPrivacyText: "Tus keywords y ajustes se guardan solo en tu navegador. Las consultas de drops van a gql.twitch.tv con tu propia sesion (el token nunca se guarda en disco); si eso falla, se usa la API publica twitch-drops-api.sunkwi.com, que solo recibe una peticion sin datos tuyos. No se envia nada al autor del script.",
+                scriptInfoPrivacyText: "Tus keywords y ajustes se guardan solo en tu navegador. Las consultas de drops van a gql.twitch.tv con tu propia sesion (el token nunca se guarda en disco); si eso falla, se usa la API publica drops.sunkwi.com, que solo recibe una peticion sin datos tuyos. No se envia nada al autor del script.",
 
                 readingApiDrops: "Leyendo cambios en drops desde GQL/API...",
                 timeRemaining: "Tiempo restante",
@@ -307,7 +307,7 @@
                 scriptInfoLanguages: "Languages:",
                 scriptInfoGitHub: "GitHub:",
                 scriptInfoPrivacy: "Privacy:",
-                scriptInfoPrivacyText: "Your keywords and settings stay in your browser only. Drop queries go to gql.twitch.tv using your own session (the token is never written to disk); if that fails, the public API twitch-drops-api.sunkwi.com is used, which only receives a request with none of your data. Nothing is sent to the script author.",
+                scriptInfoPrivacyText: "Your keywords and settings stay in your browser only. Drop queries go to gql.twitch.tv using your own session (the token is never written to disk); if that fails, the public API drops.sunkwi.com is used, which only receives a request with none of your data. Nothing is sent to the script author.",
 
                 readingApiDrops: "Reading drop changes from GQL/API...",
                 timeRemaining: "Time remaining",
@@ -351,7 +351,7 @@
                 subsRequirement: "Unlocked with subscriptions, not by watching"
             },
             de: {
-                scriptInfoPrivacyText: "Deine Schlüsselwörter und Einstellungen bleiben nur in deinem Browser. Drop-Abfragen gehen an gql.twitch.tv mit deiner eigenen Sitzung (das Token wird nie auf die Festplatte geschrieben); scheitert das, wird die öffentliche API twitch-drops-api.sunkwi.com genutzt, die nur eine Anfrage ohne jegliche Daten von dir erhält. An den Autor des Skripts wird nichts gesendet.",
+                scriptInfoPrivacyText: "Deine Schlüsselwörter und Einstellungen bleiben nur in deinem Browser. Drop-Abfragen gehen an gql.twitch.tv mit deiner eigenen Sitzung (das Token wird nie auf die Festplatte geschrieben); scheitert das, wird die öffentliche API drops.sunkwi.com genutzt, die nur eine Anfrage ohne jegliche Daten von dir erhält. An den Autor des Skripts wird nichts gesendet.",
                 urgentMinimum: "mindestens",
                 remainingToFinish: "was dir noch fehlt, um hier alles mitzunehmen",
                 scriptInfoPrivacy: "Datenschutz:",
@@ -423,7 +423,7 @@
                 subsRequirement: "Wird mit Abos freigeschaltet, nicht durch Zuschauen"
             },
             fr: {
-                scriptInfoPrivacyText: "Tes mots-clés et tes réglages restent uniquement dans ton navigateur. Les requêtes de drops vont à gql.twitch.tv avec ta propre session (le jeton n'est jamais écrit sur le disque) ; si cela échoue, l'API publique twitch-drops-api.sunkwi.com est utilisée, et elle ne reçoit qu'une requête sans aucune donnée te concernant. Rien n'est envoyé à l'auteur du script.",
+                scriptInfoPrivacyText: "Tes mots-clés et tes réglages restent uniquement dans ton navigateur. Les requêtes de drops vont à gql.twitch.tv avec ta propre session (le jeton n'est jamais écrit sur le disque) ; si cela échoue, l'API publique drops.sunkwi.com est utilisée, et elle ne reçoit qu'une requête sans aucune donnée te concernant. Rien n'est envoyé à l'auteur du script.",
                 urgentMinimum: "au minimum",
                 remainingToFinish: "ce qu'il te manque pour tout emporter d'ici",
                 scriptInfoPrivacy: "Confidentialité :",
@@ -495,7 +495,7 @@
                 subsRequirement: "Se débloque avec des abonnements, pas en regardant"
             },
             pt: {
-                scriptInfoPrivacyText: "As tuas palavras-chave e definições ficam apenas no teu navegador. As consultas de drops vão para gql.twitch.tv com a tua própria sessão (o token nunca é gravado no disco); se isso falhar, é usada a API pública twitch-drops-api.sunkwi.com, que apenas recebe um pedido sem quaisquer dados teus. Nada é enviado ao autor do script.",
+                scriptInfoPrivacyText: "As tuas palavras-chave e definições ficam apenas no teu navegador. As consultas de drops vão para gql.twitch.tv com a tua própria sessão (o token nunca é gravado no disco); se isso falhar, é usada a API pública drops.sunkwi.com, que apenas recebe um pedido sem quaisquer dados teus. Nada é enviado ao autor do script.",
                 urgentMinimum: "no mínimo",
                 remainingToFinish: "o que te falta para levar tudo daqui",
                 scriptInfoPrivacy: "Privacidade:",
@@ -567,7 +567,7 @@
                 subsRequirement: "Desbloqueia-se com subscrições, não a ver"
             },
             ru: {
-                scriptInfoPrivacyText: "Ваши ключевые слова и настройки хранятся только в браузере. Запросы о дропах идут на gql.twitch.tv с вашей собственной сессией (токен никогда не записывается на диск); если это не удаётся, используется публичный API twitch-drops-api.sunkwi.com, который получает лишь запрос без каких-либо ваших данных. Автору скрипта ничего не отправляется.",
+                scriptInfoPrivacyText: "Ваши ключевые слова и настройки хранятся только в браузере. Запросы о дропах идут на gql.twitch.tv с вашей собственной сессией (токен никогда не записывается на диск); если это не удаётся, используется публичный API drops.sunkwi.com, который получает лишь запрос без каких-либо ваших данных. Автору скрипта ничего не отправляется.",
                 urgentMinimum: "минимум",
                 remainingToFinish: "сколько осталось, чтобы забрать здесь всё",
                 scriptInfoPrivacy: "Конфиденциальность:",
@@ -639,7 +639,7 @@
                 subsRequirement: "Открывается подписками, а не просмотром"
             },
             tr: {
-                scriptInfoPrivacyText: "Anahtar kelimelerin ve ayarların yalnızca tarayıcında kalır. Drop sorguları kendi oturumunla gql.twitch.tv adresine gider (token diske hiç yazılmaz); bu başarısız olursa herkese açık twitch-drops-api.sunkwi.com API’si kullanılır ve o yalnızca sana ait hiçbir veri içermeyen bir istek alır. Betiğin yazarına hiçbir şey gönderilmez.",
+                scriptInfoPrivacyText: "Anahtar kelimelerin ve ayarların yalnızca tarayıcında kalır. Drop sorguları kendi oturumunla gql.twitch.tv adresine gider (token diske hiç yazılmaz); bu başarısız olursa herkese açık drops.sunkwi.com API’si kullanılır ve o yalnızca sana ait hiçbir veri içermeyen bir istek alır. Betiğin yazarına hiçbir şey gönderilmez.",
                 urgentMinimum: "en az",
                 remainingToFinish: "buradaki her şeyi almak için kalan süre",
                 scriptInfoPrivacy: "Gizlilik:",
@@ -711,7 +711,7 @@
                 subsRequirement: "İzleyerek değil, abonelikle açılır"
             },
             ja: {
-                scriptInfoPrivacyText: "キーワードと設定はブラウザー内にのみ保存されます。ドロップの問い合わせはあなた自身のセッションで gql.twitch.tv に送られます (トークンがディスクに書き込まれることはありません)。それが失敗した場合は公開 API の twitch-drops-api.sunkwi.com を使いますが、そこにはあなたのデータを含まないリクエストだけが届きます。スクリプトの作者には何も送信されません。",
+                scriptInfoPrivacyText: "キーワードと設定はブラウザー内にのみ保存されます。ドロップの問い合わせはあなた自身のセッションで gql.twitch.tv に送られます (トークンがディスクに書き込まれることはありません)。それが失敗した場合は公開 API の drops.sunkwi.com を使いますが、そこにはあなたのデータを含まないリクエストだけが届きます。スクリプトの作者には何も送信されません。",
                 urgentMinimum: "最低",
                 remainingToFinish: "ここのすべてを受け取るのに足りない分",
                 scriptInfoPrivacy: "プライバシー:",
@@ -783,7 +783,7 @@
                 subsRequirement: "視聴ではなくサブスクで解除"
             },
             ko: {
-                scriptInfoPrivacyText: "키워드와 설정은 브라우저에만 저장됩니다. 드롭 조회는 사용자 본인의 세션으로 gql.twitch.tv에 갑니다(토큰은 디스크에 기록되지 않습니다). 실패하면 공개 API인 twitch-drops-api.sunkwi.com을 쓰는데, 그쪽에는 사용자 데이터가 없는 요청만 전달됩니다. 스크립트 작성자에게는 아무것도 전송되지 않습니다.",
+                scriptInfoPrivacyText: "키워드와 설정은 브라우저에만 저장됩니다. 드롭 조회는 사용자 본인의 세션으로 gql.twitch.tv에 갑니다(토큰은 디스크에 기록되지 않습니다). 실패하면 공개 API인 drops.sunkwi.com을 쓰는데, 그쪽에는 사용자 데이터가 없는 요청만 전달됩니다. 스크립트 작성자에게는 아무것도 전송되지 않습니다.",
                 urgentMinimum: "최소",
                 remainingToFinish: "여기 있는 전부를 받으려면 남은 시간",
                 scriptInfoPrivacy: "개인정보:",
@@ -855,7 +855,7 @@
                 subsRequirement: "시청이 아니라 구독으로 해금"
             },
             pl: {
-                scriptInfoPrivacyText: "Twoje słowa kluczowe i ustawienia zostają tylko w przeglądarce. Zapytania o dropy idą do gql.twitch.tv z twoją własną sesją (token nigdy nie jest zapisywany na dysku); jeśli to się nie uda, używane jest publiczne API twitch-drops-api.sunkwi.com, które dostaje jedynie zapytanie bez żadnych twoich danych. Do autora skryptu nic nie jest wysyłane.",
+                scriptInfoPrivacyText: "Twoje słowa kluczowe i ustawienia zostają tylko w przeglądarce. Zapytania o dropy idą do gql.twitch.tv z twoją własną sesją (token nigdy nie jest zapisywany na dysku); jeśli to się nie uda, używane jest publiczne API drops.sunkwi.com, które dostaje jedynie zapytanie bez żadnych twoich danych. Do autora skryptu nic nie jest wysyłane.",
                 urgentMinimum: "minimum",
                 remainingToFinish: "ile brakuje, żeby zabrać stąd wszystko",
                 scriptInfoPrivacy: "Prywatność:",
@@ -927,7 +927,7 @@
                 subsRequirement: "Odblokowuje się subskrypcjami, nie oglądaniem"
             },
             fi: {
-                scriptInfoPrivacyText: "Avainsanasi ja asetuksesi pysyvät vain selaimessasi. Drop-kyselyt menevät osoitteeseen gql.twitch.tv omalla istunnollasi (tunnistetta ei kirjoiteta koskaan levylle); jos se ei onnistu, käytetään julkista rajapintaa twitch-drops-api.sunkwi.com, joka saa vain pyynnön ilman mitään tietojasi. Skriptin tekijälle ei lähetetä mitään.",
+                scriptInfoPrivacyText: "Avainsanasi ja asetuksesi pysyvät vain selaimessasi. Drop-kyselyt menevät osoitteeseen gql.twitch.tv omalla istunnollasi (tunnistetta ei kirjoiteta koskaan levylle); jos se ei onnistu, käytetään julkista rajapintaa drops.sunkwi.com, joka saa vain pyynnön ilman mitään tietojasi. Skriptin tekijälle ei lähetetä mitään.",
                 urgentMinimum: "vähintään",
                 remainingToFinish: "paljonko puuttuu, jotta saat täältä kaiken",
                 scriptInfoPrivacy: "Tietosuoja:",
@@ -999,7 +999,7 @@
                 subsRequirement: "Avautuu tilauksilla, ei katsomalla"
             },
             vi: {
-                scriptInfoPrivacyText: "Từ khóa và thiết lập của bạn chỉ nằm trong trình duyệt. Truy vấn drop đi tới gql.twitch.tv bằng phiên đăng nhập của chính bạn (token không bao giờ được ghi ra đĩa); nếu thất bại, script dùng API công khai twitch-drops-api.sunkwi.com, nơi chỉ nhận một yêu cầu không kèm dữ liệu nào của bạn. Không có gì được gửi cho tác giả script.",
+                scriptInfoPrivacyText: "Từ khóa và thiết lập của bạn chỉ nằm trong trình duyệt. Truy vấn drop đi tới gql.twitch.tv bằng phiên đăng nhập của chính bạn (token không bao giờ được ghi ra đĩa); nếu thất bại, script dùng API công khai drops.sunkwi.com, nơi chỉ nhận một yêu cầu không kèm dữ liệu nào của bạn. Không có gì được gửi cho tác giả script.",
                 urgentMinimum: "tối thiểu",
                 remainingToFinish: "còn thiếu bao nhiêu để lấy hết ở đây",
                 scriptInfoPrivacy: "Quyền riêng tư:",
@@ -1071,7 +1071,7 @@
                 subsRequirement: "Mở khóa bằng gói đăng ký, không phải bằng xem"
             },
             zh: {
-                scriptInfoPrivacyText: "你的关键词和设置只保存在你的浏览器里。掉宝查询会用你自己的会话发往 gql.twitch.tv（令牌从不写入磁盘）；若失败，则改用公开 API twitch-drops-api.sunkwi.com，那边只会收到一个不含你任何数据的请求。不会向脚本作者发送任何内容。",
+                scriptInfoPrivacyText: "你的关键词和设置只保存在你的浏览器里。掉宝查询会用你自己的会话发往 gql.twitch.tv（令牌从不写入磁盘）；若失败，则改用公开 API drops.sunkwi.com，那边只会收到一个不含你任何数据的请求。不会向脚本作者发送任何内容。",
                 urgentMinimum: "最少",
                 remainingToFinish: "还差多少才能拿走这里的全部",
                 scriptInfoPrivacy: "隐私：",
@@ -1143,7 +1143,7 @@
                 subsRequirement: "通过订阅解锁，而非观看"
             },
             ar: {
-                scriptInfoPrivacyText: "تبقى كلماتك المفتاحية وإعداداتك في متصفحك فقط. تذهب استعلامات الدروبس إلى gql.twitch.tv بجلستك الخاصة (ولا يُكتب الرمز على القرص أبدًا)؛ وإذا فشل ذلك تُستخدم الواجهة العامة twitch-drops-api.sunkwi.com، وهي لا تتلقى سوى طلب دون أي بيانات تخصك. ولا يُرسل أي شيء إلى مؤلف السكربت.",
+                scriptInfoPrivacyText: "تبقى كلماتك المفتاحية وإعداداتك في متصفحك فقط. تذهب استعلامات الدروبس إلى gql.twitch.tv بجلستك الخاصة (ولا يُكتب الرمز على القرص أبدًا)؛ وإذا فشل ذلك تُستخدم الواجهة العامة drops.sunkwi.com، وهي لا تتلقى سوى طلب دون أي بيانات تخصك. ولا يُرسل أي شيء إلى مؤلف السكربت.",
                 urgentMinimum: "كحد أدنى",
                 remainingToFinish: "ما يتبقى لأخذ كل شيء من هنا",
                 scriptInfoPrivacy: "الخصوصية:",
@@ -1215,7 +1215,7 @@
                 subsRequirement: "يُفتح بالاشتراكات، لا بالمشاهدة"
             },
             hi: {
-                scriptInfoPrivacyText: "आपके कीवर्ड और सेटिंग्स सिर्फ़ आपके ब्राउज़र में रहते हैं। ड्रॉप की क्वेरी आपके ही सेशन से gql.twitch.tv पर जाती हैं (टोकन कभी डिस्क पर नहीं लिखा जाता); यह विफल हो तो सार्वजनिक API twitch-drops-api.sunkwi.com का उपयोग होता है, जिसे केवल एक अनुरोध मिलता है, आपका कोई डेटा नहीं। स्क्रिप्ट के लेखक को कुछ भी नहीं भेजा जाता।",
+                scriptInfoPrivacyText: "आपके कीवर्ड और सेटिंग्स सिर्फ़ आपके ब्राउज़र में रहते हैं। ड्रॉप की क्वेरी आपके ही सेशन से gql.twitch.tv पर जाती हैं (टोकन कभी डिस्क पर नहीं लिखा जाता); यह विफल हो तो सार्वजनिक API drops.sunkwi.com का उपयोग होता है, जिसे केवल एक अनुरोध मिलता है, आपका कोई डेटा नहीं। स्क्रिप्ट के लेखक को कुछ भी नहीं भेजा जाता।",
                 urgentMinimum: "कम से कम",
                 remainingToFinish: "यहाँ से सब कुछ लेने के लिए कितना बाकी है",
                 scriptInfoPrivacy: "गोपनीयता:",
@@ -1287,7 +1287,7 @@
                 subsRequirement: "देखने से नहीं, सब्सक्रिप्शन से खुलता है"
             },
             id: {
-                scriptInfoPrivacyText: "Kata kunci dan pengaturanmu hanya tersimpan di peramban. Kueri drop menuju gql.twitch.tv memakai sesimu sendiri (token tidak pernah ditulis ke disk); jika gagal, dipakai API publik twitch-drops-api.sunkwi.com, yang hanya menerima satu permintaan tanpa data apa pun tentangmu. Tidak ada apa pun yang dikirim ke penulis script.",
+                scriptInfoPrivacyText: "Kata kunci dan pengaturanmu hanya tersimpan di peramban. Kueri drop menuju gql.twitch.tv memakai sesimu sendiri (token tidak pernah ditulis ke disk); jika gagal, dipakai API publik drops.sunkwi.com, yang hanya menerima satu permintaan tanpa data apa pun tentangmu. Tidak ada apa pun yang dikirim ke penulis script.",
                 urgentMinimum: "minimal",
                 remainingToFinish: "yang masih kurang untuk mengambil semuanya di sini",
                 scriptInfoPrivacy: "Privasi:",
@@ -3795,9 +3795,9 @@
         // Public API fallback
         async function _fetchDropsViaPublicAPI() {
             try {
-                const resp = await fetch('https://twitch-drops-api.sunkwi.com/drops');
+                const resp = await fetch('https://drops.sunkwi.com/api/twitch/drops');
                 if (!resp.ok) return;
-                const allDrops = await resp.json();
+                const allDrops = (await resp.json())?.games;
                 if (!Array.isArray(allDrops)) return;
 
                 for (const game of allDrops) {
