@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.33
+// @version      1.3.34
 // @description  Drops panel for Twitch. Twitch hands you a wall of campaigns with no way to say which games you care about, and never tells you how much watch time a drop still needs — only a bar that says it is in progress. This outlines the ones your keywords match on the page itself and puts the exact time left on every card. Its queries only read; claiming is optional and ships off. The rest is in "Script Information", in the panel, and in the repository. 16 languages.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.33";
+    const SCRIPT_VERSION = "1.3.34";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -3954,19 +3954,28 @@
         // falla cuando la pagina lo traduce y el id falla cuando la fila no trae
         // caratula.
         //
-        // Se miran tambien las cerradas porque en el punto donde se llama todavia no se
-        // sabe de que lado del separador cae la fila.
-        function _apiEntryForCard(titleText, domGameId) {
+        // CADA FILA BUSCA SOLO EN LAS DE SU LADO: la abierta en las abiertas
+        // (`_apiDropNames`) y la cerrada en las cerradas. Antes se miraban las dos porque
+        // la fila no sabia aun de que lado del separador caia, y por el cruce por id de
+        // juego eso dejaba que una campaña CERRADA metiera en el panel la fila abierta
+        // de su juego. Reportado el 2026-11-15 con League of Legends: «Worlds 2026 Chat
+        // Badge» y «K/DA Chat Badge», de Twitch Gaming, casaban por `twitch` y cerraron
+        // ese dia; la unica abierta, «Worlds - Sub Drop Pt. 2» de Riot Games, no casa con
+        // nada. La fila abierta del juego entraba igual —con el chip `twitch` de las
+        // cerradas— y salia en Abiertos SIN NINGUNA recompensa, porque las recompensas
+        // se buscan solo entre las abiertas (_findEntryForTitle) y alli no habia nada
+        // del juego. Ahora esa fila no entra, y el juego se queda donde le toca: en
+        // Cerrados, con sus campañas de Twitch Gaming.
+        function _apiEntryForCard(titleText, domGameId, cerrada = false) {
             const t = _fold(String(titleText || '').trim().toLowerCase());
             if (!t && !domGameId) return null;
-            for (const src of [_apiDropNames, _apiClosedCampaigns]) {
-                for (const [key, entry] of Object.entries(src)) {
-                    // perCampaign fuera por lo mismo que en _domAliasFor: varias campañas
-                    // comparten juego, asi que el id las casaria todas de golpe.
-                    if (key === '__all' || !entry || entry.perCampaign) continue;
-                    if (domGameId && entry.gameId && entry.gameId === domGameId) return entry;
-                    if (t && _fold(key.toLowerCase()) === t) return entry;
-                }
+            const src = cerrada ? _apiClosedCampaigns : _apiDropNames;
+            for (const [key, entry] of Object.entries(src)) {
+                // perCampaign fuera por lo mismo que en _domAliasFor: varias campañas
+                // comparten juego, asi que el id las casaria todas de golpe.
+                if (key === '__all' || !entry || entry.perCampaign) continue;
+                if (domGameId && entry.gameId && entry.gameId === domGameId) return entry;
+                if (t && _fold(key.toLowerCase()) === t) return entry;
             }
             return null;
         }
@@ -7289,18 +7298,8 @@
                 const domGameId = _gameIdFromBoxArt(imgSrc);
                 if (domGameId && studioText) _domTitleByGameId[domGameId] = displayTitle.toLowerCase();
 
-                // Aqui se decide si la fila se marca, y no basta con su propio texto: el
-                // filtro de la API vio ademas el nombre de la campaña. La fila tiene la
-                // ultima palabra solo cuando dice que NO por una keyword negativa; si
-                // simplemente no encuentra ninguna positiva, se le pregunta a la API.
-                let apiEntry = null;
-                if (!_matchesKeywords(searchText)) {
-                    if (_hasNegativeKeyword(searchText)) return;
-                    apiEntry = _apiEntryForCard(titleText, domGameId);
-                    if (!apiEntry) return;
-                }
-
-                // Determine if expired
+                // Determine if expired. ANTES de preguntar a la API, y no despues: la fila
+                // solo puede pedir prestada la entrada de su mismo lado (ver abajo).
                 let isExpired = false;
                 if (closedIndex >= 0 && index > closedIndex) {
                     isExpired = true;
@@ -7310,6 +7309,17 @@
                     if (CLOSED_DROP_TEXTS.some(ct => nodeText.includes(_fold(ct.toLowerCase())))) {
                         isExpired = true;
                     }
+                }
+
+                // Aqui se decide si la fila se marca, y no basta con su propio texto: el
+                // filtro de la API vio ademas el nombre de la campaña. La fila tiene la
+                // ultima palabra solo cuando dice que NO por una keyword negativa; si
+                // simplemente no encuentra ninguna positiva, se le pregunta a la API.
+                let apiEntry = null;
+                if (!_matchesKeywords(searchText)) {
+                    if (_hasNegativeKeyword(searchText)) return;
+                    apiEntry = _apiEntryForCard(titleText, domGameId, isExpired);
+                    if (!apiEntry) return;
                 }
 
                 if (isExpired && !reseted) {
