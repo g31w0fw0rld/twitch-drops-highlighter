@@ -55,7 +55,10 @@ const DUMP = fs.readFileSync(
 // veces: dos consultas de cada, dos oyentes de cada. A los tests que miran el DOM les da
 // igual, pero uno que CUENTE peticiones o temporizadores mide el doble de lo que pasa en
 // un navegador. Medido el 2026-10-01: dos `load` sobre una ventana recien creada.
-function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = DUMP,
+// `preparar(w)` se llama con la ventana ANTES de evaluar el script. Hizo falta para el
+// «Copiar» del modal de ofertas (2026-11-17): jsdom no trae `navigator.clipboard`, y sin
+// poder ponerle uno que apunte lo copiado, el boton solo podria probarse fallando.
+function run({ preparar = null, borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = DUMP,
                espiaClics = null, cargaUnica = false, almacen = {}, intervaloManual = null,
                clicarSelector = null, clicarIndice = 0, clicarEnMs = null,
                url = 'https://www.twitch.tv/drops/inventory', lateHtml = null, lateMs = 5000, siembraEnRequest = false,
@@ -134,6 +137,7 @@ function run({ borrados = [], waitMs = 8000, clicarX = null, gql = null, dump = 
         if (it) it.vivo = false; else realClear(id);
       };
     }
+    if (preparar) preparar(w);
     w.eval(SCRIPT);
     // El espia va justo despues del eval y en fase de captura: el script clica mucho mas
     // tarde (el barrido espera al inventario), asi que llega de sobra.
