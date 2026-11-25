@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Twitch Drops Highlighter + Keywords (Full + i18n)
 // @namespace    http://tampermonkey.net/
-// @version      1.3.35
+// @version      1.3.36
 // @description  Drops panel for Twitch. Twitch hands you a wall of campaigns with no way to say which games you care about, and never tells you how much watch time a drop still needs — only a bar that says it is in progress. This outlines the ones your keywords match on the page itself and puts the exact time left on every card. Its queries only read; claiming is optional and ships off. The rest is in "Script Information", in the panel, and in the repository. 16 languages.
 // @icon         data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAETSURBVHgB7ZU7DoJAEIb/JV7MBq/hCVROIJ7AqI2t0d5WsTF2dhzBI1hbsLIYwyPADgzrFvI1PJbk+5lZBoEaNq6cR4APA0wDIdTRgQV5lgGI8skZnbAe5a8ditwkjk15LoANeS5AW7nqabGvdfcrA9iiD9AHsB5gACZVI5o6uv+rBbct7AW4H4Dw+DmPp+7ipwGU/L5P5V4g/O8aexM2kkusvEsqVxitQOHNd7F8VnyGXIHiny37mWVFZSTyQIzL1tgV0MljQrwwq1pkBaDIoxeG3lU80XUAgvyhk/MC6OSOXs4KoJWfxIPysACRlSslV1YGpwIhV65oOwlDygYzEqBuqLShUQuSWd6hvBFLV/owwBuAI3t8NBey8QAAAABJRU5ErkJggg==
 // @match        https://www.twitch.tv/drops/*
@@ -18,7 +18,7 @@
 
 (function () {
     "use strict";
-    const SCRIPT_VERSION = "1.3.35";
+    const SCRIPT_VERSION = "1.3.36";
     console.log("Twitch Drops Highlighter cargado. Version:", SCRIPT_VERSION);
 
     // =============================================
@@ -1892,6 +1892,26 @@
         const _apiCampaignIdsVivos = {};
         const _apiCampaignIdsVivosPorJuego = {};
 
+        // Y CUANDO NI EL RELOJ DESEMPATA: dos campañas VIVAS del mismo juego con el mismo
+        // nombre. Visto el 2026-11-24 en Old School RuneScape: «OSRS Hardcore Worlds» es a
+        // la vez la campaña de «RuneScape Bones» (60 min) y la de «RuneScape GnomePlush» (1
+        // sub), las dos de Twitch Gaming, con dos minutos de diferencia en el arranque y el
+        // mismo cierre. La clave `459931|osrs hardcore worlds` se anula en los cuatro
+        // indices de arriba y los dos enlaces se quedaban como los escribio Twitch: sin
+        // `dropID`, sin negrita y sin el aviso de «toda la categoria», que es lo que son.
+        //
+        // Lo que las separa esta en la pagina sin pedir nada: cada bloque enseña SUS
+        // recompensas, y la API dice que reparte cada campaña. Por eso aqui se guardan,
+        // sin anular, los ids de las homonimas vivas de cada juego, y abajo lo que
+        // reparte cada campaña (ver `_dropIDporRecompensas`).
+        const _apiHomonimosVivosPorJuego = {};
+        // LO QUE REPARTE CADA CAMPAÑA DE DROPS, por su id: los nombres de sus tramos y de
+        // sus recompensas, con la misma clave que los nombres de campaña. Sale de
+        // `DropCampaignDetails`, que solo se pide para las campañas que casan con tus
+        // keywords (y sus hermanas): de las demas no hay dato y su homonimia se queda sin
+        // desempatar, como antes.
+        const _apiRecompensasPorCampaña = {};
+
         // NOMBRE DE CAMPAÑA DE RECOMPENSAS -> SU ID, aparte de los de drops y por dos
         // motivos que son el mismo: CONTROL Resonant tiene una campaña de cada clase y las
         // dos se llaman «CONTROL Resonant launch» (la de drops con un espacio al final,
@@ -2515,8 +2535,13 @@
                         .filter(r => r && _fold(String(r.name || '').toLowerCase()) === nombre).length;
                     if (conEseNombre > 0 && conEseNombre >= (Number(drop.homonimosEnCampaña) || 1)) return true;
                 }
+                // LA CUENTA SOLO VALE SI TODAS LAS CAJAS SON LA MISMA (ver cajasIguales,
+                // donde se construyen estas filas). Llegar al total dice CUANTAS cajas se
+                // abrieron, no CUALES: con una sola caja repetida da igual, y con cajas
+                // distintas se tacharian las que no han dado nada. Es el caso de «GTAVI
+                // Launch Celebration», que tacharia el Golden Iguana con premios por ganar.
                 const gruposPrometidos = Number(drop.campaignGroups) || 0;
-                if (!drop.campaignId || gruposPrometidos <= 0) return false;
+                if (!drop.campaignId || gruposPrometidos <= 0 || !drop.cajasIguales) return false;
                 const concedidos = (_earnedRewardsByCampaign[drop.campaignId] || []).length;
                 return concedidos >= gruposPrometidos;
             }
@@ -3552,6 +3577,38 @@
                 }
                 for (const d of rewards) d.homonimosEnCampaña = _porNombre[_fold(String(d.name || '').toLowerCase())] || 1;
 
+                // SI TODOS LOS GRUPOS REPARTEN LA MISMA CAJA, que es cuando la cuenta de
+                // _isDropClaimed («concesiones >= grupos») puede tachar. Esa cuenta supone
+                // que cada grupo da UNA cosa UNA vez y, como el historial no dice de que
+                // caja salio cada premio, solo sirve si las cajas son intercambiables: la
+                // Poké Ball (1 grupo) y las Great Ball (3 grupos de la misma bola), que es
+                // para lo que se hizo.
+                //
+                // Con cajas DISTINTAS se rompe, visto el 2026-11-24 con «GTAVI Launch
+                // Celebration». `ViewerDropsDashboard` da 8 grupos —GTA DVD Chest (60 min),
+                // tres GTA Sub Emote Chest y tres GTA Sub Badge Chest (1, 2 y 3 subs) y el
+                // Golden Iguana (60 min)— pero la campaña reparte 13 premios: el DVD Chest
+                // se abre una vez al dia SEIS dias, cada uno con una cadena distinta (Purple,
+                // Bronze, Silver, Gold, Diamond, Miami), y el Golden Iguana llega solo
+                // cuando ya tienes los otros doce. Con las seis cadenas y una sub (que abre
+                // un emote y un emblema) son 8 concesiones de 8 grupos, y la cuenta tachaba
+                // la campaña ENTERA: el Golden Iguana y las cuatro cajas de sub que faltan.
+                //
+                // Lo de «seis veces» no viene en esta consulta: los grupos solo traen `id`,
+                // `unlockRequirements` y `rewards`. Lo sabe `Gta6Collection`, una consulta
+                // que la pagina hizo para esta campaña
+                // (`progressCriteria.repeatableConfig.repeatableTimes: 6`), asi que la
+                // repeticion no se puede leer y lo unico que se puede saber es si las cajas
+                // son la misma. En una campaña mezclada se tacha solo lo que el historial
+                // nombre —el Golden Iguana, cuando llegue— y lo demas lo dice el chip de
+                // lo concedido («✓ Purple Chain»). Marca de menos, que es el lado bueno.
+                //
+                // Lo que esto NO cubre: una campaña de una sola caja que se repita (un
+                // cofre diario solo) seguiria tachandose con la primera concesion. No se ha
+                // visto ninguna; si aparece, el dato para distinguirla no esta aqui.
+                const cajasIguales = Object.keys(_porNombre).length === 1;
+                for (const d of rewards) d.cajasIguales = cajasIguales;
+
                 if (rewards.length > 0) {
                     // Key by "campaignName - gameName" for precise matching against card titles.
                     // Con `game` a null se usa la MARCA como segunda mitad: sin ella la
@@ -3629,25 +3686,25 @@
                     _sinEscalones.length, '->', _sinEscalones.join(', '));
             }
 
-            // Process drop campaigns
+            // LOS INDICES DE NOMBRE -> ID, EN UNA PASADA PROPIA Y SIN ESPERAS.
+            //
+            // Vivian dentro del bucle de abajo, que ESPERA el detalle de cada campaña
+            // (`DropCampaignDetails`, una consulta por campaña). Entre una espera y otra
+            // el filtrado de enlaces puede correr —lo dispara el observer de la pagina— y
+            // veia el indice A MEDIAS: de dos homonimas vivas solo estaba la primera, asi
+            // que su nombre parecia unico y el enlace del bloque de la OTRA se llevaba su
+            // id. Y un enlace que ya lleva `dropID` no se vuelve a mirar, asi que el error
+            // se quedaba. Destapado el 2026-11-24 al probar las homonimas de OSRS en el
+            // arnes; en el navegador ese dia no se vio porque los dos enlaces salieron sin
+            // tocar, pero es el fallo que mas se teme aqui: mandar a la campaña equivocada.
+            // Con el indice completo antes de la primera espera, eso no puede pasar.
             for (const campaign of dropCampaigns) {
-                // Ya NO se descarta lo que no esta ACTIVE: la solapa de Cerrados tiene
-                // que poder llenarse sin pasar por la pagina de campañas. Lo que se
-                // hace ahora es clasificar.
                 const status = _campaignStatus(campaign);
-                const raw = String(campaign.status || '(sin status)');
-                _apiStatusSeen[raw] = (_apiStatusSeen[raw] || 0) + 1;
-
-                const gameName = campaign.game?.displayName || '';
-                const campaignName = campaign.name || '';
-                const ownerName = campaign.owner?.name || '';
-                const searchText = (gameName + ' ' + campaignName + ' ' + ownerName).toLowerCase();
-
                 // ANTES del filtro: ver arriba, los enlaces de la pagina son de todas las
                 // campañas y no solo de las tuyas.
                 if (campaign.id) _apiCampaignStatusById[campaign.id] = status;
 
-                const claveCamp = _claveDeCampaña(campaignName);
+                const claveCamp = _claveDeCampaña(campaign.name || '');
                 if (claveCamp && campaign.id) {
                     _apuntaCampaña(_apiCampaignIds, claveCamp, campaign.id);
                     // Y otra vez acotado a su juego, que es lo que salva a los nombres
@@ -3661,8 +3718,32 @@
                     if (status === 'active') {
                         _apuntaCampaña(_apiCampaignIdsVivos, claveCamp, campaign.id);
                         _apuntaCampaña(_apiCampaignIdsVivosPorJuego, claveEnJuego, campaign.id);
+                        // Sin anular: la lista entera de las vivas con esa clave, para el
+                        // desempate por recompensas (ver `_apiHomonimosVivosPorJuego`). Al
+                        // rehacer el indice no se duplica, y la que deje de estar viva se
+                        // descarta al consultar, por `_apiCampaignStatusById`.
+                        if (claveEnJuego) {
+                            const lista = _apiHomonimosVivosPorJuego[claveEnJuego] ||
+                                (_apiHomonimosVivosPorJuego[claveEnJuego] = []);
+                            if (lista.indexOf(campaign.id) === -1) lista.push(campaign.id);
+                        }
                     }
                 }
+            }
+
+            // Process drop campaigns
+            for (const campaign of dropCampaigns) {
+                // Ya NO se descarta lo que no esta ACTIVE: la solapa de Cerrados tiene
+                // que poder llenarse sin pasar por la pagina de campañas. Lo que se
+                // hace ahora es clasificar.
+                const status = _campaignStatus(campaign);
+                const raw = String(campaign.status || '(sin status)');
+                _apiStatusSeen[raw] = (_apiStatusSeen[raw] || 0) + 1;
+
+                const gameName = campaign.game?.displayName || '';
+                const campaignName = campaign.name || '';
+                const ownerName = campaign.owner?.name || '';
+                const searchText = (gameName + ' ' + campaignName + ' ' + ownerName).toLowerCase();
 
                 // `casaSola` es la campaña que pasa el filtro por si misma; la hermana
                 // entra prestada, por el juego (ver `_juegosDeInteres`).
@@ -3762,6 +3843,15 @@
                             campaignId: campaign.id || '',
                             autoGranted: _autoGrantedFrom(drop.benefitEdges)
                         });
+                    }
+                    // Lo que reparte, para desempatar homonimas (ver
+                    // `_apiHomonimosVivosPorJuego`). El nombre del tramo Y el de cada
+                    // recompensa: la baldosa de la pagina escribe uno de los dos y no se
+                    // ha comprobado cual en todos los casos (en OSRS coinciden).
+                    if (campaign.id) {
+                        _apiRecompensasPorCampaña[campaign.id] = new Set(drops
+                            .reduce((acc, d) => acc.concat([d.name], d.rewards || []), [])
+                            .map(_claveDeCampaña).filter(Boolean));
                     }
                     if (drops.length > 0) {
                         if (!_apiDropNames[apiKey]) {
@@ -8092,14 +8182,64 @@
                 }
                 if (txt) return txt;
             }
+            const bloque = _bloqueDeSuCampaña(a);
+            return bloque ? _titulosDeCampañaEn(bloque)[0].textContent.trim() : '';
+        }
+
+        // EL BLOQUE de la sub-campaña de un enlace: el ancestro mas cercano con
+        // EXACTAMENTE UN `<strong>` de nombre de campaña (ver `_nombreDeSuCampaña`). Si al
+        // subir se pasa de cero a varios, no hay bloque.
+        function _titulosDeCampañaEn(n) {
+            return [...n.querySelectorAll('strong')]
+                .filter(st => !st.closest('.drop-details__label'));
+        }
+        function _bloqueDeSuCampaña(a) {
             let n = a.parentElement;
             for (let i = 0; i < 12 && n; i++, n = n.parentElement) {
-                const titulos = [...n.querySelectorAll('strong')]
-                    .filter(st => !st.closest('.drop-details__label'));
-                if (titulos.length === 1) return titulos[0].textContent.trim();
-                if (titulos.length > 1) return '';
+                const titulos = _titulosDeCampañaEn(n);
+                if (titulos.length === 1) return n;
+                if (titulos.length > 1) return null;
             }
-            return '';
+            return null;
+        }
+
+        // LAS RECOMPENSAS QUE ENSEÑA UN BLOQUE, con la clave de los nombres de campaña.
+        // Cada baldosa es el padre de un `.drop-benefit__image-container` —una clase de
+        // verdad, no un hash de styled-components— y su nombre es el primer `<p>` que no
+        // esta dentro de la imagen. Visto en OSRS el 2026-11-24 («RuneScape Bones») y en
+        // el volcado del torneo de Rocket League (`fixture-campanas-torneo-diario.html`).
+        function _recompensasDelBloque(bloque) {
+            const out = new Set();
+            if (!bloque) return out;
+            bloque.querySelectorAll('.drop-benefit__image-container').forEach((img) => {
+                const baldosa = img.parentElement;
+                if (!baldosa) return;
+                const p = [...baldosa.querySelectorAll('p')].find(x => !img.contains(x));
+                const k = _claveDeCampaña(p ? p.textContent : '');
+                if (k) out.add(k);
+            });
+            return out;
+        }
+
+        // EL DESEMPATE DE LAS HOMONIMAS VIVAS DE UN JUEGO, por lo que reparte cada una
+        // (ver `_apiHomonimosVivosPorJuego`). Se exige lo mismo que en el resto de este
+        // filtrado —mandar a la campaña equivocada es peor que no tocar nada—, asi que
+        // devuelve un id SOLO si:
+        //   · todas las candidatas tienen su lista de recompensas (una sin dato podria
+        //     repartir lo mismo y no se sabria);
+        //   · el bloque enseña al menos una recompensa;
+        //   · y exactamente UNA candidata reparte todas las del bloque. Si dos las
+        //     reparten —la misma recompensa por dos vias, como las dos Great Ball de
+        //     Pokemon—, no hay desempate y el enlace se queda como esta.
+        function _dropIDporRecompensas(a, enJuego) {
+            const candidatas = (_apiHomonimosVivosPorJuego[enJuego] || [])
+                .filter(id => _apiCampaignStatusById[id] === 'active');
+            if (candidatas.length < 2) return '';
+            if (!candidatas.every(id => _apiRecompensasPorCampaña[id])) return '';
+            const delBloque = [..._recompensasDelBloque(_bloqueDeSuCampaña(a))];
+            if (!delBloque.length) return '';
+            const casan = candidatas.filter(id => delBloque.every(k => _apiRecompensasPorCampaña[id].has(k)));
+            return casan.length === 1 ? casan[0] : '';
         }
 
         // EL JUEGO AL QUE PERTENECE UN ENLACE, leido de la caratula de SU acordeon.
@@ -8135,8 +8275,14 @@
             // indices globales quedan de respaldo para donde no haya acordeon del que
             // leer el juego. Una clave anulada por homonimia vale `null` y cae al
             // siguiente intento.
+            //
+            // Y entre el primero y el segundo, el desempate por recompensas: si la clave
+            // viva del juego esta anulada es que hay dos vivas con ese nombre, y entonces
+            // la del juego sin reloj tambien lo esta. Lo unico que queda es lo que reparte
+            // cada una (OSRS, 2026-11-24).
             const enJuego = _claveDeCampañaEnJuego(_juegoDeSuAcordeon(a), clave);
             return _apiCampaignIdsVivosPorJuego[enJuego] ||
+                   _dropIDporRecompensas(a, enJuego) ||
                    _apiCampaignIdsPorJuego[enJuego] ||
                    _apiCampaignIdsVivos[clave] ||
                    _apiCampaignIds[clave] || '';
